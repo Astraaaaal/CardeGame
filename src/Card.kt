@@ -34,4 +34,4 @@ class card(name : String,
     fun Draw(
         
     )
-            }
+}
