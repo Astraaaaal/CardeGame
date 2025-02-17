@@ -32,3 +32,10 @@ val speMap: Map<Int, String> = mapOf(
     3 to "Gold",
     4 to "Full Art"
 )
+
+val setMap: Map<Int, String> = mapOf(
+    1 to "A1",
+    2 to "A2",
+    3 to "A2 bis",
+    4 to "A2.5"
+)

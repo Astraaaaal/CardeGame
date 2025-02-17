@@ -1,34 +1,37 @@
-class card(name : String,
-            id : Int,
-            description : String,
+class card(id : Int,
+            name : String,
             img : String,
+            description : String,
             type : Int,
             rarity : Int,
             quality : Int,
             gen : Int
             spe : Int
+            set : Int
             ) {
-    
-    val name : String,
+
     val id : Int,
+    val name : String,
+    val img : String,
     val description : String,
-    val img : String
     val type : Int,
     val rarity : Int,
     val quality : Int,
     val gen : Int
     val spe : Int
+    val set : Int
 
     init {
-        this.name = name
         this.id = id
-        this.description = description
+        this.name = name
         this.img = img
+        this.description = description
         this.type = type
         this.rarity = rarity
         this.quality = quality
         this.gen = gen
         this.spe = spe
+        this.set = set
     }
 
     fun AddQuality(
