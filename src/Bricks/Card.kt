@@ -1,10 +1,11 @@
+import kotlin.random.Random
+
 class card(id : Int,
             name : String,
             img : String,
             description : String,
             type : Int,
             rarity : Int,
-            quality : Int,
             gen : Int
             spe : Int
             set : Int
@@ -28,16 +29,16 @@ class card(id : Int,
         this.description = description
         this.type = type
         this.rarity = rarity
-        this.quality = quality
+        this.quality = Random.nextInt(1, 14)
         this.gen = gen
         this.spe = spe
         this.set = set
     }
 
-    fun AddQuality(
+    fun AddQuality() {
 
-    )
-    fun Draw(
-        
-    )
+    }
+    fun Draw() {
+
+    }
 }
