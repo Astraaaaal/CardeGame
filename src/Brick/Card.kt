@@ -6,6 +6,7 @@ class card(name : String,
             rarity : Int,
             quality : Int,
             gen : Int
+            spe : Int
             ) {
     
     val name : String,
@@ -16,6 +17,7 @@ class card(name : String,
     val rarity : Int,
     val quality : Int,
     val gen : Int
+    val spe : Int
 
     init {
         this.name = name
@@ -26,6 +28,7 @@ class card(name : String,
         this.rarity = rarity
         this.quality = quality
         this.gen = gen
+        this.spe = spe
     }
 
     fun AddQuality(

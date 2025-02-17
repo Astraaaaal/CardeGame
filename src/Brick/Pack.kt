@@ -1,4 +1,4 @@
-class pack(cards : Array<String>
+class pack(cards : Array<String> = ArrayOf(5)
             limited : Bool) {
 
     val cards : Array<String>

@@ -5,7 +5,7 @@ val typeMap: Map<Int, String> = mapOf(
     4 to "Gay"
 )
 
-val rariteMap: Map<Int, String> = mapOf(
+val rarityMap: Map<Int, String> = mapOf(
     1 to "Commune",
     2 to "Rare",
     3 to "Épique",
@@ -24,4 +24,11 @@ val genMap: Map<Int, String> = mapOf(
     2 to "2006",
     3 to "2007",
     4 to "Info"
+)
+
+val speMap: Map<Int, String> = mapOf(
+    1 to "Shiny",
+    2 to "Ex",
+    3 to "Gold",
+    4 to "Full Art"
 )
