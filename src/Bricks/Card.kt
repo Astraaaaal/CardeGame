@@ -1,6 +1,6 @@
 import kotlin.random.Random
 
-class card(id : Int,
+open class card(id : Int,
             name : String,
             img : String,
             description : String,
@@ -29,7 +29,7 @@ class card(id : Int,
         this.description = description
         this.type = type
         this.rarity = rarity
-        this.quality = Random.nextInt(1, 14)
+        this.quality = this.quality
         this.gen = gen
         this.spe = spe
         this.set = set

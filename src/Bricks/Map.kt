@@ -13,10 +13,20 @@ val rarityMap: Map<Int, String> = mapOf(
 )
 
 val qualityMap: Map<Int, String> = mapOf(
-    1 to "Mauvais",
-    2 to "Correct",
-    3 to "Bon",
+    1 to "Authentic",
+    2 to "Mint",
+    3 to "Graded",
     4 to "Excellent"
+    5 to "Preserved"
+    6 to "Fair"
+    7 to "Worn"
+    8 to "Faded"
+    9 to "Scratched"
+    10 to "Torn"
+    11 to "Damaged"
+    12 to "Unplayable"
+    13 to "Unreadable"
+    14 to "Destroyed"
 )
 
 val genMap: Map<Int, String> = mapOf(
@@ -27,10 +37,13 @@ val genMap: Map<Int, String> = mapOf(
 )
 
 val speMap: Map<Int, String> = mapOf(
-    1 to "Shiny",
+    3 to "Silver",
+    4 to "Gold",
+    5 to "Diamond",
+    6 to "Prismatique",
+    7 to "Full Art",
+        1 to "Shiny",
     2 to "Ex",
-    3 to "Gold",
-    4 to "Full Art"
 )
 
 val setMap: Map<Int, String> = mapOf(
