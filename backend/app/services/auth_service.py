@@ -79,7 +79,7 @@ class AuthService:
         refresh_record = RefreshToken(
             user_id=user.id,
             token_hash=hash_token(refresh),
-            expires_at=decode_token(refresh)["exp"],
+            expires_at=datetime.utcfromtimestamp(decode_token(refresh)["exp"]),
         )
         session.add(refresh_record)
         await session.commit()
@@ -132,7 +132,7 @@ class AuthService:
         new_record = RefreshToken(
             user_id=user_id,
             token_hash=hash_token(new_refresh),
-            expires_at=decode_token(new_refresh)["exp"],
+            expires_at=datetime.utcfromtimestamp(decode_token(new_refresh)["exp"]),
         )
         session.add(new_record)
         await session.commit()

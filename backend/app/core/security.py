@@ -4,23 +4,33 @@ Sécurité — Hashing bcrypt + JWT.
 
 import hashlib
 from datetime import datetime, timedelta
-from jose import jwt, JWTError
-from passlib.context import CryptContext
-from app.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
+from jose import jwt, JWTError
+from app.config import settings
 
 
 # ── Password ──
+# On utilise la lib `bcrypt` directement (passlib 1.7.4 est abandonné et casse
+# avec bcrypt >= 5). bcrypt ignore les octets au-delà de 72 : on tronque
+# explicitement pour rester déterministe et éviter le ValueError de bcrypt >= 5.
+
+def _pw_bytes(password: str) -> bytes:
+    return password.encode("utf-8")[:72]
+
 
 def hash_password(password: str) -> str:
     """Hash un mot de passe avec bcrypt (salt inclus automatiquement)."""
-    return pwd_context.hash(password)
+    salt = bcrypt.gensalt(rounds=settings.BCRYPT_ROUNDS)
+    return bcrypt.hashpw(_pw_bytes(password), salt).decode("ascii")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Vérifie un mot de passe contre son hash bcrypt."""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return bcrypt.checkpw(_pw_bytes(plain_password), hashed_password.encode("ascii"))
+    except (ValueError, TypeError):
+        return False
 
 
 # ── JWT ──

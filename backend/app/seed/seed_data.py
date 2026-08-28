@@ -151,7 +151,7 @@ async def seed_reference_data(session: AsyncSession):
     print("[Seed] Boosters insérés")
 
     await session.commit()
-    print("[Seed] ✓ Toutes les données de référence insérées avec succès !")
+    print("[Seed] Toutes les données de référence insérées avec succès !")
 
 
 async def migrate_player_saves(session: AsyncSession) -> int:
@@ -213,9 +213,9 @@ async def migrate_player_saves(session: AsyncSession) -> int:
                 ))
 
         count += 1
-        print(f"[Migration] ✓ {username} migré ({user.coins} coins, "
+        print(f"[Migration] {username} migré ({user.coins} coins, "
               f"{user.total_cards} cartes)")
 
     await session.commit()
-    print(f"[Migration] ✓ {count} joueur(s) migré(s) au total !")
+    print(f"[Migration] {count} joueur(s) migré(s) au total !")
     return count

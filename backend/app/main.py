@@ -2,6 +2,16 @@
 CardeGame API — Point d'entrée FastAPI.
 """
 
+# Force UTF-8 sur stdout/stderr : sinon un print() contenant un caractère non
+# présent dans cp1252 (ex. "✓") fait planter la requête sous Windows.
+import sys as _sys
+
+for _stream in (_sys.stdout, _sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
