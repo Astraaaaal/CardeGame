@@ -11,18 +11,33 @@
 
 ## Étapes
 
-### Étape 1 — Infra (en cours)
+### Étape 1 — Infra ✅ (28/08/2026)
 
 - [x] Restructurer les dossiers
 - [x] `.gitignore`, `render.yaml`, docs
-- [ ] Projet Postgres Neon créé → `DATABASE_URL`
-- [ ] `backend/.env` rempli (`DATABASE_URL`, `JWT_SECRET`)
-- [ ] venv Python 3.11 + `pip install -r backend/requirements.txt`
-- [ ] `uvicorn app.main:app --reload` → tables créées au démarrage
-- [ ] `POST /api/admin/seed` → vérifier le remplissage des tables de référence
+- [x] Projet Postgres Neon créé (`square-firefly-06488881`, région `eu-central-1` / Frankfurt) → `DATABASE_URL`
+- [x] `backend/.env` rempli (`DATABASE_URL`, `JWT_SECRET` généré)
+- [x] venv `backend/.venv` (Python 3.11) + `pip install -r backend/requirements.txt`
+- [x] `uvicorn app.main:app` → 11 tables créées sur Neon au démarrage
+- [x] `POST /api/admin/seed` → 4 sets, 4 raretés, 14 qualités, 4 spécialités, 5 jewelries, 1 personnage, 4 boosters
+- [x] Smoke test complet OK (auth, profil, daily, ouverture de packs, collection)
 - [ ] (option) importer les anciennes sauvegardes : `POST /api/admin/migrate-players`
 
-**Fin d'étape 1** : la BDD distante contient les données de référence, l'API tourne en local et répond.
+**Fin d'étape 1** : la BDD Neon contient les données de référence, l'API tourne en local et répond.
+
+#### Contrainte réseau découverte
+
+Le **réseau d'entreprise bloque les connexions Postgres sortantes** (le TCP passe, le
+protocole PG est filtré). Neon n'est joignable que hors de ce réseau (partage de connexion,
+maison, VPN perso). **Décision en attente** : installer un PostgreSQL local pour le dev
+quotidien (le `DATABASE_URL` reste la seule différence dev/prod), ou travailler contre Neon
+uniquement depuis un réseau non filtré.
+
+#### Corrections backend faites au passage (commit `1346a8e`)
+
+- `passlib` (abandonné, casse avec `bcrypt>=5`) remplacé par la lib `bcrypt` directe
+- `auth_service` : `expires_at` recevait un `int` au lieu d'un `datetime` → 500 au login
+- `main.py` : stdout/stderr forcés en UTF-8 (sinon un `print` non-cp1252 plante la requête sous Windows)
 
 ### Étape 2 — Auth bout en bout (web)
 
