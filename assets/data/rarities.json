@@ -1,0 +1,65 @@
+{
+    "rarities": [
+        {
+            "id": "common",
+            "name": "Commune",
+            "weight": 95,
+            "color": [
+                180,
+                180,
+                180
+            ],
+            "label_color": [
+                200,
+                200,
+                200
+            ]
+        },
+        {
+            "id": "rare",
+            "name": "Rare",
+            "weight": 3,
+            "color": [
+                50,
+                120,
+                255
+            ],
+            "label_color": [
+                80,
+                150,
+                255
+            ]
+        },
+        {
+            "id": "epic",
+            "name": "Épique",
+            "weight": 1.5,
+            "color": [
+                160,
+                50,
+                255
+            ],
+            "label_color": [
+                190,
+                80,
+                255
+            ]
+        },
+        {
+            "id": "legendary",
+            "name": "Légendaire",
+            "weight": 0.5,
+            "color": [
+                255,
+                200,
+                50
+            ],
+            "label_color": [
+                255,
+                220,
+                80
+            ]
+        }
+    ],
+    "_comment": "weight = poids relatif pour le tirage. Plus c'est élevé, plus c'est fréquent."
+}

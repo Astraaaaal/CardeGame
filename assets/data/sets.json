@@ -1,0 +1,24 @@
+{
+    "sets": [
+        {
+            "id": "A1",
+            "name": "Set A1",
+            "description": "Le premier set de cartes."
+        },
+        {
+            "id": "A2",
+            "name": "Set A2",
+            "description": "Deuxième set de cartes."
+        },
+        {
+            "id": "A2bis",
+            "name": "Set A2 Bis",
+            "description": "Extension du set A2."
+        },
+        {
+            "id": "A2.5",
+            "name": "Set A2.5",
+            "description": "Set intermédiaire."
+        }
+    ]
+}
