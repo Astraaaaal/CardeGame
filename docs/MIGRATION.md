@@ -39,32 +39,46 @@ uniquement depuis un réseau non filtré.
 - `auth_service` : `expires_at` recevait un `int` au lieu d'un `datetime` → 500 au login
 - `main.py` : stdout/stderr forcés en UTF-8 (sinon un `print` non-cp1252 plante la requête sous Windows)
 
-### Étape 2 — Auth bout en bout (web)
+> **Découverte (28/08/2026)** : `web/` n'est pas un squelette mais une implémentation
+> quasi complète du cœur de boucle. `tsc --noEmit` = 0 erreur. Les étapes 2 et 3 sont
+> déjà fonctionnelles ; les étapes 4 et 5 sont codées mais pas encore testées en
+> navigateur visible.
 
-- [ ] `web/` : écran login/register branché sur `/api/auth/*`
-- [ ] Stockage des tokens (mémoire + refresh), intercepteur axios pour le refresh auto
-- [ ] Route protégée → `/api/player/me`
-- [ ] Créer un compte depuis le navigateur, se reconnecter
+### Étape 2 — Auth bout en bout (web) ✅
 
-### Étape 3 — Profil & récompense journalière
+- [x] Écran login/register branché sur `/api/auth/*` ([LoginPage.tsx](../web/src/pages/LoginPage.tsx))
+- [x] Tokens en `localStorage` + intercepteur axios avec refresh auto ([api/client.ts](../web/src/api/client.ts))
+- [x] Routes protégées → redirection `/login` ([App.tsx](../web/src/App.tsx))
+- [x] Testé navigateur : register → auto-login → MainMenu, compte créé sur Neon
 
-- [ ] MainMenu affiche coins / streak réels (`/api/player/me`)
-- [ ] Popup daily reward (`/api/player/daily-reward`)
+### Étape 3 — Profil & récompense journalière ✅
 
-### Étape 4 — Boutique & ouverture de packs
+- [x] MainMenu affiche coins / streak réels (`/api/player/me`)
+- [x] Popup daily reward auto-réclamée au login (`+500`, persisté sur Neon)
+- [ ] Bug env de test : la modale daily reward ne se ferme pas quand l'onglet est
+      caché (animation Framer Motion en pause). À revérifier en navigateur visible.
 
-- [ ] Liste des boosters (`/api/boosters/`)
-- [ ] Ouverture 1/5/10 (`/api/boosters/open`), gestion erreur « pas assez de pièces »
-- [ ] Animation de révélation (Framer Motion) — s'inspirer de `prototype/src/ui/pack_opening.py`
+### Étape 4 — Boutique & ouverture de packs — codé, à vérifier
 
-### Étape 5 — Collection
+- [x] Composants présents : [BoosterShop.tsx](../web/src/pages/BoosterShop.tsx),
+      [PackOpening.tsx](../web/src/pages/PackOpening.tsx), [CardReveal.tsx](../web/src/components/card/CardReveal.tsx)
+- [x] API vérifiée par smoke test : ouverture 1/5/10, réductions, erreur 400 « pas assez de pièces »
+- [ ] Passe de test en navigateur visible + correction des bugs
 
-- [ ] Grille (`/api/collection/`), tri + filtres (déjà supportés côté API)
-- [ ] Détail d'une carte (`/api/collection/{id}`)
+### Étape 5 — Collection — codé, à vérifier
 
-### Étape 6 — Rendu des cartes
+- [x] Composants présents : [Collection.tsx](../web/src/pages/Collection.tsx),
+      [CardGrid.tsx](../web/src/components/card/CardGrid.tsx), [CardDetail.tsx](../web/src/components/card/CardDetail.tsx)
+- [x] API vérifiée : grille groupée, tri, filtres, détail
+- [ ] Passe de test en navigateur visible
 
-Deux options, à trancher à l'étape 5/6 :
+### Étape 6 — Rendu des cartes (vrai reste à faire)
+
+`web/src/components/card/CardImage.tsx` a déjà un **fallback** : sans `rendered_url`
+(cas actuel, pas de Cloudinary), il affiche un placeholder avec le nom + bordure
+couleur rareté. Rien ne casse — c'est juste basique visuellement.
+
+Deux options, à trancher :
 - **A. Rendu côté client** (CSS/Canvas dans `web/`) à partir des métadonnées de `CardResponse`
   + overlays de `assets/img/`. Pas de Cloudinary. Logique à porter depuis
   `prototype/src/engine/card_renderer.py`.
