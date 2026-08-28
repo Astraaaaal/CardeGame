@@ -4,7 +4,7 @@ export default {
     theme: {
         extend: {
             colors: {
-                // Couleurs migrées depuis constants.py
+                // Couleurs migrées depuis prototype/src/utils/constants.py
                 bg: {
                     DEFAULT: "#19192B",
                     light: "#232340",
@@ -15,6 +15,10 @@ export default {
                     hover: "#64B4FF",
                 },
                 gold: "#FFC832",
+                // Alias explicites utilisés dans les composants (bg-game-bg, bg-game-surface…)
+                "game-bg": "#19192B",
+                "game-surface": "#232340",
+                "game-panel": "#28283C",
                 "game-green": "#50C878",
                 "game-red": "#DC3C3C",
             },
