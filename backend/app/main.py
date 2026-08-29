@@ -25,8 +25,13 @@ from app.api import auth, player, boosters, collection, admin
 async def lifespan(app: FastAPI):
     """Startup / shutdown events."""
     print("[CardeGame API] Initialisation de la base de données...")
-    await init_db()
-    print("[CardeGame API] Prêt !")
+    try:
+        await init_db()
+        print("[CardeGame API] Prêt !")
+    except Exception as exc:  # BDD injoignable (réseau qui filtre Postgres, Neon suspendu…)
+        print(f"[CardeGame API] [!] BDD injoignable au démarrage : {exc!r}")
+        print("[CardeGame API] [!] L'API démarre quand même ; les routes BDD "
+              "échoueront tant que la connexion n'est pas rétablie (réseau / Neon).")
     yield
     print("[CardeGame API] Arrêt.")
 
