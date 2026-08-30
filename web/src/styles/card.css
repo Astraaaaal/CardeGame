@@ -66,3 +66,13 @@
 .card-glow {
     animation: glow-pulse 1.5s ease-in-out infinite;
 }
+/* Reflet "shiny" pour CardImage (specialty = shiny) */
+@keyframes cardSheen {
+    0% {
+        transform: translateX(-60%) rotate(8deg);
+    }
+
+    100% {
+        transform: translateX(60%) rotate(8deg);
+    }
+}

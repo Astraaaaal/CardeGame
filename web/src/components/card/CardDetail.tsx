@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import type { Card } from "@/types/card";
 import Badge from "@/components/ui/Badge";
+import CardImage from "./CardImage";
 
 interface CardDetailProps {
     card: Card;
@@ -29,22 +30,9 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
                 initial={{ y: 50, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
             >
-                {/* Card Image */}
-                <div
-                    className="w-64 aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl"
-                    style={{ border: `3px solid ${rarityColor}`, boxShadow: `0 0 30px ${rarityColor}60` }}
-                >
-                    {card.rendered_url ? (
-                        <img
-                            src={card.rendered_url}
-                            alt={card.character_name}
-                            className="w-full h-full object-cover"
-                        />
-                    ) : (
-                        <div className="w-full h-full bg-game-surface flex items-center justify-center">
-                            <span className="text-white/40">{card.character_name}</span>
-                        </div>
-                    )}
+                {/* Carte */}
+                <div className="w-64">
+                    <CardImage card={card} size="lg" />
                 </div>
 
                 {/* Info panel */}
@@ -53,13 +41,13 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
 
                     <div className="flex flex-wrap gap-1.5 mb-3">
                         <Badge label={card.rarity_name} color={rarityColor} />
-                        {card.quality_name !== "Authentique" && (
+                        {card.quality_id !== "authentic" && (
                             <Badge label={card.quality_name} className="bg-white/20 text-white" />
                         )}
-                        {card.specialty_name !== "Normal" && (
+                        {card.specialty_id !== "normal" && (
                             <Badge label={card.specialty_name} className="bg-purple-600/80 text-white" />
                         )}
-                        {card.jewelry_name !== "Aucun" && (
+                        {card.jewelry_id !== "none" && (
                             <Badge
                                 label={card.jewelry_name}
                                 color={`rgb(${card.jewelry_color.join(",")})`}
@@ -70,12 +58,12 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
                     <div className="space-y-1 text-sm text-white/70">
                         <p>Set: <span className="text-white">{card.set_name}</span></p>
                         <p>Type: <span className="text-white">{card.character_type}</span></p>
-                        {card.character_description && card.quality_name !== "Injouable" && (
+                        {card.character_description && card.quality_id !== "unplayable" && (
                             <p className="italic text-white/50 mt-2">{card.character_description}</p>
                         )}
                         <p>
-                            Probabilité:{" "}
-                            <span className="text-accent">{(card.drop_probability * 100).toFixed(4)}%</span>
+                            Indice de rareté:{" "}
+                            <span className="text-accent">{card.drop_probability.toFixed(2)}</span>
                         </p>
                         {quantity !== undefined && quantity > 1 && (
                             <p>

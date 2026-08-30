@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Card } from "@/types/card";
+import CardImage from "./CardImage";
 
 interface CardRevealProps {
     card: Card;
@@ -29,7 +30,7 @@ export default function CardReveal({ card, onNext }: CardRevealProps) {
             className="flex flex-col items-center justify-center gap-6 cursor-pointer"
             onClick={handleClick}
         >
-            <div className="relative w-56 aspect-[9/16]" style={{ perspective: "1000px" }}>
+            <div className="relative w-56 aspect-[5/7]" style={{ perspective: "1000px" }}>
                 <AnimatePresence mode="wait">
                     {!flipped ? (
                         <motion.div
@@ -46,31 +47,12 @@ export default function CardReveal({ card, onNext }: CardRevealProps) {
                     ) : (
                         <motion.div
                             key="front"
-                            className="absolute inset-0 rounded-2xl overflow-hidden shadow-2xl"
-                            style={{
-                                border: `3px solid ${rarityColor}`,
-                                boxShadow: `0 0 40px ${rarityColor}50`,
-                            }}
+                            className="absolute inset-0"
                             initial={{ rotateY: -90 }}
                             animate={{ rotateY: 0 }}
                             transition={{ duration: 0.25 }}
                         >
-                            {card.rendered_url ? (
-                                <img
-                                    src={card.rendered_url}
-                                    alt={card.character_name}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <div className="w-full h-full bg-game-surface flex flex-col items-center justify-center gap-2 p-4">
-                                    <span className="text-white font-bold text-center">
-                                        {card.character_name}
-                                    </span>
-                                    <span style={{ color: rarityColor }} className="text-sm font-semibold">
-                                        {card.rarity_name}
-                                    </span>
-                                </div>
-                            )}
+                            <CardImage card={card} size="lg" />
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -85,8 +67,8 @@ export default function CardReveal({ card, onNext }: CardRevealProps) {
                     <p className="text-white font-bold text-lg">{card.character_name}</p>
                     <p className="text-sm" style={{ color: rarityColor }}>
                         {card.rarity_name}
-                        {card.specialty_name !== "Normal" && ` • ${card.specialty_name}`}
-                        {card.jewelry_name !== "Aucun" && ` • ${card.jewelry_name}`}
+                        {card.specialty_id !== "normal" && ` • ${card.specialty_name}`}
+                        {card.jewelry_id !== "none" && ` • ${card.jewelry_name}`}
                     </p>
                     <p className="text-white/40 text-xs mt-2">Touchez pour continuer</p>
                 </motion.div>
