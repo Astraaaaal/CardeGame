@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
+from app.core.dependencies import require_admin
 from app.schemas.auth import MessageResponse
 
-router = APIRouter()
+# Toutes les routes de ce routeur exigent l'en-tête X-Admin-Key.
+router = APIRouter(dependencies=[Depends(require_admin)])
 
 
 @router.post("/seed", response_model=MessageResponse)

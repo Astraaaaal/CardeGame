@@ -8,6 +8,7 @@ from sqlmodel import select
 
 from app.database import get_session
 from app.core.dependencies import get_current_user
+from app.core.ratelimit import rate_limit
 from app.models.user import User
 from app.models.booster import Booster
 from app.schemas.booster import BoosterResponse, PackOpenRequest, PackOpenResponse
@@ -39,7 +40,11 @@ async def list_boosters(
     ]
 
 
-@router.post("/open", response_model=PackOpenResponse)
+@router.post(
+    "/open",
+    response_model=PackOpenResponse,
+    dependencies=[Depends(rate_limit(20, 60))],
+)
 async def open_packs(
     request: PackOpenRequest,
     user: User = Depends(get_current_user),

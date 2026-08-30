@@ -29,10 +29,12 @@ export function useRegister() {
 }
 
 export function useLogout() {
-    const { logout } = useAuthStore();
+    const { logout, refreshToken } = useAuthStore();
     const queryClient = useQueryClient();
 
     return () => {
+        // Révoque le refresh token côté serveur (best-effort), puis purge en local.
+        if (refreshToken) authApi.logout(refreshToken).catch(() => {});
         logout();
         queryClient.clear();
     };

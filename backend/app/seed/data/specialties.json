@@ -1,0 +1,37 @@
+{
+    "specialties": [
+        {
+            "id": "normal",
+            "name": "Normal",
+            "weight": 99.8,
+            "border": "default",
+            "effect": "none",
+            "description": "Carte normale, sans effet spécial."
+        },
+        {
+            "id": "full_art",
+            "name": "Full Art",
+            "weight": 0.11,
+            "border": "full_art",
+            "effect": "full_art",
+            "description": "Image en plein cadre, sans bordure."
+        },
+        {
+            "id": "ex",
+            "name": "EX",
+            "weight": 0.08,
+            "border": "ex",
+            "effect": "ex_aura",
+            "description": "Version EX spéciale avec aura."
+        },
+        {
+            "id": "shiny",
+            "name": "Shiny",
+            "weight": 0.01,
+            "border": "shiny",
+            "effect": "shiny_glow",
+            "description": "Effet brillant et lumineux."
+        }
+    ],
+    "_comment": "Specialties = type de carte (Normal, Full Art, Shiny, EX). Combinable avec une jewelry (silver, gold, diamond, prismatic). border = effet visuel, jewelry gère la bordure."
+}

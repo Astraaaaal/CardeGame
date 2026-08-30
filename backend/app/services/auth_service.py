@@ -90,6 +90,20 @@ class AuthService:
             "token_type": "bearer",
         }
 
+    async def logout(
+        self, session: AsyncSession, refresh_token_str: str
+    ) -> None:
+        """Révoque un refresh token (best-effort : pas d'erreur s'il est inconnu)."""
+        result = await session.execute(
+            select(RefreshToken).where(
+                RefreshToken.token_hash == hash_token(refresh_token_str)
+            )
+        )
+        stored = result.scalar_one_or_none()
+        if stored:
+            await session.delete(stored)
+            await session.commit()
+
     async def refresh_tokens(
         self, session: AsyncSession, refresh_token_str: str
     ) -> dict:

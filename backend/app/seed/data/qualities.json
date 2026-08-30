@@ -1,0 +1,103 @@
+{
+    "qualities": [
+        {
+            "id": "authentic",
+            "name": "Authentic",
+            "weight": 0.01,
+            "filter": "none",
+            "description": "Authentique."
+        },
+        {
+            "id": "mint",
+            "name": "Mint",
+            "weight": 0.05,
+            "filter": "none",
+            "description": "Parfait état."
+        },
+        {
+            "id": "graded",
+            "name": "Graded",
+            "weight": 0.09,
+            "filter": "none",
+            "description": "Certifiée."
+        },
+        {
+            "id": "excellent",
+            "name": "Excellent",
+            "weight": 0.15,
+            "filter": "none",
+            "description": "Très bon état."
+        },
+        {
+            "id": "preserved",
+            "name": "Preserved",
+            "weight": 1.5,
+            "filter": "slight_wear",
+            "description": "Bien conservée."
+        },
+        {
+            "id": "fair",
+            "name": "Fair",
+            "weight": 2.2,
+            "filter": "slight_wear",
+            "description": "Correcte."
+        },
+        {
+            "id": "worn",
+            "name": "Worn",
+            "weight": 4,
+            "filter": "worn",
+            "description": "Usée."
+        },
+        {
+            "id": "faded",
+            "name": "Faded",
+            "weight": 6,
+            "filter": "faded",
+            "description": "Couleurs délavées."
+        },
+        {
+            "id": "scratched",
+            "name": "Scratched",
+            "weight": 8,
+            "filter": "scratched",
+            "description": "Bien rayée."
+        },
+        {
+            "id": "torn",
+            "name": "Torn",
+            "weight": 18,
+            "filter": "torn",
+            "description": "Déchirée par endroits."
+        },
+        {
+            "id": "damaged",
+            "name": "Damaged",
+            "weight": 25,
+            "filter": "damaged",
+            "description": "Très abîmée."
+        },
+        {
+            "id": "unplayable",
+            "name": "Unplayable",
+            "weight": 15,
+            "filter": "Unplayable",
+            "description": "Unjouable"
+        },
+        {
+            "id": "unreadable",
+            "name": "Unreadable",
+            "weight": 12.5,
+            "filter": "Unreadable",
+            "description": "Ilisible"
+        },
+        {
+            "id": "destroyed",
+            "name": "Destroyed",
+            "weight": 7.5,
+            "filter": "destroyed",
+            "description": "Presque détruite."
+        }
+    ],
+    "_comment": "filter correspond au type de filtre visuel appliqué. weight = probabilité relative."
+}

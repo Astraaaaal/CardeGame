@@ -95,16 +95,22 @@ solide ; passe visuelle plus poussée (typo, holo, dos de carte) à prévoir.
 - [x] Collection : barre de recherche par nom + bouton sens de tri (↑/↓),
       option de tri « Récent » (cassée, 422) remplacée par « Nom » + « Rareté réelle »
 
-### Étape 7 — Durcissement avant prod
+### Étape 7 — Durcissement avant prod  (30/08/2026)
 
-- [ ] Protéger `/api/admin/*` (clé admin ou retrait du routeur en prod)
-- [x] Court-circuiter le renderer serveur si Cloudinary non configuré (renvoie `None`)
-- [ ] Passer le seed en données embarquées dans `backend/` (le Docker context est `./backend`,
-      `assets/` n'y est pas copié → `/admin/seed` échoue en prod tel quel)
-- [ ] Alembic pour les migrations (remplacer `create_all` au démarrage)
-- [ ] `POST /api/auth/logout` (révocation du refresh token)
-- [ ] Rate limiting sur `/api/auth/*` et `/api/boosters/open`
-- [ ] Générer les icônes PWA (`web/public/icons/icon-192.png`, `icon-512.png`)
+- [x] `/api/admin/*` protégé par en-tête `X-Admin-Key` (= `ADMIN_KEY`, vide → refusé)
+- [x] Renderer serveur court-circuité si Cloudinary non configuré (renvoie `None`)
+- [x] Seed embarqué : `assets/data/*.json` copiés dans `backend/app/seed/data/`
+      (repli sur `assets/` en dev). `/admin/seed` marche donc dans l'image Docker.
+- [x] `POST /api/auth/logout` (révoque le refresh token) + câblé côté web
+- [x] Rate limiting maison (en mémoire, par IP) sur `/auth/*` et `/boosters/open`
+- [x] Icônes PWA + favicon générées (`web/public/icons/`, `web/public/favicon.ico`)
+- [x] `backend/.dockerignore` (n'embarque pas `.env` ni `.venv`)
+- [x] Dockerfile : bind sur `$PORT`, `--proxy-headers` (vraie IP client)
+- [x] `render.yaml` : plus de Postgres Render (on garde Neon) ; `DATABASE_URL` en secret,
+      `ADMIN_KEY` auto-généré ; guide dans [DEPLOY.md](DEPLOY.md)
+- [ ] Alembic (repoussé — `create_all` est idempotent et suffit tant qu'on n'*altère*
+      pas de colonnes ; à faire à la 1ʳᵉ vraie migration de schéma)
+- [ ] Déploiement Render effectif (à faire par l'utilisateur, cf. DEPLOY.md)
 
 ## Dette connue (non bloquante)
 

@@ -1,0 +1,14 @@
+# Secrets — ne JAMAIS mettre dans l'image
+.env
+.env.*
+
+# Environnements virtuels
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Divers
+.git/
+*.md

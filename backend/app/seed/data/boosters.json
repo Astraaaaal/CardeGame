@@ -1,0 +1,41 @@
+{
+    "boosters": [
+        {
+            "id": "booster_A1",
+            "name": "Booster A1",
+            "set": "A1",
+            "cards_count": 5,
+            "price": 100,
+            "guaranteed_rare": false,
+            "description": "Pack standard du Set A1. Contient 5 cartes."
+        },
+        {
+            "id": "booster_A2",
+            "name": "Booster A2",
+            "set": "A2",
+            "cards_count": 5,
+            "price": 100,
+            "guaranteed_rare": false,
+            "description": "Pack standard du Set A2. Contient 5 cartes."
+        },
+        {
+            "id": "booster_A2bis",
+            "name": "Booster A2 Bis",
+            "set": "A2bis",
+            "cards_count": 5,
+            "price": 150,
+            "guaranteed_rare": true,
+            "description": "Pack spécial A2 Bis. 1 carte rare garantie."
+        },
+        {
+            "id": "booster_A2_5",
+            "name": "Booster A2.5",
+            "set": "A2.5",
+            "cards_count": 5,
+            "price": 200,
+            "guaranteed_rare": true,
+            "description": "Pack premium A2.5. 1 carte rare garantie."
+        }
+    ],
+    "_comment": "Pour ajouter un booster: ajouter un bloc avec l'id du set correspondant."
+}

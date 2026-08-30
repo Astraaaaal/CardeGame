@@ -15,16 +15,13 @@ from app.models.user import User
 from app.models.card import UserCard
 from app.core.security import hash_password
 
-# Chemin vers les données JSON (relatif au workspace root)
-# En production, ces fichiers sont copiés ou montés
-DATA_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
-    "assets", "data",
-)
-SAVES_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
-    "saves",
-)
+# Données de référence : copie EMBARQUÉE dans le backend (app/seed/data/), pour que
+# `/api/admin/seed` marche dans l'image Docker (dockerContext = ./backend).
+# Repli sur assets/data/ à la racine du dépôt en dev si la copie n'existe pas.
+_EMBEDDED = os.path.join(os.path.dirname(__file__), "data")
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+DATA_DIR = _EMBEDDED if os.path.isdir(_EMBEDDED) else os.path.join(_REPO_ROOT, "assets", "data")
+SAVES_DIR = os.path.join(_REPO_ROOT, "saves")
 
 
 def _load_json(filename: str, key: str) -> list:

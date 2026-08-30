@@ -1,13 +1,8 @@
 # ── Render Blueprint ──
-# Déploie l'ensemble de l'application CardeGame sur Render.
-# NB: en dev, la BDD est un Postgres Neon distant (voir backend/.env),
-#     pas la base définie ici. Ce bloc `databases` ne sert qu'au déploiement Render.
-
-databases:
-  - name: cardegame-db
-    plan: free
-    databaseName: cardegame
-    user: cardegame
+# Déploie CardeGame sur Render : API (Docker) + site statique (React PWA).
+# La base de données est un Postgres Neon EXTERNE (pas de bloc `databases:` ici) :
+#   - Neon free ne s'auto-supprime pas (contrairement au Postgres Render free).
+#   - DATABASE_URL est à renseigner à la main dans le dashboard Render (secret).
 
 services:
   # ── Backend API (FastAPI) ──
@@ -17,26 +12,27 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     plan: free
+    region: frankfurt
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: cardegame-db
-          property: connectionString
+        sync: false            # ← coller l'URL Neon dans le dashboard
       - key: JWT_SECRET
         generateValue: true
+      - key: ADMIN_KEY
+        generateValue: true    # protège /api/admin/* (en-tête X-Admin-Key)
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        value: '["https://cardegame.onrender.com"]'
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
-      - key: CORS_ORIGINS
-        value: '["https://cardegame.onrender.com"]'
-      - key: ENVIRONMENT
-        value: production
-    healthCheckPath: /api/health
 
-  # ── Frontend (Static Site — React PWA) ──
+  # ── Frontend (site statique — React PWA) ──
   - type: web
     name: cardegame
     runtime: static

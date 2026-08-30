@@ -1,0 +1,19 @@
+{
+    "characters": [
+        {
+            "id": "char_001",
+            "name": "Mont & Merveille",
+            "description": "Un être mystérieux venu des montagnes enchantées.",
+            "type": "Plantes",
+            "gen": 1,
+            "sets": [
+                "A1"
+            ],
+            "image": "V3MontEtMerveille.png",
+            "weight_per_set": {
+                "A1": 1
+            }
+        }
+    ],
+    "_comment": "Pour ajouter un personnage: copier un bloc ci-dessus, changer l'id, le nom, la description, le type, la gen, les sets, l'image, et ajuster weight_per_set (poids relatif dans chaque set, 1 par défaut). Ajouter l'image dans assets/img/characters/"
+}
