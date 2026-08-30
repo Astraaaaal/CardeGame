@@ -9,17 +9,19 @@ interface CardGridProps {
 }
 
 export default function CardGrid({ groups }: CardGridProps) {
-    const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
+    // Sélection par id de carte (pas par index) : la liste peut se ré-trier.
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const selected = groups.find((g) => g.card.id === selectedId) ?? null;
 
     return (
         <>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 px-2">
-                {groups.map((g, idx) => (
-                    <div key={idx} className="relative">
+                {groups.map((g) => (
+                    <div key={g.card.id} className="relative">
                         <CardImage
                             card={g.card}
                             size="sm"
-                            onClick={() => setSelectedIdx(idx)}
+                            onClick={() => setSelectedId(g.card.id)}
                         />
                         {g.quantity > 1 && (
                             <span className="absolute -top-1 -right-1 bg-gold text-game-bg
@@ -33,11 +35,11 @@ export default function CardGrid({ groups }: CardGridProps) {
             </div>
 
             <AnimatePresence>
-                {selectedIdx !== null && (
+                {selected && (
                     <CardDetail
-                        card={groups[selectedIdx].card}
-                        quantity={groups[selectedIdx].quantity}
-                        onClose={() => setSelectedIdx(null)}
+                        card={selected.card}
+                        quantity={selected.quantity}
+                        onClose={() => setSelectedId(null)}
                     />
                 )}
             </AnimatePresence>

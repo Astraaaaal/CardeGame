@@ -20,7 +20,7 @@ export default function Collection() {
     const [reversed, setReversed] = useState(false);
     const [search, setSearch] = useState("");
 
-    const { data, isLoading } = useCollection(filters);
+    const { data, isLoading, isFetching } = useCollection(filters);
 
     // Recherche + sens de tri appliqués côté client sur la liste déjà triée par l'API.
     const groups = useMemo(() => {
@@ -98,7 +98,9 @@ export default function Collection() {
                 {isLoading ? (
                     <LoadingSpinner text="Chargement de la collection..." />
                 ) : groups.length > 0 ? (
-                    <CardGrid groups={groups} />
+                    <div className={isFetching ? "opacity-60 transition-opacity" : "transition-opacity"}>
+                        <CardGrid groups={groups} />
+                    </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-64 text-white/30">
                         <span className="text-4xl mb-3">{search ? "🔍" : "📭"}</span>

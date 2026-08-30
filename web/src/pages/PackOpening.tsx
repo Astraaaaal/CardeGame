@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useGameStore } from "@/stores/gameStore";
 import CardReveal from "@/components/card/CardReveal";
+import CardImage from "@/components/card/CardImage";
 import Button from "@/components/ui/Button";
 
 export default function PackOpening() {
@@ -17,41 +18,47 @@ export default function PackOpening() {
     resetPackState,
   } = useGameStore();
 
-  // Rien à ouvrir → retour boutique
-  if (!currentPacks || currentPacks.length === 0) {
-    navigate("/shop");
-    return null;
+  // Quitter l'écran : on navigue, puis on purge l'état d'ouverture (macrotask,
+  // pour ne pas re-rendre ce composant pendant la transition).
+  const leave = (to: string) => {
+    navigate(to);
+    setTimeout(resetPackState, 0);
+  };
+
+  const hasPacks = !!currentPacks && currentPacks.length > 0;
+
+  // Accès direct à /opening sans rien à ouvrir → écran de repli (pas de
+  // redirection automatique : ça créait une course avec la navigation de sortie).
+  if (!hasPacks) {
+    return (
+      <div className="min-h-screen bg-game-bg flex flex-col items-center justify-center gap-4 px-4">
+        <p className="text-white/50">Aucun pack à ouvrir.</p>
+        <Button variant="primary" onClick={() => navigate("/shop")}>
+          Aller à la boutique
+        </Button>
+      </div>
+    );
   }
 
-  const pack = currentPacks[currentPackIndex];
+  const packs = currentPacks!;
+  const pack = packs[currentPackIndex];
   const card = pack?.[currentCardIndex];
-  const totalCards = currentPacks.reduce((s, p) => s + p.length, 0);
+  const totalCards = packs.reduce((s, p) => s + p.length, 0);
   const revealedSoFar =
-    currentPacks.slice(0, currentPackIndex).reduce((s, p) => s + p.length, 0) +
+    packs.slice(0, currentPackIndex).reduce((s, p) => s + p.length, 0) +
     currentCardIndex +
     1;
 
   const handleNext = () => {
-    if (!nextCard()) {
-      // Plus de cartes dans ce pack
-      if (!nextPack()) {
-        // Plus de packs
-        // isRevealing sera mis à false par nextPack
-      }
-    }
+    if (!nextCard()) nextPack();
   };
 
-  const handleFinish = () => {
-    resetPackState();
-    navigate("/shop");
-  };
-
-  // Résumé final (après skip ou fin naturelle)
+  // Résumé final (après « Tout révéler » ou fin naturelle)
   if (!isRevealing) {
-    const allCards = currentPacks.flat();
+    const allCards = packs.flat();
 
     return (
-      <div className="min-h-screen bg-game-bg flex flex-col items-center justify-center px-4">
+      <div className="min-h-screen bg-game-bg flex flex-col items-center justify-center px-4 py-8">
         <motion.div
           className="w-full max-w-sm text-center"
           initial={{ opacity: 0, scale: 0.9 }}
@@ -61,47 +68,35 @@ export default function PackOpening() {
             🎉 {allCards.length} cartes obtenues !
           </h2>
 
-          <div className="grid grid-cols-4 gap-2 mb-6">
+          <div className="grid grid-cols-3 gap-3 mb-6">
             {allCards.map((c, i) => (
               <motion.div
                 key={i}
-                className="aspect-[9/16] rounded-lg overflow-hidden border border-white/10"
                 initial={{ opacity: 0, scale: 0.5 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.03 }}
               >
-                {c.rendered_url ? (
-                  <img
-                    src={c.rendered_url}
-                    alt={c.character_name}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div
-                    className="w-full h-full flex items-center justify-center text-[8px] text-white/40"
-                    style={{
-                      backgroundColor: `rgb(${c.rarity_color.join(",")})20`,
-                    }}
-                  >
-                    {c.character_name}
-                  </div>
-                )}
+                <CardImage card={c} size="sm" />
               </motion.div>
             ))}
           </div>
 
           <div className="space-y-2">
-            <Button variant="primary" size="lg" className="w-full" onClick={handleFinish}>
-              Retour à la boutique
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full"
+              onClick={() => leave("/collection")}
+            >
+              Voir ma collection
             </Button>
             <Button
               variant="secondary"
               size="md"
               className="w-full"
-              onClick={() => { resetPackState(); navigate("/collection"); }}
+              onClick={() => leave("/shop")}
             >
-              Voir ma collection
+              Retour à la boutique
             </Button>
           </div>
         </motion.div>
@@ -114,15 +109,12 @@ export default function PackOpening() {
       {/* Progress */}
       <header className="flex items-center justify-between px-4 py-3">
         <p className="text-white/50 text-sm">
-          Pack {currentPackIndex + 1}/{currentPacks.length}
+          Pack {currentPackIndex + 1}/{packs.length}
         </p>
         <p className="text-white/50 text-sm">
           {revealedSoFar}/{totalCards}
         </p>
-        <button
-          className="text-accent text-sm font-semibold"
-          onClick={skipToEnd}
-        >
+        <button className="text-accent text-sm font-semibold" onClick={skipToEnd}>
           Tout révéler
         </button>
       </header>
