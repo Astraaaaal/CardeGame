@@ -33,12 +33,12 @@ services:
         sync: false
 
   # ── Frontend (site statique — React PWA) ──
+  # NB : un site statique Render n'a pas de champ `plan` (gratuit par nature).
   - type: web
     name: cardegame
     runtime: static
     buildCommand: cd web && npm ci && npm run build
     staticPublishPath: ./web/dist
-    plan: free
     envVars:
       - key: VITE_API_URL
         value: https://cardegame-api.onrender.com
