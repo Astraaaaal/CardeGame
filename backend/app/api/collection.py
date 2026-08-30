@@ -32,7 +32,7 @@ JEWELRY_ORDER = {"prismatic": 5, "diamond": 4, "gold": 3, "silver": 2, "none": 1
 
 @router.get("/", response_model=CollectionResponse)
 async def get_collection(
-    sort_by: str = Query("rarity", regex="^(rarity|name|quality|specialty|jewelry|probability)$"),
+    sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability)$"),
     set_id: Optional[str] = Query(None),
     rarity_id: Optional[str] = Query(None),
     specialty_id: Optional[str] = Query(None),

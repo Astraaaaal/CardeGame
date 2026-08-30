@@ -76,8 +76,8 @@ class CardGeneratorService:
 
         # 6. Probabilité combinée
         drop_prob = self._calculate_probability(
-            characters, character, rarity, quality,
-            specialty, jewelry, force_rare, rarities,
+            characters, character, rarity, quality, specialty, jewelry,
+            force_rare, rarities, qualities, specialties, jewelries,
         )
 
         return {
@@ -106,36 +106,36 @@ class CardGeneratorService:
         jewelry,
         force_rare: bool,
         all_rarities: list,
+        all_qualities: list,
+        all_specialties: list,
+        all_jewelries: list,
     ) -> float:
-        """Calcule la probabilité exacte d'obtenir cette combinaison."""
-        # Proba personnage
-        char_total = sum(c["weight"] for c in characters)
-        char_prob = character["weight"] / max(1, char_total)
+        """
+        Probabilité RÉELLE (entre 0 et 1) de tirer exactement cette combinaison,
+        = produit des probabilités marginales (poids / somme des poids) de chaque
+        axe. Le client l'affiche en « 1 sur N ».
+        """
+        def frac(item, pool) -> float:
+            total = sum(x.weight for x in pool)
+            return (item.weight / total) if total else 0.0
 
-        # Proba rareté
-        rarity_items = (
+        char_total = sum(c["weight"] for c in characters)
+        char_prob = (character["weight"] / char_total) if char_total else 0.0
+
+        rarity_pool = (
             [r for r in all_rarities if r.id != "common"]
             if force_rare
             else all_rarities
         )
-        rarity_total = sum(r.weight for r in rarity_items)
-        rarity_prob = rarity.weight / max(1, rarity_total)
-
-        # Proba qualité (on a besoin de toutes les qualités —
-        # on utilise quality.weight relatif)
-        quality_prob = quality.weight / 100  # approximation
-
-        # Proba spécialité
-        specialty_prob = specialty.weight / 100
-
-        # Proba jewelry
-        jewelry_prob = jewelry.weight / 100
 
         combined = (
-            char_prob * rarity_prob * quality_prob
-            * specialty_prob * jewelry_prob * 100 * 10
+            char_prob
+            * frac(rarity, rarity_pool)
+            * frac(quality, all_qualities)
+            * frac(specialty, all_specialties)
+            * frac(jewelry, all_jewelries)
         )
-        return round(combined, 4)
+        return round(combined, 12)
 
     async def _get_characters_for_set(
         self, session: AsyncSession, set_id: str

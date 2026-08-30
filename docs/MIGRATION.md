@@ -78,17 +78,27 @@ uniquement depuis un réseau non filtré.
 (cas actuel, pas de Cloudinary), il affiche un placeholder avec le nom + bordure
 couleur rareté. Rien ne casse — c'est juste basique visuellement.
 
-Deux options, à trancher :
-- **A. Rendu côté client** (CSS/Canvas dans `web/`) à partir des métadonnées de `CardResponse`
-  + overlays de `assets/img/`. Pas de Cloudinary. Logique à porter depuis
-  `prototype/src/engine/card_renderer.py`.
-- **B. Rendu côté serveur** (Pillow, déjà ébauché dans `backend/app/services/card_renderer.py`)
-  + upload Cloudinary + cache CDN. Plus lourd à mettre en place.
+**Choix fait : rendu client (option A).** `web/src/components/card/CardImage.tsx` compose
+la carte en CSS/DOM à partir des métadonnées : art du personnage en fond, cadre
+rareté/jewelry + glow, badge type, chip rareté, nom + spécialité, description, gen/set,
+effet d'usure par qualité (filtres CSS), sheen shiny, aura ex. Unités `cqi` → mise à
+l'échelle propre. `CardReveal` et `CardDetail` réutilisent ce composant. Premier jet
+solide ; passe visuelle plus poussée (typo, holo, dos de carte) à prévoir.
+
+### Passe de dette rapide ✅ (30/08/2026)
+
+- [x] Warnings React Router → `future` flags dans `<BrowserRouter>`
+- [x] `regex=` → `pattern=` dans `collection.py` (déprécié)
+- [x] `drop_probability` : vrai calcul (poids / somme des poids, produit des axes),
+      plus de fudge `*1000`. Affiché « 1 sur N ». 110 lignes recalculées sur Neon.
+- [x] Portrait perso 5,47 Mo → 297 Ko (resize 600px, PNG optimisé)
+- [x] Collection : barre de recherche par nom + bouton sens de tri (↑/↓),
+      option de tri « Récent » (cassée, 422) remplacée par « Nom » + « Rareté réelle »
 
 ### Étape 7 — Durcissement avant prod
 
 - [ ] Protéger `/api/admin/*` (clé admin ou retrait du routeur en prod)
-- [ ] Court-circuiter le renderer serveur si Cloudinary non configuré
+- [x] Court-circuiter le renderer serveur si Cloudinary non configuré (renvoie `None`)
 - [ ] Passer le seed en données embarquées dans `backend/` (le Docker context est `./backend`,
       `assets/` n'y est pas copié → `/admin/seed` échoue en prod tel quel)
 - [ ] Alembic pour les migrations (remplacer `create_all` au démarrage)
@@ -98,9 +108,10 @@ Deux options, à trancher :
 
 ## Dette connue (non bloquante)
 
-- `backend/app/services/card_generator.py` : calcul de probabilité approximatif
-  (`weight / 100`) au lieu de la somme réelle des poids comme dans le prototype.
-- `prototype/src/engine/card_renderer.py` : compare `quality_id` à `"Unplayable"` /
-  `"authentic"`… en CamelCase alors que les IDs réels sont en minuscules → filtres d'usure
-  mal appliqués. À corriger si on porte ce code.
-- `prototype/` : `card_generator.py` local devient inutile (le serveur génère).
+- `python-jose` (JWT backend) vieillissant → migrer vers `pyjwt` un jour.
+- Contenu : **1 seul personnage**, seul le set A1 a des personnages. Les boosters
+  A2 / A2bis / A2.5 renvoient un pack vide (`generate_pack` → `[]`).
+- Portrait perso servi en PNG 297 Ko ; si beaucoup de persos un jour, prévoir un
+  pipeline d'images au build (WebP).
+- `prototype/` : `card_generator.py` local est mort (le serveur génère). Le renderer
+  du prototype compare aussi `quality_id` en CamelCase (IDs réels en minuscules).

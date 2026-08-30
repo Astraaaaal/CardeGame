@@ -62,8 +62,12 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
                             <p className="italic text-white/50 mt-2">{card.character_description}</p>
                         )}
                         <p>
-                            Indice de rareté:{" "}
-                            <span className="text-accent">{card.drop_probability.toFixed(2)}</span>
+                            Rareté du tirage:{" "}
+                            <span className="text-accent">
+                                {card.drop_probability > 0
+                                    ? `1 sur ${Math.round(1 / card.drop_probability).toLocaleString("fr-FR")}`
+                                    : "—"}
+                            </span>
                         </p>
                         {quantity !== undefined && quantity > 1 && (
                             <p>
