@@ -8,6 +8,7 @@ import MainMenu from "@/pages/MainMenu";
 import BoosterShop from "@/pages/BoosterShop";
 import PackOpening from "@/pages/PackOpening";
 import Collection from "@/pages/Collection";
+import AdminPanel from "@/pages/AdminPanel";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, setUser } = useAuthStore();
@@ -34,6 +35,7 @@ export default function App() {
         <div className="max-w-mobile mx-auto min-h-screen">
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/admin" element={<AdminPanel />} />
                 <Route
                     path="/"
                     element={
