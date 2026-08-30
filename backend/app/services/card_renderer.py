@@ -47,17 +47,20 @@ class CardRendererService:
 
     async def render_and_upload(
         self, session: AsyncSession, card_data: dict
-    ) -> str:
+    ) -> str | None:
         """
         Rend une carte et l'upload vers Cloudinary.
-        Retourne l'URL de l'image.
+        Retourne l'URL de l'image, ou None si le rendu serveur est désactivé
+        (pas de Cloudinary) — le client affiche alors la carte à partir des
+        métadonnées.
         """
+        # Sans Cloudinary : pas de rendu serveur. On renvoie None plutôt qu'une
+        # URL bidon (qui donnait des 404 /api/cards/render/*.png côté client).
+        if not settings.CLOUDINARY_CLOUD_NAME:
+            return None
+
         # Clé de cache unique (même logique que l'original)
         cache_key = self._get_cache_key(card_data)
-
-        # Si Cloudinary n'est pas configuré, retourner un placeholder
-        if not settings.CLOUDINARY_CLOUD_NAME:
-            return f"/api/cards/render/{cache_key}.png"
 
         # Rendre l'image
         img = self._render_card_image(card_data)
