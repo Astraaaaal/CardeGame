@@ -7,7 +7,10 @@ import type {
     GameSet,
     AdminBooster,
     AdminCharacter,
+    AdminResource,
+    AdminShopOffer,
     CharacterSetLink,
+    Tuning,
 } from "@/types/content";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -399,9 +402,211 @@ function TypeForm({ onSaved, onClose }: { onSaved: () => void; onClose: () => vo
     );
 }
 
+/* ────────────────────────── Formulaire Ressource ─────────────────────── */
+
+function ResourceForm({ onSaved, onClose }: { onSaved: () => void; onClose: () => void }) {
+    const [f, setF] = useState<AdminResource>({ id: "", name: "", description: "" });
+    const [err, setErr] = useState("");
+    const m = useMutation({
+        mutationFn: () => adminApi.createResource(f),
+        onSuccess: onSaved,
+        onError: (e) => setErr(errMsg(e)),
+    });
+
+    return (
+        <div className="space-y-3">
+            <div>
+                <label className={labelCls}>Identifiant (slug)</label>
+                <input className={inputCls} value={f.id} placeholder="ex: shards"
+                    onChange={(e) => setF({ ...f, id: e.target.value.toLowerCase() })} />
+            </div>
+            <div>
+                <label className={labelCls}>Nom affiché</label>
+                <input className={inputCls} value={f.name} placeholder="ex: Éclats"
+                    onChange={(e) => setF({ ...f, name: e.target.value })} />
+            </div>
+            <div>
+                <label className={labelCls}>Description</label>
+                <textarea className={inputCls} rows={2} value={f.description}
+                    onChange={(e) => setF({ ...f, description: e.target.value })} />
+            </div>
+            {err && <p className="text-red-400 text-xs">{err}</p>}
+            <div className="flex gap-2 pt-1">
+                <Button variant="primary" className="flex-1" loading={m.isPending} onClick={() => m.mutate()}>
+                    Créer
+                </Button>
+                <Button variant="secondary" onClick={onClose}>Annuler</Button>
+            </div>
+        </div>
+    );
+}
+
+/* ──────────────────────── Formulaire Offre du shop ───────────────────── */
+
+const OFFER_KINDS: { value: AdminShopOffer["kind"]; label: string }[] = [
+    { value: "booster", label: "Booster" },
+    { value: "specific_card", label: "Carte précise" },
+    { value: "upgrade", label: "Amélioration" },
+];
+
+function ShopOfferForm({
+    resources, boosters, characters, tuning, onSaved, onClose,
+}: {
+    resources: AdminResource[];
+    boosters: AdminBooster[];
+    characters: AdminCharacter[];
+    tuning: Tuning | undefined;
+    onSaved: () => void;
+    onClose: () => void;
+}) {
+    const [f, setF] = useState<Partial<AdminShopOffer>>({
+        id: "", name: "", description: "", kind: "booster",
+        resource_id: resources[0]?.id ?? "", price: 10,
+        booster_id: boosters[0]?.id,
+    });
+    const [err, setErr] = useState("");
+    const m = useMutation({
+        mutationFn: () => adminApi.createShopOffer(f),
+        onSuccess: onSaved,
+        onError: (e) => setErr(errMsg(e)),
+    });
+
+    const rarities = tuning?.rarities ?? [];
+    const qualities = tuning?.qualities ?? [];
+    const specialties = tuning?.specialties ?? [];
+    const jewelries = tuning?.jewelries ?? [];
+
+    return (
+        <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+            <div>
+                <label className={labelCls}>Identifiant</label>
+                <input className={inputCls} value={f.id} placeholder="ex: offre_pack_a1"
+                    onChange={(e) => setF({ ...f, id: e.target.value })} />
+            </div>
+            <div>
+                <label className={labelCls}>Nom</label>
+                <input className={inputCls} value={f.name}
+                    onChange={(e) => setF({ ...f, name: e.target.value })} />
+            </div>
+            <div>
+                <label className={labelCls}>Type d'offre</label>
+                <select className={inputCls} value={f.kind}
+                    onChange={(e) => setF({ ...f, kind: e.target.value as AdminShopOffer["kind"] })}>
+                    {OFFER_KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
+                </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className={labelCls}>Ressource</label>
+                    <select className={inputCls} value={f.resource_id}
+                        onChange={(e) => setF({ ...f, resource_id: e.target.value })}>
+                        {resources.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className={labelCls}>Prix</label>
+                    <input type="number" className={inputCls} value={f.price}
+                        onChange={(e) => setF({ ...f, price: +e.target.value })} />
+                </div>
+            </div>
+
+            {f.kind === "booster" && (
+                <div>
+                    <label className={labelCls}>Booster</label>
+                    <select className={inputCls} value={f.booster_id ?? ""}
+                        onChange={(e) => setF({ ...f, booster_id: e.target.value })}>
+                        {boosters.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                </div>
+            )}
+
+            {f.kind === "specific_card" && (
+                <div className="space-y-2">
+                    <div>
+                        <label className={labelCls}>Personnage</label>
+                        <select className={inputCls} value={f.character_id ?? ""}
+                            onChange={(e) => setF({ ...f, character_id: e.target.value })}>
+                            <option value="">—</option>
+                            {characters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label className={labelCls}>Rareté</label>
+                            <select className={inputCls} value={f.rarity_id ?? ""}
+                                onChange={(e) => setF({ ...f, rarity_id: e.target.value })}>
+                                <option value="">—</option>
+                                {rarities.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Qualité</label>
+                            <select className={inputCls} value={f.quality_id ?? ""}
+                                onChange={(e) => setF({ ...f, quality_id: e.target.value })}>
+                                <option value="">—</option>
+                                {qualities.map((q) => <option key={q.id} value={q.id}>{q.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Spécialité</label>
+                            <select className={inputCls} value={f.specialty_id ?? ""}
+                                onChange={(e) => setF({ ...f, specialty_id: e.target.value })}>
+                                <option value="">—</option>
+                                {specialties.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Jewelry</label>
+                            <select className={inputCls} value={f.jewelry_id ?? ""}
+                                onChange={(e) => setF({ ...f, jewelry_id: e.target.value })}>
+                                <option value="">—</option>
+                                {jewelries.map((j) => <option key={j.id} value={j.id}>{j.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {f.kind === "upgrade" && (
+                <div className="grid grid-cols-2 gap-2">
+                    <div>
+                        <label className={labelCls}>Qualité cible</label>
+                        <select className={inputCls} value={f.target_quality_id ?? ""}
+                            onChange={(e) => setF({ ...f, target_quality_id: e.target.value || undefined })}>
+                            <option value="">— aucune —</option>
+                            {qualities.map((q) => <option key={q.id} value={q.id}>{q.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className={labelCls}>Spécialité cible</label>
+                        <select className={inputCls} value={f.target_specialty_id ?? ""}
+                            onChange={(e) => setF({ ...f, target_specialty_id: e.target.value || undefined })}>
+                            <option value="">— aucune —</option>
+                            {specialties.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                    </div>
+                </div>
+            )}
+
+            <div>
+                <label className={labelCls}>Description</label>
+                <textarea className={inputCls} rows={2} value={f.description}
+                    onChange={(e) => setF({ ...f, description: e.target.value })} />
+            </div>
+            {err && <p className="text-red-400 text-xs">{err}</p>}
+            <div className="flex gap-2 pt-1">
+                <Button variant="primary" className="flex-1" loading={m.isPending} onClick={() => m.mutate()}>
+                    Créer
+                </Button>
+                <Button variant="secondary" onClick={onClose}>Annuler</Button>
+            </div>
+        </div>
+    );
+}
+
 /* ─────────────────────────────── Panneau ────────────────────────────── */
 
-type Tab = "characters" | "boosters" | "sets" | "types";
+type Tab = "characters" | "boosters" | "sets" | "types" | "resources" | "offers";
 
 function Panel() {
     const navigate = useNavigate();
@@ -413,16 +618,22 @@ function Panel() {
         | { kind: "booster"; data: AdminBooster | null }
         | { kind: "character"; data: AdminCharacter | null }
         | { kind: "type" }
+        | { kind: "resource" }
+        | { kind: "offer" }
         | null
     >(null);
     const [toDelete, setToDelete] = useState<{ kind: Tab; id: string; label: string } | null>(null);
 
     const setsQ = useQuery({ queryKey: ["admin", "sets"], queryFn: adminApi.listSets });
-    const boostersQ = useQuery({ queryKey: ["admin", "boosters"], queryFn: adminApi.listBoosters, enabled: tab === "boosters" });
-    const charsQ = useQuery({ queryKey: ["admin", "characters"], queryFn: adminApi.listCharacters, enabled: tab === "characters" });
+    const boostersQ = useQuery({ queryKey: ["admin", "boosters"], queryFn: adminApi.listBoosters });
+    const charsQ = useQuery({ queryKey: ["admin", "characters"], queryFn: adminApi.listCharacters });
     const typesQ = useQuery({ queryKey: ["admin", "types"], queryFn: adminApi.listTypes, enabled: tab === "types" });
+    const resourcesQ = useQuery({ queryKey: ["admin", "resources"], queryFn: adminApi.listResources });
+    const offersQ = useQuery({ queryKey: ["admin", "offers"], queryFn: adminApi.listShopOffers, enabled: tab === "offers" });
+    const tuningQ = useQuery({ queryKey: ["admin", "tuning"], queryFn: adminApi.tuning });
 
     const sets = setsQ.data ?? [];
+    const resources = resourcesQ.data ?? [];
 
     const refresh = () => {
         qc.invalidateQueries({ queryKey: ["admin"] });
@@ -435,9 +646,17 @@ function Panel() {
             if (x.kind === "sets") return adminApi.deleteSet(x.id);
             if (x.kind === "boosters") return adminApi.deleteBooster(x.id);
             if (x.kind === "types") return adminApi.deleteType(x.id);
+            if (x.kind === "resources") return adminApi.deleteResource(x.id);
+            if (x.kind === "offers") return adminApi.deleteShopOffer(x.id);
             return adminApi.deleteCharacter(x.id);
         },
         onSuccess: () => { refresh(); setToDelete(null); },
+        onError: (e) => alert(errMsg(e)),
+    });
+
+    const toggleOffer = useMutation({
+        mutationFn: (o: AdminShopOffer) => adminApi.setShopOfferActive(o.id, !o.active),
+        onSuccess: refresh,
         onError: (e) => alert(errMsg(e)),
     });
 
@@ -456,6 +675,12 @@ function Panel() {
     );
     const filteredTypes = useMemo(
         () => (typesQ.data ?? []).filter((t) => matches(t.id, t.name)), [typesQ.data, q]
+    );
+    const filteredResources = useMemo(
+        () => resources.filter((r) => matches(r.id, r.name)), [resources, q]
+    );
+    const filteredOffers = useMemo(
+        () => (offersQ.data ?? []).filter((o) => matches(o.id, o.name)), [offersQ.data, q]
     );
 
     const Row = ({
@@ -495,14 +720,17 @@ function Panel() {
             </header>
 
             <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
-                {(["characters", "boosters", "sets", "types"] as Tab[]).map((t) => (
+                {(["characters", "boosters", "sets", "types", "resources", "offers"] as Tab[]).map((t) => (
                     <button
                         key={t}
                         className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${tab === t ? "bg-accent text-white" : "bg-white/10 text-white/50 hover:bg-white/20"
                             }`}
                         onClick={() => setTab(t)}
                     >
-                        {t === "characters" ? "Personnages" : t === "boosters" ? "Boosters" : t === "sets" ? "Sets" : "Types"}
+                        {{
+                            characters: "Personnages", boosters: "Boosters", sets: "Sets",
+                            types: "Types", resources: "Ressources", offers: "Offres shop",
+                        }[t]}
                     </button>
                 ))}
             </div>
@@ -527,7 +755,9 @@ function Panel() {
                             tab === "sets" ? { kind: "set", data: null }
                                 : tab === "boosters" ? { kind: "booster", data: null }
                                     : tab === "types" ? { kind: "type" }
-                                        : { kind: "character", data: null }
+                                        : tab === "resources" ? { kind: "resource" }
+                                            : tab === "offers" ? { kind: "offer" }
+                                                : { kind: "character", data: null }
                         )
                     }
                 >
@@ -576,6 +806,41 @@ function Panel() {
                                 onDelete={() => setToDelete({ kind: "types", id: t.id, label: `le type « ${t.name} »` })}
                             />
                         )))}
+
+                {tab === "resources" &&
+                    (resourcesQ.isLoading ? <p className="text-white/40 text-sm">…</p> :
+                        filteredResources.map((r) => (
+                            <Row key={r.id}
+                                title={`${r.name}  ·  ${r.id}`}
+                                subtitle={r.description || "—"}
+                                onDelete={() => setToDelete({ kind: "resources", id: r.id, label: `la ressource « ${r.name} »` })}
+                            />
+                        )))}
+
+                {tab === "offers" &&
+                    (offersQ.isLoading ? <p className="text-white/40 text-sm">…</p> :
+                        filteredOffers.map((o) => (
+                            <div key={o.id} className="flex items-center justify-between bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2 gap-2">
+                                <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-semibold truncate ${o.active ? "text-white" : "text-white/30 line-through"}`}>
+                                        {o.name}  ·  {o.id}
+                                    </p>
+                                    <p className="text-white/40 text-xs truncate">
+                                        {o.kind} — {o.price} {o.resource_name}
+                                    </p>
+                                </div>
+                                <button
+                                    className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/60 hover:bg-white/20 shrink-0"
+                                    onClick={() => toggleOffer.mutate(o)}
+                                >
+                                    {o.active ? "Désactiver" : "Activer"}
+                                </button>
+                                <button className="text-red-400/70 hover:text-red-400 text-sm px-1 shrink-0"
+                                    onClick={() => setToDelete({ kind: "offers", id: o.id, label: `l'offre « ${o.name} »` })}>
+                                    Suppr.
+                                </button>
+                            </div>
+                        )))}
             </main>
 
             <Modal
@@ -585,7 +850,9 @@ function Panel() {
                     editing?.kind === "set" ? "Set"
                         : editing?.kind === "booster" ? "Booster"
                             : editing?.kind === "type" ? "Nouveau type"
-                                : "Personnage"
+                                : editing?.kind === "resource" ? "Nouvelle ressource"
+                                    : editing?.kind === "offer" ? "Nouvelle offre"
+                                        : "Personnage"
                 }
             >
                 {editing?.kind === "set" && (
@@ -599,6 +866,19 @@ function Panel() {
                 )}
                 {editing?.kind === "type" && (
                     <TypeForm onSaved={refresh} onClose={() => setEditing(null)} />
+                )}
+                {editing?.kind === "resource" && (
+                    <ResourceForm onSaved={refresh} onClose={() => setEditing(null)} />
+                )}
+                {editing?.kind === "offer" && (
+                    <ShopOfferForm
+                        resources={resources}
+                        boosters={boostersQ.data ?? []}
+                        characters={charsQ.data ?? []}
+                        tuning={tuningQ.data}
+                        onSaved={refresh}
+                        onClose={() => setEditing(null)}
+                    />
                 )}
             </Modal>
 

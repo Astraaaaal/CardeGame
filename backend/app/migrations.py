@@ -17,6 +17,11 @@ _STATEMENTS = [
     "INSERT INTO booster_sets (booster_id, set_id) "
     "SELECT id, set_id FROM boosters "
     "ON CONFLICT DO NOTHING",
+    # Valeur de recyclage par axe (rareté / qualité / spécialité / jewelry).
+    "ALTER TABLE rarities ADD COLUMN IF NOT EXISTS recycle_value INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE qualities ADD COLUMN IF NOT EXISTS recycle_value INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE specialties ADD COLUMN IF NOT EXISTS recycle_value INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE jewelries ADD COLUMN IF NOT EXISTS recycle_value INTEGER NOT NULL DEFAULT 0",
 ]
 
 # Types de personnage initiaux (portés depuis l'ancien TYPE_COLORS du renderer).
@@ -39,6 +44,25 @@ _DEFAULT_TYPES = [
     ("normal", "Normal", 150, 150, 150),
 ]
 
+# Ressources par défaut (recyclage / shop).
+_DEFAULT_RESOURCES = [
+    ("dust", "Poussière", "Obtenue en recyclant des cartes. Dépensable au shop."),
+]
+
+# Valeurs de recyclage par défaut, par table et par id. Appliquées uniquement
+# si la valeur est encore à 0 (ne stomp pas un réglage déjà fait par un admin).
+_RECYCLE_DEFAULTS: dict[str, dict[str, int]] = {
+    "rarities": {"common": 5, "rare": 20, "epic": 60, "legendary": 200},
+    "qualities": {
+        "authentic": 500, "mint": 300, "graded": 200, "excellent": 120,
+        "preserved": 60, "fair": 40, "worn": 25, "faded": 15,
+        "scratched": 10, "torn": 6, "damaged": 4,
+        "unplayable": 2, "unreadable": 2, "destroyed": 1,
+    },
+    "specialties": {"normal": 0, "full_art": 50, "ex": 80, "shiny": 150},
+    "jewelries": {"none": 0, "silver": 20, "gold": 60, "diamond": 150, "prismatic": 400},
+}
+
 
 async def apply_patches(conn: AsyncConnection) -> None:
     for sql in _STATEMENTS:
@@ -56,3 +80,23 @@ async def apply_patches(conn: AsyncConnection) -> None:
             await conn.execute(insert_type, {"id": type_id, "name": name, "r": r, "g": g, "b": b})
         except Exception as exc:  # noqa: BLE001
             print(f"[migrations] avertissement seed type {type_id!r}: {exc}")
+
+    insert_resource = text(
+        "INSERT INTO resources (id, name, description) "
+        "VALUES (:id, :name, :description) ON CONFLICT (id) DO NOTHING"
+    )
+    for res_id, name, description in _DEFAULT_RESOURCES:
+        try:
+            await conn.execute(insert_resource, {"id": res_id, "name": name, "description": description})
+        except Exception as exc:  # noqa: BLE001
+            print(f"[migrations] avertissement seed resource {res_id!r}: {exc}")
+
+    for table, values in _RECYCLE_DEFAULTS.items():
+        update = text(
+            f"UPDATE {table} SET recycle_value = :v WHERE id = :id AND recycle_value = 0"
+        )
+        for row_id, value in values.items():
+            try:
+                await conn.execute(update, {"id": row_id, "v": value})
+            except Exception as exc:  # noqa: BLE001
+                print(f"[migrations] avertissement recycle_value {table}.{row_id}: {exc}")

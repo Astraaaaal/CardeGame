@@ -13,12 +13,14 @@ from app.models.reference import Set, Rarity, Quality, Specialty, Jewelry
 from app.models.booster import Booster, BoosterSet
 from app.models.character import Character, CharacterSet, CharacterType
 from app.models.card import UserCard
+from app.models.economy import Resource, UserResource, ShopOffer
 from app.schemas.content import (
     SetIn, SetPatch, SetOut,
     BoosterIn, BoosterPatch, BoosterOut,
     CharacterIn, CharacterPatch, CharacterOut, CharacterSetLink,
     TypeIn, TypeOut,
 )
+from app.schemas.economy import ResourceIn, ShopOfferIn
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 
@@ -323,6 +325,107 @@ async def delete_type(type_id: str, session: AsyncSession = Depends(get_session)
     await session.commit()
 
 
+# ─────────────────────────────  RESSOURCES  ───────────────────────
+
+@router.get("/resources")
+async def list_resources(session: AsyncSession = Depends(get_session)):
+    rows = (await session.execute(select(Resource))).scalars().all()
+    return [{"id": r.id, "name": r.name, "description": r.description} for r in rows]
+
+
+@router.post("/resources", status_code=201)
+async def create_resource(body: ResourceIn, session: AsyncSession = Depends(get_session)):
+    if await session.get(Resource, body.id):
+        raise HTTPException(409, f"La ressource '{body.id}' existe déjà.")
+    r = Resource(id=body.id, name=body.name, description=body.description)
+    session.add(r)
+    await session.commit()
+    return {"id": r.id, "name": r.name, "description": r.description}
+
+
+@router.delete("/resources/{resource_id}", status_code=204)
+async def delete_resource(resource_id: str, session: AsyncSession = Depends(get_session)):
+    r = await session.get(Resource, resource_id)
+    if not r:
+        raise HTTPException(404, "Ressource introuvable.")
+    used_offers = (await session.execute(
+        select(func.count()).select_from(ShopOffer).where(ShopOffer.resource_id == resource_id)
+    )).scalar_one()
+    held = (await session.execute(
+        select(func.count()).select_from(UserResource)
+        .where(UserResource.resource_id == resource_id, UserResource.amount > 0)
+    )).scalar_one()
+    if used_offers or held:
+        raise HTTPException(
+            409,
+            f"Ressource utilisée par {used_offers} offre(s) et détenue par "
+            f"{held} joueur(s). Suppression impossible.",
+        )
+    await session.delete(r)
+    await session.commit()
+
+
+# ─────────────────────────────  SHOP OFFERS  ──────────────────────
+
+@router.get("/shop-offers")
+async def list_shop_offers(session: AsyncSession = Depends(get_session)):
+    from app.api.shop import _offer_response
+    rows = (await session.execute(select(ShopOffer))).scalars().all()
+    return [await _offer_response(session, o) for o in rows]
+
+
+@router.post("/shop-offers", status_code=201)
+async def create_shop_offer(body: ShopOfferIn, session: AsyncSession = Depends(get_session)):
+    from app.api.shop import _offer_response
+    if await session.get(ShopOffer, body.id):
+        raise HTTPException(409, f"L'offre '{body.id}' existe déjà.")
+    if not await session.get(Resource, body.resource_id):
+        raise HTTPException(400, f"La ressource '{body.resource_id}' n'existe pas.")
+
+    if body.kind == "booster" and not body.booster_id:
+        raise HTTPException(400, "Un booster est requis pour une offre de type 'booster'.")
+    if body.kind == "specific_card" and not all(
+        [body.character_id, body.rarity_id, body.quality_id, body.specialty_id, body.jewelry_id]
+    ):
+        raise HTTPException(
+            400, "Personnage, rareté, qualité, spécialité et jewelry sont requis "
+                 "pour une offre de type 'specific_card'.",
+        )
+    if body.kind == "upgrade" and not (body.target_quality_id or body.target_specialty_id):
+        raise HTTPException(
+            400, "Choisis au moins un palier cible (qualité ou spécialité) "
+                 "pour une offre de type 'upgrade'.",
+        )
+
+    o = ShopOffer(**body.model_dump())
+    session.add(o)
+    await session.commit()
+    return await _offer_response(session, o)
+
+
+@router.patch("/shop-offers/{offer_id}")
+async def update_shop_offer(
+    offer_id: str, active: bool, session: AsyncSession = Depends(get_session)
+):
+    """Active/désactive une offre (retrait rapide du shop sans la supprimer)."""
+    from app.api.shop import _offer_response
+    o = await session.get(ShopOffer, offer_id)
+    if not o:
+        raise HTTPException(404, "Offre introuvable.")
+    o.active = active
+    await session.commit()
+    return await _offer_response(session, o)
+
+
+@router.delete("/shop-offers/{offer_id}", status_code=204)
+async def delete_shop_offer(offer_id: str, session: AsyncSession = Depends(get_session)):
+    o = await session.get(ShopOffer, offer_id)
+    if not o:
+        raise HTTPException(404, "Offre introuvable.")
+    await session.delete(o)
+    await session.commit()
+
+
 # ──────────────  TABLES DE RÉGLAGE (lecture seule ici)  ───────────
 
 @router.get("/tuning")
@@ -331,7 +434,10 @@ async def tuning(session: AsyncSession = Depends(get_session)):
     async def dump(model):
         rows = (await session.execute(select(model))).scalars().all()
         return [
-            {"id": r.id, "name": r.name, "weight": getattr(r, "weight", None)}
+            {
+                "id": r.id, "name": r.name, "weight": getattr(r, "weight", None),
+                "recycle_value": getattr(r, "recycle_value", None),
+            }
             for r in rows
         ]
     return {

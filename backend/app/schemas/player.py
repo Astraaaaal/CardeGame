@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
+from app.schemas.economy import ResourceBalance
+
 
 class PlayerResponse(BaseModel):
     id: int
@@ -17,6 +19,7 @@ class PlayerResponse(BaseModel):
     login_streak: int
     created_at: datetime
     last_login: Optional[datetime] = None
+    resources: list[ResourceBalance] = []
 
 
 class DailyRewardResponse(BaseModel):

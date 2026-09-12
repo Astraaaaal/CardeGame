@@ -1,3 +1,9 @@
+export interface ResourceBalance {
+    id: string;
+    name: string;
+    amount: number;
+}
+
 export interface Player {
     id: number;
     username: string;
@@ -8,6 +14,7 @@ export interface Player {
     login_streak: number;
     created_at: string;
     last_login: string | null;
+    resources: ResourceBalance[];
 }
 
 export interface DailyReward {

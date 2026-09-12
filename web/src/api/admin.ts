@@ -10,6 +10,8 @@ import type {
     AdminBooster,
     AdminCharacter,
     AdminType,
+    AdminResource,
+    AdminShopOffer,
     Tuning,
 } from "@/types/content";
 
@@ -75,4 +77,18 @@ export const adminApi = {
     createType: (b: { id: string; name: string; color_r: number; color_g: number; color_b: number }) =>
         http.post<AdminType>("/types", b).then((r) => r.data),
     deleteType: (id: string) => http.delete(`/types/${id}`).then(() => undefined),
+
+    // ── Ressources ──
+    listResources: () => http.get<AdminResource[]>("/resources").then((r) => r.data),
+    createResource: (b: AdminResource) =>
+        http.post<AdminResource>("/resources", b).then((r) => r.data),
+    deleteResource: (id: string) => http.delete(`/resources/${id}`).then(() => undefined),
+
+    // ── Offres du shop ──
+    listShopOffers: () => http.get<AdminShopOffer[]>("/shop-offers").then((r) => r.data),
+    createShopOffer: (b: Partial<AdminShopOffer>) =>
+        http.post<AdminShopOffer>("/shop-offers", b).then((r) => r.data),
+    setShopOfferActive: (id: string, active: boolean) =>
+        http.patch<AdminShopOffer>(`/shop-offers/${id}`, null, { params: { active } }).then((r) => r.data),
+    deleteShopOffer: (id: string) => http.delete(`/shop-offers/${id}`).then(() => undefined),
 };

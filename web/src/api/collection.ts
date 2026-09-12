@@ -15,6 +15,23 @@ export interface CollectionResponse {
     groups: CardGroup[];
 }
 
+export interface RecycleRequest {
+    character_id: string;
+    rarity_id: string;
+    quality_id: string;
+    specialty_id: string;
+    jewelry_id: string;
+    count: number;
+}
+
+export interface RecycleResponse {
+    resource_id: string;
+    resource_name: string;
+    gained: number;
+    new_balance: number;
+    remaining_quantity: number;
+}
+
 export const collectionApi = {
     getCollection: async (params?: CollectionParams): Promise<CollectionResponse> => {
         const res = await api.get("/collection/", { params });
@@ -23,6 +40,11 @@ export const collectionApi = {
 
     getCardDetail: async (cardId: string): Promise<Card> => {
         const res = await api.get(`/collection/${cardId}`);
+        return res.data;
+    },
+
+    recycle: async (body: RecycleRequest): Promise<RecycleResponse> => {
+        const res = await api.post("/collection/recycle", body);
         return res.data;
     },
 };

@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Card } from "@/types/card";
+import { collectionApi } from "@/api/collection";
 import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
 import CardImage from "./CardImage";
 
 interface CardDetailProps {
@@ -13,8 +17,37 @@ function rarityColorToCSS(color: number[]): string {
     return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
 }
 
+function errMsg(e: unknown): string {
+    if (e && typeof e === "object" && "response" in e) {
+        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
+        if (typeof r?.data?.detail === "string") return r.data.detail;
+    }
+    return "Erreur.";
+}
+
 export default function CardDetail({ card, quantity, onClose }: CardDetailProps) {
     const rarityColor = rarityColorToCSS(card.rarity_color);
+    const owned = quantity ?? 1;
+    const qc = useQueryClient();
+    const [recycleCount, setRecycleCount] = useState(1);
+    const [result, setResult] = useState<string | null>(null);
+
+    const recycle = useMutation({
+        mutationFn: () => collectionApi.recycle({
+            character_id: card.character_id,
+            rarity_id: card.rarity_id,
+            quality_id: card.quality_id,
+            specialty_id: card.specialty_id,
+            jewelry_id: card.jewelry_id,
+            count: recycleCount,
+        }),
+        onSuccess: (res) => {
+            setResult(`+${res.gained.toLocaleString("fr-FR")} ${res.resource_name} (solde : ${res.new_balance.toLocaleString("fr-FR")})`);
+            qc.invalidateQueries({ queryKey: ["collection"] });
+            qc.invalidateQueries({ queryKey: ["player"] });
+        },
+        onError: (e) => setResult(errMsg(e)),
+    });
 
     return (
         <motion.div
@@ -87,6 +120,37 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
                             <p>
                                 Exemplaires: <span className="text-gold font-bold">×{quantity}</span>
                             </p>
+                        )}
+                    </div>
+
+                    {/* Recyclage */}
+                    <div className="mt-3 pt-3 border-t border-white/10">
+                        <p className="text-white/60 text-xs mb-2">
+                            Recycler contre de la poussière (irréversible)
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                min={1}
+                                max={owned}
+                                value={recycleCount}
+                                onChange={(e) => setRecycleCount(
+                                    Math.max(1, Math.min(owned, +e.target.value || 1))
+                                )}
+                                className="w-16 bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white text-center"
+                            />
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                className="flex-1"
+                                loading={recycle.isPending}
+                                onClick={() => { setResult(null); recycle.mutate(); }}
+                            >
+                                Recycler {recycleCount > 1 ? `×${recycleCount}` : ""}
+                            </Button>
+                        </div>
+                        {result && (
+                            <p className="text-xs mt-2 text-purple-300">{result}</p>
                         )}
                     </div>
                 </div>

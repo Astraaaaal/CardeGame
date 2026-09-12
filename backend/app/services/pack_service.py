@@ -11,8 +11,7 @@ from fastapi import HTTPException
 from app.models.user import User
 from app.models.card import UserCard
 from app.models.booster import Booster, BoosterSet
-from app.models.reference import Rarity, Quality, Specialty, Jewelry, Set
-from app.models.character import Character
+from app.models.reference import Set
 from app.services.card_generator import CardGeneratorService
 from app.services.card_renderer import CardRendererService
 from app.schemas.card import CardResponse
@@ -25,64 +24,32 @@ class PackService:
         self.generator = CardGeneratorService()
         self.renderer = CardRendererService()
 
-    async def open_packs(
+    async def _booster_set_ids(self, session: AsyncSession, booster: Booster) -> list[str]:
+        set_ids = (await session.execute(
+            select(BoosterSet.set_id).where(BoosterSet.booster_id == booster.id)
+        )).scalars().all()
+        return list(set_ids) or [booster.set_id]
+
+    async def generate_and_persist_packs(
         self,
         session: AsyncSession,
         user_id: int,
-        booster_id: str,
+        booster: Booster,
         quantity: int,
-    ) -> dict:
+    ) -> tuple[list[list[CardResponse]], int]:
         """
-        Ouvre un ou plusieurs packs :
-        1. Vérifie le booster
-        2. Calcule le prix (réductions multi-pack)
-        3. Vérifie et déduit les coins
-        4. Génère les cartes
-        5. Rend les images
-        6. Insère en BDD
+        Génère `quantity` packs pour `booster`, les insère en BDD et retourne
+        (packs de CardResponse, nombre total de cartes). Ne touche à aucune
+        monnaie — appelant responsable du prix (coins ou ressource).
         """
-        # 1. Charger le booster (+ tous les sets dans lesquels il pioche)
-        booster = await session.get(Booster, booster_id)
-        if not booster:
-            raise HTTPException(status_code=404, detail="Booster introuvable")
-        set_ids = (await session.execute(
-            select(BoosterSet.set_id).where(BoosterSet.booster_id == booster_id)
-        )).scalars().all()
-        set_ids = list(set_ids) or [booster.set_id]
+        set_ids = await self._booster_set_ids(session, booster)
 
-        # 2. Calcul du prix (x5=-10%, x10=-15%)
-        base_price = booster.price
-        if quantity >= 10:
-            total_price = math.floor(base_price * quantity * 0.85)
-        elif quantity >= 5:
-            total_price = math.floor(base_price * quantity * 0.90)
-        else:
-            total_price = base_price * quantity
+        # Seul le nom du set n'est pas déjà porté par card_data (rareté/qualité/
+        # spécialité/jewelry viennent enrichis du générateur, cf. `_character` etc.)
+        sets_map = await self._load_map(session, Set)
 
-        # 3. Vérifier les coins
-        user = await session.get(User, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="Utilisateur introuvable")
-        if user.coins < total_price:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Pas assez de pièces ({user.coins}/{total_price})",
-            )
-
-        # 4. Déduire les coins AVANT génération (atomicité)
-        user.coins -= total_price
-        user.packs_opened += quantity
-
-        # 5. Générer toutes les cartes
         all_packs_response: list[list[CardResponse]] = []
         total_new_cards = 0
-
-        # Pré-charger les tables de référence pour enrichir les réponses
-        sets_map = await self._load_map(session, Set)
-        rarities_map = await self._load_map(session, Rarity)
-        qualities_map = await self._load_map(session, Quality)
-        specialties_map = await self._load_map(session, Specialty)
-        jewelries_map = await self._load_map(session, Jewelry)
 
         for _ in range(quantity):
             pack_data = await self.generator.generate_pack(
@@ -94,12 +61,8 @@ class PackService:
 
             pack_responses = []
             for card_data in pack_data:
-                # Rendre l'image
-                rendered_url = await self.renderer.render_and_upload(
-                    session, card_data
-                )
+                rendered_url = await self.renderer.render_and_upload(session, card_data)
 
-                # Créer en BDD
                 user_card = UserCard(
                     user_id=user_id,
                     character_id=card_data["character_id"],
@@ -108,14 +71,13 @@ class PackService:
                     quality_id=card_data["quality_id"],
                     specialty_id=card_data["specialty_id"],
                     jewelry_id=card_data["jewelry_id"],
-                    booster_id=booster_id,
+                    booster_id=booster.id,
                     drop_probability=card_data["drop_probability"],
                     rendered_url=rendered_url,
                 )
                 session.add(user_card)
                 total_new_cards += 1
 
-                # Construire la réponse enrichie
                 char = card_data.get("_character", {})
                 rarity = card_data.get("_rarity")
                 quality = card_data.get("_quality")
@@ -146,12 +108,53 @@ class PackService:
                     drop_probability=card_data["drop_probability"],
                     rendered_url=rendered_url,
                     obtained_at=user_card.obtained_at,
-                    booster_id=booster_id,
+                    booster_id=booster.id,
                     booster_name=booster.name,
                 ))
 
             all_packs_response.append(pack_responses)
 
+        return all_packs_response, total_new_cards
+
+    async def open_packs(
+        self,
+        session: AsyncSession,
+        user_id: int,
+        booster_id: str,
+        quantity: int,
+    ) -> dict:
+        """
+        Ouvre un ou plusieurs packs contre des pièces :
+        1. Vérifie le booster, 2. calcule le prix (réductions multi-pack),
+        3. vérifie/déduit les pièces, 4. génère + persiste, 5. commit.
+        """
+        booster = await session.get(Booster, booster_id)
+        if not booster:
+            raise HTTPException(status_code=404, detail="Booster introuvable")
+
+        base_price = booster.price
+        if quantity >= 10:
+            total_price = math.floor(base_price * quantity * 0.85)
+        elif quantity >= 5:
+            total_price = math.floor(base_price * quantity * 0.90)
+        else:
+            total_price = base_price * quantity
+
+        user = await session.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+        if user.coins < total_price:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Pas assez de pièces ({user.coins}/{total_price})",
+            )
+
+        user.coins -= total_price
+        user.packs_opened += quantity
+
+        all_packs_response, total_new_cards = await self.generate_and_persist_packs(
+            session, user_id, booster, quantity
+        )
         user.total_cards += total_new_cards
         await session.commit()
 

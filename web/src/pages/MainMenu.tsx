@@ -6,6 +6,7 @@ import { playerApi } from "@/api/player";
 import { useAuthStore } from "@/stores/authStore";
 import Button from "@/components/ui/Button";
 import CoinDisplay from "@/components/player/CoinDisplay";
+import ResourceDisplay from "@/components/player/ResourceDisplay";
 import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
 import { useLogout } from "@/hooks/useAuth";
@@ -27,6 +28,7 @@ export default function MainMenu() {
 
   const menuItems = [
     { label: "Boutique de Boosters", icon: "🛍️", path: "/shop", color: "bg-accent" },
+    { label: "Shop Ressources", icon: "✨", path: "/resource-shop", color: "bg-purple-600" },
     { label: "Ma Collection", icon: "📚", path: "/collection", color: "bg-purple-600" },
   ];
 
@@ -42,6 +44,7 @@ export default function MainMenu() {
           </h2>
           <div className="flex items-center gap-2 mt-0.5">
             <CoinDisplay coins={user?.coins ?? 0} />
+            <ResourceDisplay amount={user?.resources?.[0]?.amount ?? 0} label={user?.resources?.[0]?.name} />
             <StreakBadge streak={user?.login_streak ?? 0} />
           </div>
         </div>
