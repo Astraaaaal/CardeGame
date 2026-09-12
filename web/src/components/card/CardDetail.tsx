@@ -58,6 +58,20 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
                     <div className="space-y-1 text-sm text-white/70">
                         <p>Set: <span className="text-white">{card.set_name}</span></p>
                         <p>Type: <span className="text-white">{card.character_type}</span></p>
+                        <p>Génération: <span className="text-white">Gen {card.gen}</span></p>
+                        {card.booster_name && (
+                            <p>Booster: <span className="text-white">{card.booster_name}</span></p>
+                        )}
+                        {card.obtained_at && (
+                            <p>
+                                Obtenue le:{" "}
+                                <span className="text-white">
+                                    {new Date(card.obtained_at).toLocaleDateString("fr-FR", {
+                                        day: "2-digit", month: "2-digit", year: "numeric",
+                                    })}
+                                </span>
+                            </p>
+                        )}
                         {card.character_description && card.quality_id !== "unplayable" && (
                             <p className="italic text-white/50 mt-2">{card.character_description}</p>
                         )}

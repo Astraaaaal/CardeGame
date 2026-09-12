@@ -10,7 +10,7 @@ from fastapi import HTTPException
 
 from app.models.user import User
 from app.models.card import UserCard
-from app.models.booster import Booster
+from app.models.booster import Booster, BoosterSet
 from app.models.reference import Rarity, Quality, Specialty, Jewelry, Set
 from app.models.character import Character
 from app.services.card_generator import CardGeneratorService
@@ -41,10 +41,14 @@ class PackService:
         5. Rend les images
         6. Insère en BDD
         """
-        # 1. Charger le booster
+        # 1. Charger le booster (+ tous les sets dans lesquels il pioche)
         booster = await session.get(Booster, booster_id)
         if not booster:
             raise HTTPException(status_code=404, detail="Booster introuvable")
+        set_ids = (await session.execute(
+            select(BoosterSet.set_id).where(BoosterSet.booster_id == booster_id)
+        )).scalars().all()
+        set_ids = list(set_ids) or [booster.set_id]
 
         # 2. Calcul du prix (x5=-10%, x10=-15%)
         base_price = booster.price
@@ -83,7 +87,7 @@ class PackService:
         for _ in range(quantity):
             pack_data = await self.generator.generate_pack(
                 session,
-                set_id=booster.set_id,
+                set_ids=set_ids,
                 cards_count=booster.cards_count,
                 guaranteed_rare=booster.guaranteed_rare,
             )
@@ -104,6 +108,7 @@ class PackService:
                     quality_id=card_data["quality_id"],
                     specialty_id=card_data["specialty_id"],
                     jewelry_id=card_data["jewelry_id"],
+                    booster_id=booster_id,
                     drop_probability=card_data["drop_probability"],
                     rendered_url=rendered_url,
                 )
@@ -141,6 +146,8 @@ class PackService:
                     drop_probability=card_data["drop_probability"],
                     rendered_url=rendered_url,
                     obtained_at=user_card.obtained_at,
+                    booster_id=booster_id,
+                    booster_name=booster.name,
                 ))
 
             all_packs_response.append(pack_responses)

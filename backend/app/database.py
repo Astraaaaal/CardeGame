@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from app.config import settings
+from app.migrations import apply_patches
 
 
 def _prepare_url(raw_url: str) -> tuple[str, dict]:
@@ -64,6 +65,7 @@ async def init_db():
     """Crée toutes les tables au démarrage (dev only — utiliser Alembic en prod)."""
     async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
+        await apply_patches(conn)
 
 
 async def get_session() -> AsyncSession:  # type: ignore

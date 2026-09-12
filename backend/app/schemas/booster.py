@@ -10,7 +10,8 @@ from app.schemas.card import CardResponse
 class BoosterResponse(BaseModel):
     id: str
     name: str
-    set_id: str
+    set_id: str  # premier set (compat) — cf. set_ids pour la liste complète
+    set_ids: list[str] = []
     cards_count: int
     price: int
     guaranteed_rare: bool

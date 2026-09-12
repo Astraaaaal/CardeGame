@@ -9,6 +9,7 @@ import type {
     GameSet,
     AdminBooster,
     AdminCharacter,
+    AdminType,
     Tuning,
 } from "@/types/content";
 
@@ -68,4 +69,10 @@ export const adminApi = {
         http.patch<AdminCharacter>(`/characters/${id}`, b).then((r) => r.data),
     deleteCharacter: (id: string) =>
         http.delete(`/characters/${id}`).then(() => undefined),
+
+    // ── Types ──
+    listTypes: () => http.get<AdminType[]>("/types").then((r) => r.data),
+    createType: (b: { id: string; name: string; color_r: number; color_g: number; color_b: number }) =>
+        http.post<AdminType>("/types", b).then((r) => r.data),
+    deleteType: (id: string) => http.delete(`/types/${id}`).then(() => undefined),
 };

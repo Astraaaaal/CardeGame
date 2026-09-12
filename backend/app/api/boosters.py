@@ -10,7 +10,7 @@ from app.database import get_session
 from app.core.dependencies import get_current_user
 from app.core.ratelimit import rate_limit
 from app.models.user import User
-from app.models.booster import Booster
+from app.models.booster import Booster, BoosterSet
 from app.schemas.booster import BoosterResponse, PackOpenRequest, PackOpenResponse
 from app.services.pack_service import PackService
 
@@ -26,11 +26,17 @@ async def list_boosters(
     """Liste tous les boosters disponibles à l'achat."""
     result = await session.execute(select(Booster))
     boosters = result.scalars().all()
+    links = (await session.execute(select(BoosterSet))).scalars().all()
+    sets_by_booster: dict[str, list[str]] = {}
+    for link in links:
+        sets_by_booster.setdefault(link.booster_id, []).append(link.set_id)
+
     return [
         BoosterResponse(
             id=b.id,
             name=b.name,
             set_id=b.set_id,
+            set_ids=sets_by_booster.get(b.id) or [b.set_id],
             cards_count=b.cards_count,
             price=b.price,
             guaranteed_rare=b.guaranteed_rare,

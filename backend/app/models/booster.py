@@ -11,8 +11,18 @@ class Booster(SQLModel, table=True):
 
     id: str = Field(primary_key=True, max_length=30)
     name: str = Field(max_length=100)
+    # Set "principal" (compat historique). La liste complète des sets d'un
+    # booster vit dans BoosterSet ; set_id = le premier de cette liste.
     set_id: str = Field(foreign_key="sets.id", max_length=20)
     cards_count: int = Field(default=5)
     price: int = Field(default=100)
     guaranteed_rare: bool = Field(default=False)
     description: str = Field(default="")
+
+
+class BoosterSet(SQLModel, table=True):
+    """Table de liaison booster <-> sets : un booster peut piocher dans plusieurs sets."""
+    __tablename__ = "booster_sets"
+
+    booster_id: str = Field(foreign_key="boosters.id", primary_key=True, max_length=30)
+    set_id: str = Field(foreign_key="sets.id", primary_key=True, max_length=20)

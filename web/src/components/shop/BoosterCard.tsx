@@ -22,6 +22,9 @@ export default function BoosterCard({ booster, onSelect }: BoosterCardProps) {
                 {booster.guaranteed_rare && (
                     <span className="text-accent">• Rare garantie</span>
                 )}
+                {booster.set_ids.length > 1 && (
+                    <span>• Sets {booster.set_ids.join(", ")}</span>
+                )}
             </div>
 
             <Button

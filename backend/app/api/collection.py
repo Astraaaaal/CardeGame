@@ -12,6 +12,7 @@ from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.models.card import UserCard
 from app.models.character import Character
+from app.models.booster import Booster
 from app.models.reference import Set, Rarity, Quality, Specialty, Jewelry
 from app.schemas.card import CardResponse, CardGroupResponse
 from app.schemas.collection import CollectionResponse
@@ -70,6 +71,7 @@ async def get_collection(
     qualities_map = await _load_map(session, Quality)
     specialties_map = await _load_map(session, Specialty)
     jewelries_map = await _load_map(session, Jewelry)
+    boosters_map = await _load_map(session, Booster)
 
     # Regrouper (même logique que _card_group_key)
     groups: dict[tuple, dict] = {}
@@ -108,6 +110,11 @@ async def get_collection(
                     drop_probability=card.drop_probability,
                     rendered_url=card.rendered_url,
                     obtained_at=card.obtained_at,
+                    booster_id=card.booster_id,
+                    booster_name=(
+                        boosters_map[card.booster_id].name
+                        if card.booster_id in boosters_map else None
+                    ),
                 ),
                 "quantity": 1,
             }
@@ -172,6 +179,7 @@ async def get_card_detail(
     quality = await session.get(Quality, card.quality_id)
     specialty = await session.get(Specialty, card.specialty_id)
     jewelry = await session.get(Jewelry, card.jewelry_id)
+    booster = await session.get(Booster, card.booster_id) if card.booster_id else None
 
     return CardResponse(
         id=card.id,
@@ -196,6 +204,8 @@ async def get_card_detail(
         drop_probability=card.drop_probability,
         rendered_url=card.rendered_url,
         obtained_at=card.obtained_at,
+        booster_id=card.booster_id,
+        booster_name=booster.name if booster else None,
     )
 
 

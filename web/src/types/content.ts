@@ -9,11 +9,18 @@ export interface GameSet {
 export interface AdminBooster {
     id: string;
     name: string;
-    set_id: string;
+    set_ids: string[];
     cards_count: number;
     price: number;
     guaranteed_rare: boolean;
     description: string;
+}
+
+export interface AdminType {
+    id: string;
+    name: string;
+    color: number[];
+    in_use: number;
 }
 
 export interface CharacterSetLink {

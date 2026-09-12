@@ -21,6 +21,8 @@ export interface Card {
     drop_probability: number;
     rendered_url: string | null;
     obtained_at: string | null;
+    booster_id: string | null;
+    booster_name: string | null;
 }
 
 export interface CardGroup {

@@ -30,6 +30,8 @@ class CardResponse(BaseModel):
     drop_probability: float = 0.0
     rendered_url: Optional[str] = None
     obtained_at: Optional[datetime] = None
+    booster_id: Optional[str] = None
+    booster_name: Optional[str] = None
 
 
 class CardGroupResponse(BaseModel):

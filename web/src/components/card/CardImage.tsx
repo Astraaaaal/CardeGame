@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Card } from "@/types/card";
+import { useTypes, typeColor as lookupTypeColor, typeColorAlpha } from "@/hooks/useTypes";
 
 /**
  * CardImage — rendu complet d'une carte à partir des métadonnées (CSS/DOM).
@@ -7,15 +8,9 @@ import type { Card } from "@/types/card";
  * le reste (cadre rareté, badges, effet d'usure qualité, sheen shiny…) est en CSS.
  * Toutes les tailles internes sont en `cqi` (1cqi = 1% de la largeur de la carte),
  * donc la carte se met à l'échelle proprement quelle que soit sa largeur.
+ * Les couleurs de type viennent de l'API (/api/types) — gérables depuis /admin,
+ * pas d'une liste figée dans le code.
  */
-
-// Couleurs de type — portées depuis prototype/src/engine/card_renderer.py
-const TYPE_COLORS: Record<string, string> = {
-    Plantes: "#3CB44B", Feu: "#DC3C28", Eau: "#3278DC", "Électrique": "#E0B000",
-    "Ténèbres": "#6A4CA0", "Lumière": "#D9C878", Glace: "#7FC8F0", Roche: "#A0825A",
-    Vent: "#8FC9B4", Poison: "#AA50C8", "Métal": "#8C99A8", Psychique: "#E664B4",
-    Dragon: "#643CC8", "Fée": "#FF96C8", Combat: "#B4321E", Normal: "#8A8A8A",
-};
 
 // Effet visuel de la qualité (usure)
 const QUALITY_FX: Record<string, { filter: string; streak?: boolean }> = {
@@ -52,11 +47,12 @@ export default function CardImage({
     className = "",
 }: CardImageProps) {
     const [imgOk, setImgOk] = useState(true);
+    const { data: types } = useTypes();
 
     const rarity = rgb(card.rarity_color);
-    const typeColor = TYPE_COLORS[card.character_type] ?? "#6A6A80";
+    const typeCol = lookupTypeColor(types, card.character_type);
     const hasJewelry = card.jewelry_id !== "none";
-    const frame = hasJewelry ? rgb(card.jewelry_color) : typeColor;
+    const frame = hasJewelry ? rgb(card.jewelry_color) : typeCol;
     const fx = QUALITY_FX[card.quality_id] ?? { filter: "none" };
     const isSpecial = !["normal", "full_art"].includes(card.specialty_id);
     const shiny = card.specialty_id === "shiny";
@@ -218,7 +214,7 @@ export default function CardImage({
                             fontWeight: 700,
                             padding: "1.2cqi 2.6cqi",
                             borderRadius: "3cqi",
-                            background: `${typeColor}e6`,
+                            background: typeColorAlpha(types, card.character_type, 0.9),
                             textShadow: "0 1px 2px rgba(0,0,0,.6)",
                             whiteSpace: "nowrap",
                         }}

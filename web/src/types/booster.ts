@@ -2,6 +2,7 @@ export interface Booster {
     id: string;
     name: string;
     set_id: string;
+    set_ids: string[];
     cards_count: number;
     price: number;
     guaranteed_rare: boolean;

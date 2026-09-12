@@ -18,13 +18,13 @@ class CardGeneratorService:
     async def generate_pack(
         self,
         session: AsyncSession,
-        set_id: str,
+        set_ids: list[str],
         cards_count: int,
         guaranteed_rare: bool,
     ) -> list[dict]:
-        """Génère un pack complet de cartes."""
+        """Génère un pack complet de cartes, en piochant dans un ou plusieurs sets."""
         # Charger les données depuis la BDD
-        characters = await self._get_characters_for_set(session, set_id)
+        characters = await self._get_characters_for_sets(session, set_ids)
         rarities = await self._get_all(session, Rarity)
         qualities = await self._get_all(session, Quality)
         specialties = await self._get_all(session, Specialty)
@@ -37,8 +37,7 @@ class CardGeneratorService:
         for i in range(cards_count):
             force_rare = guaranteed_rare and i == cards_count - 1
             card = self._generate_single(
-                characters, set_id, rarities, qualities,
-                specialties, jewelries, force_rare,
+                characters, rarities, qualities, specialties, jewelries, force_rare,
             )
             cards.append(card)
 
@@ -47,7 +46,6 @@ class CardGeneratorService:
     def _generate_single(
         self,
         characters: list[dict],
-        set_id: str,
         rarities: list,
         qualities: list,
         specialties: list,
@@ -55,7 +53,9 @@ class CardGeneratorService:
         force_rare: bool = False,
     ) -> dict:
         """Génère une seule carte aléatoire."""
-        # 1. Personnage pondéré
+        # 1. Personnage pondéré. Chaque entrée = un lien (personnage, set) : un
+        #    personnage présent dans plusieurs des sets du booster a d'autant
+        #    plus de "tickets" dans le tirage (poids additifs, naturellement).
         char_weights = [c["weight"] for c in characters]
         character = random.choices(characters, weights=char_weights, k=1)[0]
 
@@ -82,7 +82,9 @@ class CardGeneratorService:
 
         return {
             "character_id": character["id"],
-            "set_id": set_id,
+            # Le set attribué à la carte est celui du lien (personnage, set)
+            # effectivement tiré — pas "le" set du booster, qui peut en avoir plusieurs.
+            "set_id": character["set_id"],
             "rarity_id": rarity.id,
             "quality_id": quality.id,
             "specialty_id": specialty.id,
@@ -137,17 +139,21 @@ class CardGeneratorService:
         )
         return round(combined, 12)
 
-    async def _get_characters_for_set(
-        self, session: AsyncSession, set_id: str
+    async def _get_characters_for_sets(
+        self, session: AsyncSession, set_ids: list[str]
     ) -> list[dict]:
-        """Récupère les personnages d'un set avec leurs poids."""
+        """
+        Récupère les personnages disponibles dans les sets donnés, une entrée
+        par lien (personnage, set) — un personnage lié à plusieurs de ces sets
+        apparaît plusieurs fois, avec le poids et le set de CE lien précis.
+        """
         result = await session.execute(
-            select(Character, CharacterSet.weight)
+            select(Character, CharacterSet.weight, CharacterSet.set_id)
             .join(CharacterSet, Character.id == CharacterSet.character_id)
-            .where(CharacterSet.set_id == set_id)
+            .where(CharacterSet.set_id.in_(set_ids))
         )
         chars = []
-        for char, weight in result.all():
+        for char, weight, set_id in result.all():
             chars.append({
                 "id": char.id,
                 "name": char.name,
@@ -156,6 +162,7 @@ class CardGeneratorService:
                 "gen": char.gen,
                 "image_url": char.image_url,
                 "weight": weight,
+                "set_id": set_id,
             })
         return chars
 

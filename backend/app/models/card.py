@@ -28,6 +28,10 @@ class UserCard(SQLModel, table=True):
     specialty_id: str = Field(foreign_key="specialties.id")
     jewelry_id: str = Field(default="none", foreign_key="jewelries.id")
 
+    # Booster à l'origine de la carte (nullable : colonne ajoutée après coup,
+    # les cartes plus anciennes n'en ont pas — cf. app/migrations.py)
+    booster_id: Optional[str] = Field(default=None, max_length=30)
+
     # Probabilité calculée au moment de la génération
     drop_probability: float = Field(default=0.0)
 

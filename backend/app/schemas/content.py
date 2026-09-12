@@ -31,7 +31,7 @@ class SetOut(BaseModel):
 class BoosterIn(BaseModel):
     id: str = Field(min_length=1, max_length=30, pattern=r"^[A-Za-z0-9_.\-]+$")
     name: str = Field(min_length=1, max_length=100)
-    set_id: str = Field(min_length=1, max_length=20)
+    set_ids: list[str] = Field(min_length=1)
     cards_count: int = Field(default=5, ge=1, le=20)
     price: int = Field(default=100, ge=0, le=1_000_000)
     guaranteed_rare: bool = False
@@ -40,7 +40,7 @@ class BoosterIn(BaseModel):
 
 class BoosterPatch(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
-    set_id: str | None = None
+    set_ids: list[str] | None = Field(default=None, min_length=1)
     cards_count: int | None = Field(default=None, ge=1, le=20)
     price: int | None = Field(default=None, ge=0, le=1_000_000)
     guaranteed_rare: bool | None = None
@@ -50,7 +50,7 @@ class BoosterPatch(BaseModel):
 class BoosterOut(BaseModel):
     id: str
     name: str
-    set_id: str
+    set_ids: list[str]
     cards_count: int
     price: int
     guaranteed_rare: bool
@@ -91,3 +91,20 @@ class CharacterOut(BaseModel):
     gen: int
     image_url: str
     sets: list[CharacterSetLink] = []
+
+
+# ── Types de personnage ──
+
+class TypeIn(BaseModel):
+    id: str = Field(min_length=1, max_length=30, pattern=r"^[a-z0-9_.\-]+$")
+    name: str = Field(min_length=1, max_length=30)
+    color_r: int = Field(default=150, ge=0, le=255)
+    color_g: int = Field(default=150, ge=0, le=255)
+    color_b: int = Field(default=150, ge=0, le=255)
+
+
+class TypeOut(BaseModel):
+    id: str
+    name: str
+    color: list[int]
+    in_use: int = 0
