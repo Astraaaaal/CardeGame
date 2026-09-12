@@ -14,6 +14,7 @@ import type {
 } from "@/types/content";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 
 const inputCls =
     "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
@@ -71,31 +72,6 @@ function KeyGate({ onOk }: { onOk: () => void }) {
                 Entrer
             </Button>
         </div>
-    );
-}
-
-/* ─────────────────────── Modale de confirmation ──────────────────────── */
-
-function ConfirmModal({
-    open, title, message, busy, onConfirm, onCancel,
-}: {
-    open: boolean;
-    title: string;
-    message: string;
-    busy: boolean;
-    onConfirm: () => void;
-    onCancel: () => void;
-}) {
-    return (
-        <Modal open={open} onClose={onCancel} title={title}>
-            <p className="text-white/70 text-sm mb-4">{message}</p>
-            <div className="flex gap-2">
-                <Button variant="danger" className="flex-1" loading={busy} onClick={onConfirm}>
-                    Supprimer
-                </Button>
-                <Button variant="secondary" onClick={onCancel}>Annuler</Button>
-            </div>
-        </Modal>
     );
 }
 
@@ -886,6 +862,8 @@ function Panel() {
                 open={!!toDelete}
                 title="Confirmer la suppression"
                 message={toDelete ? `Supprimer définitivement ${toDelete.label} ? Cette action est irréversible.` : ""}
+                confirmLabel="Supprimer"
+                confirmVariant="danger"
                 busy={del.isPending}
                 onConfirm={() => toDelete && del.mutate(toDelete)}
                 onCancel={() => setToDelete(null)}

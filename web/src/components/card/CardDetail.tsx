@@ -5,6 +5,7 @@ import type { Card } from "@/types/card";
 import { collectionApi } from "@/api/collection";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import CardImage from "./CardImage";
 
 interface CardDetailProps {
@@ -31,6 +32,7 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
     const qc = useQueryClient();
     const [recycleCount, setRecycleCount] = useState(1);
     const [result, setResult] = useState<string | null>(null);
+    const [confirmingRecycle, setConfirmingRecycle] = useState(false);
 
     const recycle = useMutation({
         mutationFn: () => collectionApi.recycle({
@@ -43,11 +45,18 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
         }),
         onSuccess: (res) => {
             setResult(`+${res.gained.toLocaleString("fr-FR")} ${res.resource_name} (solde : ${res.new_balance.toLocaleString("fr-FR")})`);
+            setConfirmingRecycle(false);
             qc.invalidateQueries({ queryKey: ["collection"] });
             qc.invalidateQueries({ queryKey: ["player"] });
         },
-        onError: (e) => setResult(errMsg(e)),
+        onError: (e) => { setResult(errMsg(e)); setConfirmingRecycle(false); },
     });
+
+    const losesAllCopies = recycleCount >= owned;
+    const cardLabel = [card.character_name, card.rarity_name, card.quality_name,
+        card.specialty_id !== "normal" ? card.specialty_name : null,
+        card.jewelry_id !== "none" ? card.jewelry_name : null]
+        .filter(Boolean).join(" · ");
 
     return (
         <motion.div
@@ -143,8 +152,7 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
                                 variant="secondary"
                                 size="sm"
                                 className="flex-1"
-                                loading={recycle.isPending}
-                                onClick={() => { setResult(null); recycle.mutate(); }}
+                                onClick={() => { setResult(null); setConfirmingRecycle(true); }}
                             >
                                 Recycler {recycleCount > 1 ? `×${recycleCount}` : ""}
                             </Button>
@@ -162,6 +170,20 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
                     Fermer
                 </button>
             </motion.div>
+
+            <ConfirmModal
+                open={confirmingRecycle}
+                title="Confirmer le recyclage"
+                message={`Recycler ${recycleCount} exemplaire${recycleCount > 1 ? "s" : ""} de « ${cardLabel} » contre de la poussière ? Cette action est irréversible.`}
+                warning={losesAllCopies
+                    ? `Tu recycles ${owned > 1 ? "tous tes exemplaires" : "ton dernier exemplaire"} de cette carte : tu n'en posséderas plus aucun après cette opération.`
+                    : undefined}
+                confirmLabel="Recycler"
+                confirmVariant="primary"
+                busy={recycle.isPending}
+                onConfirm={() => recycle.mutate()}
+                onCancel={() => setConfirmingRecycle(false)}
+            />
         </motion.div>
     );
 }
