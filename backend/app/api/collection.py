@@ -20,21 +20,11 @@ from app.schemas.card import CardResponse, CardGroupResponse
 from app.schemas.collection import CollectionResponse
 from app.schemas.economy import RecycleRequest, RecycleResponse
 from app.services.card_view import build_card_response
+from app.services.tier_order import RARITY_ORDER, QUALITY_ORDER, SPECIALTY_ORDER, JEWELRY_ORDER
 
 router = APIRouter()
 
 RECYCLE_RESOURCE_ID = "dust"  # seule source de recyclage pour l'instant
-
-# Ordres de tri (identiques à collection.py Pygame)
-RARITY_ORDER = {"legendary": 4, "epic": 3, "rare": 2, "common": 1}
-QUALITY_ORDER = {
-    "authentic": 14, "mint": 13, "graded": 12, "excellent": 11,
-    "preserved": 10, "fair": 9, "worn": 8, "faded": 7,
-    "scratched": 6, "torn": 5, "damaged": 4,
-    "unplayable": 3, "unreadable": 2, "destroyed": 1,
-}
-SPECIALTY_ORDER = {"shiny": 4, "ex": 3, "full_art": 2, "normal": 1}
-JEWELRY_ORDER = {"prismatic": 5, "diamond": 4, "gold": 3, "silver": 2, "none": 1}
 
 
 @router.get("/", response_model=CollectionResponse)

@@ -12,6 +12,7 @@ import type {
     AdminType,
     AdminResource,
     AdminShopOffer,
+    DailyFeature,
     Tuning,
 } from "@/types/content";
 
@@ -91,4 +92,11 @@ export const adminApi = {
     setShopOfferActive: (id: string, active: boolean) =>
         http.patch<AdminShopOffer>(`/shop-offers/${id}`, null, { params: { active } }).then((r) => r.data),
     deleteShopOffer: (id: string) => http.delete(`/shop-offers/${id}`).then(() => undefined),
+
+    // ── Booster du jour ──
+    getDailyFeature: () => http.get<DailyFeature | null>("/daily-feature").then((r) => r.data),
+    setDailyFeature: (offerId: string) =>
+        http.post<DailyFeature>("/daily-feature", { offer_id: offerId }).then((r) => r.data),
+    clearDailyFeature: (isoDate: string) =>
+        http.delete(`/daily-feature/${isoDate}`).then(() => undefined),
 };

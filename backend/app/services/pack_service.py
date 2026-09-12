@@ -4,6 +4,7 @@ Toute la logique critique est ici (anti-triche : serveur = autorité).
 """
 
 import math
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from fastapi import HTTPException
@@ -36,11 +37,16 @@ class PackService:
         user_id: int,
         booster: Booster,
         quantity: int,
+        force_min_rarity_id: Optional[str] = None,
+        rarity_weight_multiplier: Optional[float] = None,
     ) -> tuple[list[list[CardResponse]], int]:
         """
         Génère `quantity` packs pour `booster`, les insère en BDD et retourne
         (packs de CardResponse, nombre total de cartes). Ne touche à aucune
         monnaie — appelant responsable du prix (coins ou ressource).
+
+        `force_min_rarity_id`/`rarity_weight_multiplier` : overrides optionnels
+        pour une offre spéciale du shop (cf. CardGeneratorService.generate_pack).
         """
         set_ids = await self._booster_set_ids(session, booster)
 
@@ -57,6 +63,8 @@ class PackService:
                 set_ids=set_ids,
                 cards_count=booster.cards_count,
                 guaranteed_rare=booster.guaranteed_rare,
+                force_min_rarity_id=force_min_rarity_id,
+                rarity_weight_multiplier=rarity_weight_multiplier,
             )
 
             pack_responses = []
@@ -131,6 +139,11 @@ class PackService:
         booster = await session.get(Booster, booster_id)
         if not booster:
             raise HTTPException(status_code=404, detail="Booster introuvable")
+        if not booster.active or not booster.visible_in_shop:
+            raise HTTPException(
+                status_code=404,
+                detail="Ce booster n'est plus disponible dans la boutique.",
+            )
 
         base_price = booster.price
         if quantity >= 10:

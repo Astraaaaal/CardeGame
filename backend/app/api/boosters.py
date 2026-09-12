@@ -23,8 +23,10 @@ async def list_boosters(
     session: AsyncSession = Depends(get_session),
     _user: User = Depends(get_current_user),
 ):
-    """Liste tous les boosters disponibles à l'achat."""
-    result = await session.execute(select(Booster))
+    """Liste les boosters disponibles à l'achat en pièces (actifs et visibles)."""
+    result = await session.execute(
+        select(Booster).where(Booster.active == True, Booster.visible_in_shop == True)  # noqa: E712
+    )
     boosters = result.scalars().all()
     links = (await session.execute(select(BoosterSet))).scalars().all()
     sets_by_booster: dict[str, list[str]] = {}

@@ -22,6 +22,20 @@ _STATEMENTS = [
     "ALTER TABLE qualities ADD COLUMN IF NOT EXISTS recycle_value INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE specialties ADD COLUMN IF NOT EXISTS recycle_value INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE jewelries ADD COLUMN IF NOT EXISTS recycle_value INTEGER NOT NULL DEFAULT 0",
+    # Interrupteurs de visibilité/activation d'un booster.
+    "ALTER TABLE boosters ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE",
+    "ALTER TABLE boosters ADD COLUMN IF NOT EXISTS visible_in_shop BOOLEAN NOT NULL DEFAULT TRUE",
+    # Rationnement d'achat + rotation quotidienne + override de probas booster.
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS purchase_limit_per_day INTEGER",
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS is_daily_pool BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS force_min_rarity_id VARCHAR(20)",
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS rarity_weight_multiplier DOUBLE PRECISION",
+    # Reroll : axes concernés + mode.
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS reroll_rarity BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS reroll_quality BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS reroll_specialty BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS reroll_jewelry BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS reroll_mode VARCHAR(20)",
 ]
 
 # Types de personnage initiaux (portés depuis l'ancien TYPE_COLORS du renderer).

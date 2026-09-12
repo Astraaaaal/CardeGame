@@ -130,6 +130,7 @@ function BoosterForm({
         initial ?? {
             id: "", name: "", set_ids: sets[0] ? [sets[0].id] : [], cards_count: 5,
             price: 100, guaranteed_rare: false, description: "",
+            active: true, visible_in_shop: true,
         }
     );
     const [err, setErr] = useState("");
@@ -200,6 +201,16 @@ function BoosterForm({
                 <input type="checkbox" checked={f.guaranteed_rare}
                     onChange={(e) => setF({ ...f, guaranteed_rare: e.target.checked })} />
                 Rare garantie
+            </label>
+            <label className="flex items-center gap-2 text-sm text-white/80">
+                <input type="checkbox" checked={f.visible_in_shop}
+                    onChange={(e) => setF({ ...f, visible_in_shop: e.target.checked })} />
+                Visible dans la boutique classique (pièces)
+            </label>
+            <label className="flex items-center gap-2 text-sm text-white/80">
+                <input type="checkbox" checked={f.active}
+                    onChange={(e) => setF({ ...f, active: e.target.checked })} />
+                Actif (décoche pour retirer partout, y compris le shop à ressources)
             </label>
             <div>
                 <label className={labelCls}>Description</label>
@@ -422,7 +433,8 @@ function ResourceForm({ onSaved, onClose }: { onSaved: () => void; onClose: () =
 const OFFER_KINDS: { value: AdminShopOffer["kind"]; label: string }[] = [
     { value: "booster", label: "Booster" },
     { value: "specific_card", label: "Carte précise" },
-    { value: "upgrade", label: "Amélioration" },
+    { value: "upgrade", label: "Amélioration (palier exact)" },
+    { value: "reroll", label: "Reroll (retirage)" },
 ];
 
 function ShopOfferForm({
@@ -487,12 +499,34 @@ function ShopOfferForm({
             </div>
 
             {f.kind === "booster" && (
-                <div>
-                    <label className={labelCls}>Booster</label>
-                    <select className={inputCls} value={f.booster_id ?? ""}
-                        onChange={(e) => setF({ ...f, booster_id: e.target.value })}>
-                        {boosters.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
+                <div className="space-y-2">
+                    <div>
+                        <label className={labelCls}>Booster</label>
+                        <select className={inputCls} value={f.booster_id ?? ""}
+                            onChange={(e) => setF({ ...f, booster_id: e.target.value })}>
+                            {boosters.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                        </select>
+                    </div>
+                    <p className="text-white/40 text-xs">
+                        Overrides propres à CETTE offre (n'affectent pas l'ouverture normale du même booster) :
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label className={labelCls}>Rareté minimum garantie</label>
+                            <select className={inputCls} value={f.force_min_rarity_id ?? ""}
+                                onChange={(e) => setF({ ...f, force_min_rarity_id: e.target.value || undefined })}>
+                                <option value="">— aucune —</option>
+                                {rarities.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className={labelCls}>Multiplicateur proba rare+</label>
+                            <input type="number" step="0.1" min="0" className={inputCls}
+                                value={f.rarity_weight_multiplier ?? ""}
+                                placeholder="ex: 2 = x2"
+                                onChange={(e) => setF({ ...f, rarity_weight_multiplier: e.target.value ? +e.target.value : undefined })} />
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -564,6 +598,48 @@ function ShopOfferForm({
                 </div>
             )}
 
+            {f.kind === "reroll" && (
+                <div className="space-y-2">
+                    <label className={labelCls}>Axes retirés (le joueur choisit la carte à l'achat)</label>
+                    <div className="flex flex-wrap gap-3">
+                        {([
+                            ["reroll_rarity", "Rareté"], ["reroll_quality", "Qualité"],
+                            ["reroll_specialty", "Spécialité"], ["reroll_jewelry", "Jewelry"],
+                        ] as const).map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-1.5 text-sm text-white/80">
+                                <input type="checkbox" checked={!!f[key]}
+                                    onChange={(e) => setF({ ...f, [key]: e.target.checked })} />
+                                {label}
+                            </label>
+                        ))}
+                    </div>
+                    <div>
+                        <label className={labelCls}>Mode</label>
+                        <select className={inputCls} value={f.reroll_mode ?? ""}
+                            onChange={(e) => setF({ ...f, reroll_mode: (e.target.value || undefined) as AdminShopOffer["reroll_mode"] })}>
+                            <option value="">— choisir —</option>
+                            <option value="random">Aléatoire (peut être pire qu'avant, moins cher)</option>
+                            <option value="guaranteed_min">Garanti égal ou mieux (plus cher)</option>
+                        </select>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className={labelCls}>Limite d'achat / jour / joueur</label>
+                    <input type="number" min="1" className={inputCls}
+                        value={f.purchase_limit_per_day ?? ""}
+                        placeholder="illimité"
+                        onChange={(e) => setF({ ...f, purchase_limit_per_day: e.target.value ? +e.target.value : undefined })} />
+                </div>
+                <label className="flex items-center gap-2 text-sm text-white/80 mt-5">
+                    <input type="checkbox" checked={!!f.is_daily_pool}
+                        onChange={(e) => setF({ ...f, is_daily_pool: e.target.checked })} />
+                    Dans la rotation "du jour"
+                </label>
+            </div>
+
             <div>
                 <label className={labelCls}>Description</label>
                 <textarea className={inputCls} rows={2} value={f.description}
@@ -599,6 +675,7 @@ function Panel() {
         | null
     >(null);
     const [toDelete, setToDelete] = useState<{ kind: Tab; id: string; label: string } | null>(null);
+    const [pinChoice, setPinChoice] = useState("");
 
     const setsQ = useQuery({ queryKey: ["admin", "sets"], queryFn: adminApi.listSets });
     const boostersQ = useQuery({ queryKey: ["admin", "boosters"], queryFn: adminApi.listBoosters });
@@ -607,6 +684,9 @@ function Panel() {
     const resourcesQ = useQuery({ queryKey: ["admin", "resources"], queryFn: adminApi.listResources });
     const offersQ = useQuery({ queryKey: ["admin", "offers"], queryFn: adminApi.listShopOffers, enabled: tab === "offers" });
     const tuningQ = useQuery({ queryKey: ["admin", "tuning"], queryFn: adminApi.tuning });
+    const dailyFeatureQ = useQuery({
+        queryKey: ["admin", "daily-feature"], queryFn: adminApi.getDailyFeature, enabled: tab === "offers",
+    });
 
     const sets = setsQ.data ?? [];
     const resources = resourcesQ.data ?? [];
@@ -632,6 +712,17 @@ function Panel() {
 
     const toggleOffer = useMutation({
         mutationFn: (o: AdminShopOffer) => adminApi.setShopOfferActive(o.id, !o.active),
+        onSuccess: refresh,
+        onError: (e) => alert(errMsg(e)),
+    });
+
+    const pinFeature = useMutation({
+        mutationFn: (offerId: string) => adminApi.setDailyFeature(offerId),
+        onSuccess: refresh,
+        onError: (e) => alert(errMsg(e)),
+    });
+    const unpinFeature = useMutation({
+        mutationFn: () => adminApi.clearDailyFeature(new Date().toISOString().slice(0, 10)),
         onSuccess: refresh,
         onError: (e) => alert(errMsg(e)),
     });
@@ -755,8 +846,10 @@ function Panel() {
                     (boostersQ.isLoading ? <p className="text-white/40 text-sm">…</p> :
                         filteredBoosters.map((b) => (
                             <Row key={b.id}
-                                title={`${b.name}  ·  ${b.id}`}
-                                subtitle={`sets ${b.set_ids.join(", ")} — ${b.cards_count} cartes — ${b.price} 🪙${b.guaranteed_rare ? " — rare garantie" : ""}`}
+                                title={`${b.active ? "" : "🚫 "}${b.name}  ·  ${b.id}`}
+                                subtitle={`sets ${b.set_ids.join(", ")} — ${b.cards_count} cartes — ${b.price} 🪙`
+                                    + `${b.guaranteed_rare ? " — rare garantie" : ""}`
+                                    + `${!b.visible_in_shop ? " — masqué de la boutique classique" : ""}`}
                                 onEdit={() => setEditing({ kind: "booster", data: b })}
                                 onDelete={() => setToDelete({ kind: "boosters", id: b.id, label: `le booster « ${b.name} »` })}
                             />
@@ -793,16 +886,54 @@ function Panel() {
                             />
                         )))}
 
+                {tab === "offers" && (
+                    <div className="bg-game-surface/40 border border-white/10 rounded-lg px-3 py-2 mb-2">
+                        <p className="text-white/60 text-xs mb-1.5">
+                            Booster du jour : {dailyFeatureQ.data
+                                ? <span className="text-white font-semibold">{dailyFeatureQ.data.offer_name} (épinglé)</span>
+                                : <span className="text-white/40">rotation automatique (pool "dans la rotation du jour")</span>}
+                        </p>
+                        <div className="flex gap-2">
+                            <select className={inputCls + " flex-1"} value={pinChoice}
+                                onChange={(e) => setPinChoice(e.target.value)}>
+                                <option value="" disabled>Épingler une offre pour aujourd'hui…</option>
+                                {(offersQ.data ?? []).map((o) => (
+                                    <option key={o.id} value={o.id}>{o.name}</option>
+                                ))}
+                            </select>
+                            <Button variant="secondary" size="sm" loading={pinFeature.isPending}
+                                disabled={!pinChoice}
+                                onClick={() => pinChoice && pinFeature.mutate(pinChoice)}>
+                                Épingler
+                            </Button>
+                            {dailyFeatureQ.data && (
+                                <Button variant="secondary" size="sm" loading={unpinFeature.isPending}
+                                    onClick={() => unpinFeature.mutate()}>
+                                    Retirer
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
                 {tab === "offers" &&
                     (offersQ.isLoading ? <p className="text-white/40 text-sm">…</p> :
                         filteredOffers.map((o) => (
                             <div key={o.id} className="flex items-center justify-between bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2 gap-2">
                                 <div className="flex-1 min-w-0">
                                     <p className={`text-sm font-semibold truncate ${o.active ? "text-white" : "text-white/30 line-through"}`}>
-                                        {o.name}  ·  {o.id}
+                                        {o.featured_today && "⭐ "}{o.name}  ·  {o.id}
                                     </p>
                                     <p className="text-white/40 text-xs truncate">
                                         {o.kind} — {o.price} {o.resource_name}
+                                        {o.purchase_limit_per_day ? ` — limite ${o.purchase_limit_per_day}/j` : ""}
+                                        {o.is_daily_pool ? " — pool du jour" : ""}
+                                        {o.kind === "booster" && o.force_min_rarity_name ? ` — min. ${o.force_min_rarity_name}` : ""}
+                                        {o.kind === "booster" && o.rarity_weight_multiplier ? ` — x${o.rarity_weight_multiplier} rare+` : ""}
+                                        {o.kind === "reroll" ? ` — ${[
+                                            o.reroll_rarity && "rareté", o.reroll_quality && "qualité",
+                                            o.reroll_specialty && "spécialité", o.reroll_jewelry && "jewelry",
+                                        ].filter(Boolean).join("+")} (${o.reroll_mode === "guaranteed_min" ? "garanti" : "aléatoire"})` : ""}
                                     </p>
                                 </div>
                                 <button

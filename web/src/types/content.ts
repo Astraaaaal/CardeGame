@@ -14,6 +14,8 @@ export interface AdminBooster {
     price: number;
     guaranteed_rare: boolean;
     description: string;
+    active: boolean;
+    visible_in_shop: boolean;
 }
 
 export interface AdminType {
@@ -31,14 +33,21 @@ export interface AdminResource {
 
 export interface AdminShopOffer {
     id: string;
-    kind: "booster" | "specific_card" | "upgrade";
+    kind: "booster" | "specific_card" | "upgrade" | "reroll";
     name: string;
     description: string;
     active: boolean;
     resource_id: string;
     resource_name: string;
     price: number;
+    purchase_limit_per_day: number | null;
+    purchases_today: number;
+    is_daily_pool: boolean;
+    featured_today: boolean;
     booster_id: string | null;
+    force_min_rarity_id: string | null;
+    force_min_rarity_name: string | null;
+    rarity_weight_multiplier: number | null;
     character_id: string | null;
     character_name: string | null;
     rarity_id: string | null;
@@ -53,6 +62,17 @@ export interface AdminShopOffer {
     target_quality_name: string | null;
     target_specialty_id: string | null;
     target_specialty_name: string | null;
+    reroll_rarity: boolean;
+    reroll_quality: boolean;
+    reroll_specialty: boolean;
+    reroll_jewelry: boolean;
+    reroll_mode: "random" | "guaranteed_min" | null;
+}
+
+export interface DailyFeature {
+    feature_date: string;
+    offer_id: string;
+    offer_name: string;
 }
 
 export interface CharacterSetLink {

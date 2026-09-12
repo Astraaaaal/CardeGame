@@ -13,14 +13,14 @@ from app.models.reference import Set, Rarity, Quality, Specialty, Jewelry
 from app.models.booster import Booster, BoosterSet
 from app.models.character import Character, CharacterSet, CharacterType
 from app.models.card import UserCard
-from app.models.economy import Resource, UserResource, ShopOffer
+from app.models.economy import Resource, UserResource, ShopOffer, DailyFeature
 from app.schemas.content import (
     SetIn, SetPatch, SetOut,
     BoosterIn, BoosterPatch, BoosterOut,
     CharacterIn, CharacterPatch, CharacterOut, CharacterSetLink,
     TypeIn, TypeOut,
 )
-from app.schemas.economy import ResourceIn, ShopOfferIn
+from app.schemas.economy import ResourceIn, ShopOfferIn, DailyFeatureIn, DailyFeatureOut
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 
@@ -116,6 +116,7 @@ async def _booster_out(session: AsyncSession, b: Booster) -> BoosterOut:
         id=b.id, name=b.name, set_ids=list(set_ids) or [b.set_id],
         cards_count=b.cards_count, price=b.price,
         guaranteed_rare=b.guaranteed_rare, description=b.description,
+        active=b.active, visible_in_shop=b.visible_in_shop,
     )
 
 
@@ -146,6 +147,7 @@ async def create_booster(body: BoosterIn, session: AsyncSession = Depends(get_se
         id=body.id, name=body.name, set_id=body.set_ids[0],
         cards_count=body.cards_count, price=body.price,
         guaranteed_rare=body.guaranteed_rare, description=body.description,
+        active=body.active, visible_in_shop=body.visible_in_shop,
     )
     session.add(b)
     await _replace_booster_sets(session, body.id, body.set_ids)
@@ -370,8 +372,10 @@ async def delete_resource(resource_id: str, session: AsyncSession = Depends(get_
 @router.get("/shop-offers")
 async def list_shop_offers(session: AsyncSession = Depends(get_session)):
     from app.api.shop import _offer_response
+    from app.services.daily_feature import get_todays_featured_offer_id
     rows = (await session.execute(select(ShopOffer))).scalars().all()
-    return [await _offer_response(session, o) for o in rows]
+    featured_id = await get_todays_featured_offer_id(session)
+    return [await _offer_response(session, o, featured_id) for o in rows]
 
 
 @router.post("/shop-offers", status_code=201)
@@ -396,6 +400,15 @@ async def create_shop_offer(body: ShopOfferIn, session: AsyncSession = Depends(g
             400, "Choisis au moins un palier cible (qualité ou spécialité) "
                  "pour une offre de type 'upgrade'.",
         )
+    if body.kind == "reroll":
+        if not any([body.reroll_rarity, body.reroll_quality, body.reroll_specialty, body.reroll_jewelry]):
+            raise HTTPException(400, "Choisis au moins un axe à retirer pour une offre de type 'reroll'.")
+        if not body.reroll_mode:
+            raise HTTPException(400, "Choisis un mode de reroll (aléatoire ou garanti égal/mieux).")
+    if body.booster_id and not await session.get(Booster, body.booster_id):
+        raise HTTPException(400, f"Le booster '{body.booster_id}' n'existe pas.")
+    if body.force_min_rarity_id and not await session.get(Rarity, body.force_min_rarity_id):
+        raise HTTPException(400, f"La rareté '{body.force_min_rarity_id}' n'existe pas.")
 
     o = ShopOffer(**body.model_dump())
     session.add(o)
@@ -424,6 +437,51 @@ async def delete_shop_offer(offer_id: str, session: AsyncSession = Depends(get_s
         raise HTTPException(404, "Offre introuvable.")
     await session.delete(o)
     await session.commit()
+
+
+# ───────────────────────  BOOSTER DU JOUR (épingle)  ──────────────
+
+@router.get("/daily-feature", response_model=DailyFeatureOut | None)
+async def get_daily_feature(target_date: str | None = None, session: AsyncSession = Depends(get_session)):
+    """Épingle active pour `target_date` (défaut : aujourd'hui), s'il y en a une."""
+    from datetime import date as _date
+    d = _date.fromisoformat(target_date) if target_date else _date.today()
+    pinned = await session.get(DailyFeature, d)
+    if not pinned:
+        return None
+    offer = await session.get(ShopOffer, pinned.offer_id)
+    return DailyFeatureOut(
+        feature_date=pinned.feature_date, offer_id=pinned.offer_id,
+        offer_name=offer.name if offer else pinned.offer_id,
+    )
+
+
+@router.post("/daily-feature", response_model=DailyFeatureOut)
+async def set_daily_feature(body: DailyFeatureIn, session: AsyncSession = Depends(get_session)):
+    """Épingle une offre pour une date donnée (défaut : aujourd'hui) — surclasse la rotation auto."""
+    from datetime import date as _date
+    offer = await session.get(ShopOffer, body.offer_id)
+    if not offer:
+        raise HTTPException(400, f"L'offre '{body.offer_id}' n'existe pas.")
+    d = body.feature_date or _date.today()
+    existing = await session.get(DailyFeature, d)
+    if existing:
+        existing.offer_id = body.offer_id
+    else:
+        session.add(DailyFeature(feature_date=d, offer_id=body.offer_id))
+    await session.commit()
+    return DailyFeatureOut(feature_date=d, offer_id=offer.id, offer_name=offer.name)
+
+
+@router.delete("/daily-feature/{target_date}", status_code=204)
+async def clear_daily_feature(target_date: str, session: AsyncSession = Depends(get_session)):
+    """Retire l'épingle d'une date (retour à la rotation automatique)."""
+    from datetime import date as _date
+    d = _date.fromisoformat(target_date)
+    pinned = await session.get(DailyFeature, d)
+    if pinned:
+        await session.delete(pinned)
+        await session.commit()
 
 
 # ──────────────  TABLES DE RÉGLAGE (lecture seule ici)  ───────────

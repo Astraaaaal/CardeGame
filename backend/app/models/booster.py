@@ -19,6 +19,14 @@ class Booster(SQLModel, table=True):
     guaranteed_rare: bool = Field(default=False)
     description: str = Field(default="")
 
+    # Interrupteur global : si False, ce booster n'est ouvrable nulle part
+    # (ni boutique classique, ni offre du shop à ressources).
+    active: bool = Field(default=True)
+    # Si False, masqué de la boutique classique (pièces) mais reste ouvrable
+    # via une offre du shop à ressources qui le référence explicitement —
+    # utile pour vendre un vieux booster "hors rotation" plus cher ailleurs.
+    visible_in_shop: bool = Field(default=True)
+
 
 class BoosterSet(SQLModel, table=True):
     """Table de liaison booster <-> sets : un booster peut piocher dans plusieurs sets."""

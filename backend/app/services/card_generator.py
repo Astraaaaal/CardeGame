@@ -4,12 +4,13 @@ Migration directe de src/engine/card_generator.py mais avec la BDD.
 """
 
 import random
-from typing import List
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.models.reference import Rarity, Quality, Specialty, Jewelry
 from app.models.character import Character, CharacterSet
+from app.services.tier_order import rank
 
 
 class CardGeneratorService:
@@ -21,9 +22,23 @@ class CardGeneratorService:
         set_ids: list[str],
         cards_count: int,
         guaranteed_rare: bool,
+        force_min_rarity_id: Optional[str] = None,
+        rarity_weight_multiplier: Optional[float] = None,
     ) -> list[dict]:
-        """Génère un pack complet de cartes, en piochant dans un ou plusieurs sets."""
-        # Charger les données depuis la BDD
+        """
+        Génère un pack complet de cartes, en piochant dans un ou plusieurs sets.
+
+        `force_min_rarity_id` et `rarity_weight_multiplier` sont des overrides
+        optionnels, utilisés par les offres spéciales du shop à ressources
+        (ex: "booster du jour") — ils n'affectent PAS l'ouverture normale d'un
+        booster en pièces, qui ne passe que `guaranteed_rare`.
+        - `force_min_rarity_id` : comme `guaranteed_rare`, mais avec un palier
+          choisi (ex: "epic") au lieu de "pas commune" — s'applique à la
+          dernière carte du pack.
+        - `rarity_weight_multiplier` : multiplie le poids de TOUTES les raretés
+          non-communes, pour TOUTES les cartes du pack (décale la distribution
+          entière plutôt que de garantir une seule carte).
+        """
         characters = await self._get_characters_for_sets(session, set_ids)
         rarities = await self._get_all(session, Rarity)
         qualities = await self._get_all(session, Quality)
@@ -35,13 +50,37 @@ class CardGeneratorService:
 
         cards = []
         for i in range(cards_count):
-            force_rare = guaranteed_rare and i == cards_count - 1
+            is_last = i == cards_count - 1
+            min_rarity_id = force_min_rarity_id if (force_min_rarity_id and is_last) else (
+                "rare" if (guaranteed_rare and is_last) else None
+            )
             card = self._generate_single(
-                characters, rarities, qualities, specialties, jewelries, force_rare,
+                characters, rarities, qualities, specialties, jewelries,
+                min_rarity_id=min_rarity_id,
+                rarity_weight_multiplier=rarity_weight_multiplier,
             )
             cards.append(card)
 
         return cards
+
+    def _rarity_pool_and_weights(
+        self,
+        rarities: list,
+        min_rarity_id: Optional[str],
+        rarity_weight_multiplier: Optional[float],
+    ) -> tuple[list, list[float]]:
+        pool = rarities
+        if min_rarity_id:
+            min_rank = rank("rarity", min_rarity_id)
+            filtered = [r for r in pool if rank("rarity", r.id) >= min_rank]
+            if filtered:
+                pool = filtered
+        weights = [
+            r.weight * rarity_weight_multiplier
+            if (rarity_weight_multiplier and r.id != "common") else r.weight
+            for r in pool
+        ]
+        return pool, weights
 
     def _generate_single(
         self,
@@ -50,7 +89,8 @@ class CardGeneratorService:
         qualities: list,
         specialties: list,
         jewelries: list,
-        force_rare: bool = False,
+        min_rarity_id: Optional[str] = None,
+        rarity_weight_multiplier: Optional[float] = None,
     ) -> dict:
         """Génère une seule carte aléatoire."""
         # 1. Personnage pondéré. Chaque entrée = un lien (personnage, set) : un
@@ -59,11 +99,11 @@ class CardGeneratorService:
         char_weights = [c["weight"] for c in characters]
         character = random.choices(characters, weights=char_weights, k=1)[0]
 
-        # 2. Rareté
-        rarity_pool = (
-            [r for r in rarities if r.id != "common"] if force_rare else rarities
+        # 2. Rareté (pool + poids éventuellement ajustés par l'offre)
+        rarity_pool, rarity_weights = self._rarity_pool_and_weights(
+            rarities, min_rarity_id, rarity_weight_multiplier
         )
-        rarity = self._weighted_pick(rarity_pool)
+        rarity = random.choices(rarity_pool, weights=rarity_weights, k=1)[0]
 
         # 3. Qualité
         quality = self._weighted_pick(qualities)
@@ -74,10 +114,10 @@ class CardGeneratorService:
         # 5. Jewelry
         jewelry = self._weighted_pick(jewelries)
 
-        # 6. Probabilité combinée
+        # 6. Probabilité combinée (avec le même pool/poids ajustés que le tirage)
         drop_prob = self._calculate_probability(
             characters, character, rarity, quality, specialty, jewelry,
-            force_rare, rarities, qualities, specialties, jewelries,
+            rarity_pool, rarity_weights, qualities, specialties, jewelries,
         )
 
         return {
@@ -106,8 +146,8 @@ class CardGeneratorService:
         quality,
         specialty,
         jewelry,
-        force_rare: bool,
-        all_rarities: list,
+        rarity_pool: list,
+        rarity_weights: list[float],
         all_qualities: list,
         all_specialties: list,
         all_jewelries: list,
@@ -124,15 +164,13 @@ class CardGeneratorService:
         char_total = sum(c["weight"] for c in characters)
         char_prob = (character["weight"] / char_total) if char_total else 0.0
 
-        rarity_pool = (
-            [r for r in all_rarities if r.id != "common"]
-            if force_rare
-            else all_rarities
-        )
+        rarity_total = sum(rarity_weights)
+        rarity_idx = rarity_pool.index(rarity)
+        rarity_prob = (rarity_weights[rarity_idx] / rarity_total) if rarity_total else 0.0
 
         combined = (
             char_prob
-            * frac(rarity, rarity_pool)
+            * rarity_prob
             * frac(quality, all_qualities)
             * frac(specialty, all_specialties)
             * frac(jewelry, all_jewelries)

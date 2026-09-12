@@ -36,6 +36,8 @@ class BoosterIn(BaseModel):
     price: int = Field(default=100, ge=0, le=1_000_000)
     guaranteed_rare: bool = False
     description: str = ""
+    active: bool = True
+    visible_in_shop: bool = True
 
 
 class BoosterPatch(BaseModel):
@@ -45,6 +47,8 @@ class BoosterPatch(BaseModel):
     price: int | None = Field(default=None, ge=0, le=1_000_000)
     guaranteed_rare: bool | None = None
     description: str | None = None
+    active: bool | None = None
+    visible_in_shop: bool | None = None
 
 
 class BoosterOut(BaseModel):
@@ -55,6 +59,8 @@ class BoosterOut(BaseModel):
     price: int
     guaranteed_rare: bool
     description: str
+    active: bool = True
+    visible_in_shop: bool = True
 
 
 # ── Personnages ──
