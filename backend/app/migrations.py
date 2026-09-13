@@ -9,6 +9,8 @@ Chaque étape doit pouvoir être rejouée sans risque à chaque démarrage.
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.services.power import roll_power
+
 _STATEMENTS = [
     # Provenance d'une carte : quel booster l'a produite.
     "ALTER TABLE user_cards ADD COLUMN IF NOT EXISTS booster_id VARCHAR(30)",
@@ -63,6 +65,9 @@ _STATEMENTS = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS trade_request_policy VARCHAR(20) NOT NULL DEFAULT 'friends'",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS trade_request_popup_enabled BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE trade_requests ADD COLUMN IF NOT EXISTS seen BOOLEAN NOT NULL DEFAULT FALSE",
+    # Puissance d'une carte (cf. app/services/power.py) — tirée au hasard à
+    # l'obtention, backfillée ci-dessous pour les cartes déjà en base.
+    "ALTER TABLE user_cards ADD COLUMN IF NOT EXISTS power INTEGER",
 ]
 
 # Types de personnage initiaux (portés depuis l'ancien TYPE_COLORS du renderer).
@@ -157,3 +162,23 @@ async def apply_patches(conn: AsyncConnection) -> None:
                 await conn.execute(update, {"id": row_id, "v": value})
             except Exception as exc:  # noqa: BLE001
                 print(f"[migrations] avertissement recycle_value {table}.{row_id}: {exc}")
+
+    # Backfill de la puissance (colonne ajoutée après coup) pour les cartes
+    # déjà en base — chacune reçoit un tirage rétroactif, une seule fois.
+    try:
+        rows = (await conn.execute(text(
+            "SELECT id, drop_probability, rarity_id, quality_id, specialty_id, jewelry_id "
+            "FROM user_cards WHERE power IS NULL AND drop_probability > 0"
+        ))).all()
+        if rows:
+            update_power = text("UPDATE user_cards SET power = :power WHERE id = :id")
+            for row in rows:
+                power = roll_power(
+                    row.drop_probability, row.rarity_id, row.quality_id,
+                    row.specialty_id, row.jewelry_id,
+                )
+                if power is not None:
+                    await conn.execute(update_power, {"id": row.id, "power": power})
+            print(f"[migrations] puissance calculée pour {len(rows)} carte(s) existante(s).")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[migrations] avertissement backfill power: {exc}")

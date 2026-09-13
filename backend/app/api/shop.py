@@ -24,6 +24,7 @@ from app.services.card_view import build_card_response
 from app.services.daily_feature import get_todays_featured_offer_id
 from app.services.tier_order import rank
 from app.services.wallet import get_balance, apply_delta
+from app.services.power import roll_power
 
 router = APIRouter()
 pack_service = PackService()
@@ -248,6 +249,10 @@ async def buy_offer(
             setattr(card, field_map[axis], picked.id)
 
         card.drop_probability = await _recompute_probability(session, card)
+        card.power = roll_power(
+            card.drop_probability, card.rarity_id, card.quality_id,
+            card.specialty_id, card.jewelry_id,
+        )
         session.add(card)
         cards_out = [await build_card_response(session, card)]
 

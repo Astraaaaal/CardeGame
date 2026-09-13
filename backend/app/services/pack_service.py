@@ -17,6 +17,7 @@ from app.models.economy import Resource
 from app.services.card_generator import CardGeneratorService
 from app.services.card_renderer import CardRendererService
 from app.services.wallet import get_balance, apply_delta
+from app.services.power import roll_power
 from app.schemas.card import CardResponse
 
 
@@ -72,6 +73,10 @@ class PackService:
             pack_responses = []
             for card_data in pack_data:
                 rendered_url = await self.renderer.render_and_upload(session, card_data)
+                power = roll_power(
+                    card_data["drop_probability"], card_data["rarity_id"],
+                    card_data["quality_id"], card_data["specialty_id"], card_data["jewelry_id"],
+                )
 
                 user_card = UserCard(
                     user_id=user_id,
@@ -83,6 +88,7 @@ class PackService:
                     jewelry_id=card_data["jewelry_id"],
                     booster_id=booster.id,
                     drop_probability=card_data["drop_probability"],
+                    power=power,
                     rendered_url=rendered_url,
                 )
                 session.add(user_card)
@@ -116,6 +122,7 @@ class PackService:
                     jewelry_name=jewelry.name if jewelry else "Commune",
                     jewelry_color=jewelry.color if jewelry else [100, 100, 120],
                     drop_probability=card_data["drop_probability"],
+                    power=power,
                     rendered_url=rendered_url,
                     obtained_at=user_card.obtained_at,
                     booster_id=booster.id,

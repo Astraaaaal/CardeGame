@@ -38,9 +38,9 @@ export default function MainMenu() {
   }, [player, setUser]);
 
   const menuItems = [
-    { label: "Boutique de Boosters", icon: "🛍️", path: "/shop", color: "bg-accent" },
-    { label: "Shop Ressources", icon: "✨", path: "/resource-shop", color: "bg-purple-600" },
+    { label: "Boutique", icon: "🛍️", path: "/shop", color: "bg-accent" },
     { label: "Ma Collection", icon: "📚", path: "/collection", color: "bg-purple-600" },
+    { label: "Classement", icon: "🏆", path: "/leaderboard", color: "bg-purple-600" },
     { label: "Profil", icon: "👤", path: "/profile", color: "bg-purple-600" },
   ];
 

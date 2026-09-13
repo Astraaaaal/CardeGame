@@ -35,6 +35,10 @@ class UserCard(SQLModel, table=True):
     # Probabilité calculée au moment de la génération
     drop_probability: float = Field(default=0.0)
 
+    # Puissance tirée au hasard à l'obtention (cf. app/services/power.py) —
+    # None si la carte n'a pas été obtenue par un tirage aléatoire.
+    power: Optional[int] = Field(default=None)
+
     # URL de l'image rendue sur Cloudinary (ou chemin local en dev)
     rendered_url: Optional[str] = Field(default=None)
 

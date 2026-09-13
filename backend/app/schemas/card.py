@@ -28,6 +28,7 @@ class CardResponse(BaseModel):
     jewelry_name: str = "Commune"
     jewelry_color: list[int] = [100, 100, 120]
     drop_probability: float = 0.0
+    power: Optional[int] = None
     rendered_url: Optional[str] = None
     obtained_at: Optional[datetime] = None
     booster_id: Optional[str] = None

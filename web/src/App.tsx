@@ -5,12 +5,12 @@ import { useAuthStore } from "@/stores/authStore";
 import { playerApi } from "@/api/player";
 import LoginPage from "@/pages/LoginPage";
 import MainMenu from "@/pages/MainMenu";
-import BoosterShop from "@/pages/BoosterShop";
+import Shop from "@/pages/Shop";
 import PackOpening from "@/pages/PackOpening";
 import Collection from "@/pages/Collection";
-import ResourceShop from "@/pages/ResourceShop";
 import Profile from "@/pages/Profile";
 import PlayerShowcase from "@/pages/PlayerShowcase";
+import Leaderboard from "@/pages/Leaderboard";
 import AdminPanel from "@/pages/AdminPanel";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -51,7 +51,7 @@ export default function App() {
                     path="/shop"
                     element={
                         <ProtectedRoute>
-                            <BoosterShop />
+                            <Shop />
                         </ProtectedRoute>
                     }
                 />
@@ -71,14 +71,7 @@ export default function App() {
                         </ProtectedRoute>
                     }
                 />
-                <Route
-                    path="/resource-shop"
-                    element={
-                        <ProtectedRoute>
-                            <ResourceShop />
-                        </ProtectedRoute>
-                    }
-                />
+                <Route path="/resource-shop" element={<Navigate to="/shop" replace />} />
                 <Route
                     path="/profile"
                     element={
@@ -92,6 +85,14 @@ export default function App() {
                     element={
                         <ProtectedRoute>
                             <PlayerShowcase />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/leaderboard"
+                    element={
+                        <ProtectedRoute>
+                            <Leaderboard />
                         </ProtectedRoute>
                     }
                 />

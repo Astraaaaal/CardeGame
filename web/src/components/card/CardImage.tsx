@@ -250,18 +250,35 @@ export default function CardImage({
                             gap: "2cqi",
                         }}
                     >
-                        <span
-                            style={{
-                                fontSize: "4.8cqi",
-                                fontWeight: 800,
-                                padding: "1cqi 3cqi",
-                                borderRadius: "3cqi",
-                                background: rarity,
-                                color: "#0D0D14",
-                            }}
-                        >
-                            {card.rarity_name}
-                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "1.5cqi", minWidth: 0 }}>
+                            <span
+                                style={{
+                                    fontSize: "4.8cqi",
+                                    fontWeight: 800,
+                                    padding: "1cqi 3cqi",
+                                    borderRadius: "3cqi",
+                                    background: rarity,
+                                    color: "#0D0D14",
+                                    whiteSpace: "nowrap",
+                                }}
+                            >
+                                {card.rarity_name}
+                            </span>
+                            {card.power != null && (
+                                <span
+                                    style={{
+                                        fontSize: "4cqi",
+                                        fontWeight: 700,
+                                        color: "#FFD84D",
+                                        textShadow: "0 1px 2px rgba(0,0,0,.9)",
+                                        whiteSpace: "nowrap",
+                                    }}
+                                    title="Puissance"
+                                >
+                                    ⚡{card.power}
+                                </span>
+                            )}
+                        </div>
                         <span
                             style={{
                                 fontSize: "3.9cqi",

@@ -76,7 +76,7 @@ async def get_probabilities(session: AsyncSession = Depends(get_session)):
 
 @router.get("/", response_model=CollectionResponse)
 async def get_collection(
-    sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability|obtained_at)$"),
+    sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability|obtained_at|power)$"),
     set_id: Optional[str] = Query(None),
     rarity_id: Optional[str] = Query(None),
     rarity_op: str = Query("eq", pattern=_OP_PATTERN),
@@ -157,6 +157,7 @@ async def get_collection(
                     jewelry_name=jewelry.name if jewelry else "Commune",
                     jewelry_color=jewelry.color if jewelry else [100, 100, 120],
                     drop_probability=card.drop_probability,
+                    power=card.power,
                     rendered_url=card.rendered_url,
                     obtained_at=card.obtained_at,
                     booster_id=card.booster_id,
@@ -178,6 +179,10 @@ async def get_collection(
             # récente pour l'affichage et le tri par date d'obtention.
             if card.obtained_at > groups[key]["card"].obtained_at:
                 groups[key]["card"].obtained_at = card.obtained_at
+            # Idem pour la puissance : on retient le meilleur tirage parmi les
+            # exemplaires possédés de cette combinaison.
+            if (card.power or 0) > (groups[key]["card"].power or 0):
+                groups[key]["card"].power = card.power
 
     # Trier — "profond" : le nom sert toujours de départage à rang égal.
     # Tri Python stable => on trie d'abord par nom (ordre alphabétique fixe),
@@ -210,6 +215,11 @@ async def get_collection(
     elif sort_by == "obtained_at":
         # Plus récent d'abord (dernier exemplaire obtenu par groupe, cf. plus haut).
         group_list.sort(key=lambda g: g["card"].obtained_at, reverse=True)
+    elif sort_by == "power":
+        # Distinct de "probability" (rareté réelle, exacte et déterministe) :
+        # la puissance est un tirage aléatoire propre à chaque exemplaire —
+        # deux cartes avec la même combinaison peuvent avoir des puissances différentes.
+        group_list.sort(key=lambda g: g["card"].power or 0, reverse=True)
 
     return CollectionResponse(
         total_cards=len(all_cards),

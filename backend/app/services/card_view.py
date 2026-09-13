@@ -42,6 +42,7 @@ async def build_card_response(session: AsyncSession, card: UserCard) -> CardResp
         jewelry_name=jewelry.name if jewelry else "Commune",
         jewelry_color=jewelry.color if jewelry else [100, 100, 120],
         drop_probability=card.drop_probability,
+        power=card.power,
         rendered_url=card.rendered_url,
         obtained_at=card.obtained_at,
         booster_id=card.booster_id,
