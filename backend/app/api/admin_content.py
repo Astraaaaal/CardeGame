@@ -120,6 +120,7 @@ async def _booster_out(session: AsyncSession, b: Booster) -> BoosterOut:
         price=b.price,
         guaranteed_rare=b.guaranteed_rare, description=b.description,
         active=b.active, visible_in_shop=b.visible_in_shop,
+        cover_image_url=b.cover_image_url,
     )
 
 
@@ -153,6 +154,7 @@ async def create_booster(body: BoosterIn, session: AsyncSession = Depends(get_se
         cards_count=body.cards_count, resource_id=body.resource_id, price=body.price,
         guaranteed_rare=body.guaranteed_rare, description=body.description,
         active=body.active, visible_in_shop=body.visible_in_shop,
+        cover_image_url=body.cover_image_url,
     )
     session.add(b)
     await _replace_booster_sets(session, body.id, body.set_ids)

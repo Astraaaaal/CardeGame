@@ -4,6 +4,7 @@ export interface Friend {
     display_name: string;
     online: boolean;
     last_seen: string | null;
+    close_friend: boolean;
 }
 
 export interface FriendRequestItem {

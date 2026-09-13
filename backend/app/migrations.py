@@ -51,6 +51,18 @@ _STATEMENTS = [
     "ALTER TABLE shop_offers DROP COLUMN IF EXISTS target_specialty_id",
     # Statut "en ligne" approximatif (cf. core/dependencies.py).
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP",
+    # Vitrine publique : avatar (personnage possédé) + jusqu'à 3 cartes mises en avant.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_character_id VARCHAR(30)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_card_1_id VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_card_2_id VARCHAR",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_card_3_id VARCHAR",
+    # Couverture personnalisée d'un booster (remplace le visuel générique).
+    "ALTER TABLE boosters ADD COLUMN IF NOT EXISTS cover_image_url VARCHAR(300) NOT NULL DEFAULT ''",
+    # Paramètres sociaux : qui peut envoyer une demande d'ami / d'échange, popup de notif.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS allow_friend_requests BOOLEAN NOT NULL DEFAULT TRUE",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS trade_request_policy VARCHAR(20) NOT NULL DEFAULT 'friends'",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS trade_request_popup_enabled BOOLEAN NOT NULL DEFAULT TRUE",
+    "ALTER TABLE trade_requests ADD COLUMN IF NOT EXISTS seen BOOLEAN NOT NULL DEFAULT FALSE",
 ]
 
 # Types de personnage initiaux (portés depuis l'ancien TYPE_COLORS du renderer).

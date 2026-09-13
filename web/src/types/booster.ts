@@ -9,6 +9,7 @@ export interface Booster {
     price: number;
     guaranteed_rare: boolean;
     description: string;
+    cover_image_url: string;
 }
 
 export interface PackOpenRequest {

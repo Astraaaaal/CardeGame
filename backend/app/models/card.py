@@ -42,4 +42,10 @@ class UserCard(SQLModel, table=True):
     obtained_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relations
-    user: Optional["User"] = Relationship(back_populates="cards")
+    # foreign_keys explicite : User.showcase_card_*_id pointe aussi vers cette
+    # table (dans l'autre sens), donc SQLAlchemy ne peut plus déduire seul
+    # quelle colonne joindre ici.
+    user: Optional["User"] = Relationship(
+        back_populates="cards",
+        sa_relationship_kwargs={"foreign_keys": "UserCard.user_id"},
+    )

@@ -1,10 +1,20 @@
 import api from "./client";
-import type { Player, DailyReward } from "@/types/player";
+import type { Player, DailyReward, PlayerSettings } from "@/types/player";
 import type { MessageResponse } from "@/types/auth";
 
 export const playerApi = {
     getMe: async (): Promise<Player> => {
         const res = await api.get("/player/me");
+        return res.data;
+    },
+
+    getSettings: async (): Promise<PlayerSettings> => {
+        const res = await api.get("/player/settings");
+        return res.data;
+    },
+
+    updateSettings: async (patch: Partial<PlayerSettings>): Promise<PlayerSettings> => {
+        const res = await api.patch("/player/settings", patch);
         return res.data;
     },
 

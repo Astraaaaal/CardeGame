@@ -48,6 +48,7 @@ async def list_boosters(
             price=b.price,
             guaranteed_rare=b.guaranteed_rare,
             description=b.description,
+            cover_image_url=b.cover_image_url,
         )
         for b in boosters
     ]

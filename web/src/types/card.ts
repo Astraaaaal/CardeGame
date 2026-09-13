@@ -23,6 +23,7 @@ export interface Card {
     obtained_at: string | null;
     booster_id: string | null;
     booster_name: string | null;
+    booster_cover_url: string | null;
 }
 
 export interface CardGroup {

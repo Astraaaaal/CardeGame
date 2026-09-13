@@ -46,4 +46,5 @@ async def build_card_response(session: AsyncSession, card: UserCard) -> CardResp
         obtained_at=card.obtained_at,
         booster_id=card.booster_id,
         booster_name=booster.name if booster else None,
+        booster_cover_url=booster.cover_image_url if booster and booster.cover_image_url else None,
     )

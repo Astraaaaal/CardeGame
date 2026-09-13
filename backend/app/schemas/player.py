@@ -20,6 +20,9 @@ class PlayerResponse(BaseModel):
     created_at: datetime
     last_login: Optional[datetime] = None
     resources: list[ResourceBalance] = []
+    allow_friend_requests: bool = True
+    trade_request_policy: str = "friends"
+    trade_request_popup_enabled: bool = True
 
 
 class UpdateProfileRequest(BaseModel):

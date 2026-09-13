@@ -135,7 +135,7 @@ function BoosterForm({
             id: "", name: "", set_ids: sets[0] ? [sets[0].id] : [], cards_count: 5,
             resource_id: "coins", resource_name: "Pièces", price: 100,
             guaranteed_rare: false, description: "",
-            active: true, visible_in_shop: true,
+            active: true, visible_in_shop: true, cover_image_url: "",
         }
     );
     const [err, setErr] = useState("");
@@ -228,6 +228,17 @@ function BoosterForm({
                 <label className={labelCls}>Description</label>
                 <textarea className={inputCls} rows={2} value={f.description}
                     onChange={(e) => setF({ ...f, description: e.target.value })} />
+            </div>
+            <div>
+                <label className={labelCls}>
+                    Couverture (nom de fichier dans <code>web/public/boosters/</code>)
+                </label>
+                <input className={inputCls} value={f.cover_image_url}
+                    placeholder="mon-booster.png"
+                    onChange={(e) => setF({ ...f, cover_image_url: e.target.value })} />
+                <p className="text-white/30 text-xs mt-1">
+                    Remplace le dos de pack générique et l'illustration en boutique. Laisse vide pour garder le visuel par défaut.
+                </p>
             </div>
             {err && <p className="text-red-400 text-xs">{err}</p>}
             <div className="flex gap-2 pt-1">

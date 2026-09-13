@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendsApi } from "@/api/friends";
@@ -21,10 +22,13 @@ interface FriendsPanelProps {
 }
 
 export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
+    const navigate = useNavigate();
     const qc = useQueryClient();
     const [tab, setTab] = useState<Tab>("friends");
     const [username, setUsername] = useState("");
     const [err, setErr] = useState("");
+    const [tradeUsername, setTradeUsername] = useState("");
+    const [tradeErr, setTradeErr] = useState("");
     const [toRemove, setToRemove] = useState<{ id: number; name: string } | null>(null);
 
     const friendsQ = useQuery({
@@ -66,9 +70,22 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
         mutationFn: (userId: number) => friendsApi.proposeTrade(userId),
         onSuccess: () => qc.invalidateQueries({ queryKey: ["trade-requests"] }),
     });
+    const sendTradeReq = useMutation({
+        mutationFn: () => friendsApi.sendTrade(tradeUsername.trim()),
+        onSuccess: () => {
+            setTradeUsername(""); setTradeErr("");
+            qc.invalidateQueries({ queryKey: ["trade-requests"] });
+        },
+        onError: (e) => setTradeErr(errMsg(e)),
+    });
     const cancelTrade = useMutation({
         mutationFn: (id: number) => friendsApi.cancelTradeRequest(id),
         onSuccess: () => qc.invalidateQueries({ queryKey: ["trade-requests"] }),
+    });
+    const toggleCloseFriend = useMutation({
+        mutationFn: ({ userId, isClose }: { userId: number; isClose: boolean }) =>
+            isClose ? friendsApi.removeCloseFriend(userId) : friendsApi.addCloseFriend(userId),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["friends"] }),
     });
 
     const friends = friendsQ.data ?? [];
@@ -163,19 +180,32 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                                         <div key={f.user_id}
                                                             className="bg-black/20 border border-white/5 rounded-lg px-3 py-2.5">
                                                             <div className="flex items-center justify-between mb-1.5">
-                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                <button
+                                                                    className="flex items-center gap-2 min-w-0 hover:underline"
+                                                                    onClick={() => { onClose(); navigate(`/players/${f.user_id}`); }}
+                                                                >
                                                                     <span
                                                                         className={`w-2 h-2 rounded-full shrink-0 ${f.online ? "bg-green-400" : "bg-white/20"}`}
                                                                         title={f.online ? "En ligne" : "Hors ligne"}
                                                                     />
                                                                     <span className="text-white text-sm font-semibold truncate">{f.display_name}</span>
-                                                                </div>
-                                                                <button
-                                                                    className="text-red-400/70 hover:text-red-400 text-xs shrink-0"
-                                                                    onClick={() => setToRemove({ id: f.user_id, name: f.display_name })}
-                                                                >
-                                                                    Retirer
                                                                 </button>
+                                                                <div className="flex items-center gap-2 shrink-0">
+                                                                    <button
+                                                                        className={`text-sm ${f.close_friend ? "text-gold" : "text-white/20 hover:text-white/50"}`}
+                                                                        title={f.close_friend ? "Ami proche — clique pour retirer" : "Marquer comme ami proche"}
+                                                                        disabled={toggleCloseFriend.isPending}
+                                                                        onClick={() => toggleCloseFriend.mutate({ userId: f.user_id, isClose: f.close_friend })}
+                                                                    >
+                                                                        {f.close_friend ? "★" : "☆"}
+                                                                    </button>
+                                                                    <button
+                                                                        className="text-red-400/70 hover:text-red-400 text-xs"
+                                                                        onClick={() => setToRemove({ id: f.user_id, name: f.display_name })}
+                                                                    >
+                                                                        Retirer
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                             <Button
                                                                 variant="secondary" size="sm" className="w-full"
@@ -252,8 +282,27 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                     <>
                                         <p className="text-white/30 text-xs bg-white/5 rounded-lg px-3 py-2">
                                             Le système d'échange complet arrive bientôt — pour l'instant, propose
-                                            juste l'intention d'échanger à un ami.
+                                            juste l'intention d'échanger. Pas besoin d'être ami : ça dépend des
+                                            paramètres de l'autre joueur (utile pour un échange ponctuel).
                                         </p>
+                                        <div className="flex gap-2">
+                                            <input
+                                                className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30"
+                                                placeholder="Pseudo du joueur..."
+                                                value={tradeUsername}
+                                                onChange={(e) => { setTradeUsername(e.target.value); setTradeErr(""); }}
+                                                onKeyDown={(e) => e.key === "Enter" && tradeUsername.trim() && sendTradeReq.mutate()}
+                                            />
+                                            <Button
+                                                variant="primary" size="sm"
+                                                disabled={!tradeUsername.trim()}
+                                                loading={sendTradeReq.isPending}
+                                                onClick={() => sendTradeReq.mutate()}
+                                            >
+                                                Envoyer
+                                            </Button>
+                                        </div>
+                                        {tradeErr && <p className="text-red-400 text-xs">{tradeErr}</p>}
                                         <div>
                                             <p className="text-white/40 text-xs font-semibold mb-2 mt-2 uppercase tracking-wide">
                                                 Reçues

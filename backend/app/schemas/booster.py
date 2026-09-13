@@ -18,6 +18,7 @@ class BoosterResponse(BaseModel):
     price: int
     guaranteed_rare: bool
     description: str = ""
+    cover_image_url: str = ""
 
 
 class PackOpenRequest(BaseModel):

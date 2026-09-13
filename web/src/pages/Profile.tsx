@@ -7,6 +7,9 @@ import { useLogout } from "@/hooks/useAuth";
 import Button from "@/components/ui/Button";
 import CoinDisplay from "@/components/player/CoinDisplay";
 import ResourceDisplay from "@/components/player/ResourceDisplay";
+import ShowcaseEditor from "@/components/profile/ShowcaseEditor";
+import TradeListingsEditor from "@/components/profile/TradeListingsEditor";
+import SettingsEditor from "@/components/profile/SettingsEditor";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -21,7 +24,7 @@ function fmtDate(iso: string | null | undefined): string {
     return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
 
-type Tab = "stats" | "profile";
+type Tab = "stats" | "profile" | "showcase" | "settings";
 
 export default function Profile() {
     const navigate = useNavigate();
@@ -87,6 +90,8 @@ export default function Profile() {
                 {([
                     { key: "stats", label: "Statistiques" },
                     { key: "profile", label: "Profil" },
+                    { key: "showcase", label: "Vitrine" },
+                    { key: "settings", label: "Paramètres" },
                 ] as const).map((t) => (
                     <button
                         key={t.key}
@@ -200,6 +205,15 @@ export default function Profile() {
                         </div>
                     </div>
                 )}
+
+                {tab === "showcase" && (
+                    <div className="space-y-6">
+                        <ShowcaseEditor />
+                        <TradeListingsEditor />
+                    </div>
+                )}
+
+                {tab === "settings" && <SettingsEditor />}
             </main>
         </div>
     );

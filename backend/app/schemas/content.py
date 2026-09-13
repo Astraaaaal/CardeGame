@@ -39,6 +39,7 @@ class BoosterIn(BaseModel):
     description: str = ""
     active: bool = True
     visible_in_shop: bool = True
+    cover_image_url: str = Field(default="", max_length=300)
 
 
 class BoosterPatch(BaseModel):
@@ -51,6 +52,7 @@ class BoosterPatch(BaseModel):
     description: str | None = None
     active: bool | None = None
     visible_in_shop: bool | None = None
+    cover_image_url: str | None = Field(default=None, max_length=300)
 
 
 class BoosterOut(BaseModel):
@@ -65,6 +67,7 @@ class BoosterOut(BaseModel):
     description: str
     active: bool = True
     visible_in_shop: bool = True
+    cover_image_url: str = ""
 
 
 # ── Personnages ──

@@ -18,7 +18,7 @@ from app.models.booster import Booster
 from app.models.character import Character, CharacterSet
 from app.models.reference import Rarity, Quality, Specialty, Jewelry
 from app.models.economy import Resource, ShopOffer, ShopPurchase
-from app.schemas.economy import ShopOfferResponse, ShopBuyRequest, ShopBuyResponse
+from app.schemas.economy import ShopOfferResponse, ShopBuyRequest, ShopBuyResponse, ResourceCatalogItem
 from app.services.pack_service import PackService
 from app.services.card_view import build_card_response
 from app.services.daily_feature import get_todays_featured_offer_id
@@ -92,6 +92,16 @@ async def list_offers(
         purchases = await _purchases_today(session, user.id, o.id) if o.purchase_limit_per_day else 0
         out.append(await _offer_response(session, o, featured_id, purchases))
     return out
+
+
+@router.get("/resources", response_model=list[ResourceCatalogItem])
+async def list_resources_catalog(
+    session: AsyncSession = Depends(get_session),
+    _user: User = Depends(get_current_user),
+):
+    """Catalogue des ressources existantes (id + nom), pour peupler un sélecteur de monnaie côté joueur."""
+    rows = (await session.execute(select(Resource).order_by(Resource.name))).scalars().all()
+    return [ResourceCatalogItem(id=r.id, name=r.name) for r in rows]
 
 
 async def _recompute_probability(session: AsyncSession, card: UserCard) -> float:

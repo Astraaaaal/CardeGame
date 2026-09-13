@@ -10,6 +10,7 @@ import PackOpening from "@/pages/PackOpening";
 import Collection from "@/pages/Collection";
 import ResourceShop from "@/pages/ResourceShop";
 import Profile from "@/pages/Profile";
+import PlayerShowcase from "@/pages/PlayerShowcase";
 import AdminPanel from "@/pages/AdminPanel";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -83,6 +84,14 @@ export default function App() {
                     element={
                         <ProtectedRoute>
                             <Profile />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/players/:userId"
+                    element={
+                        <ProtectedRoute>
+                            <PlayerShowcase />
                         </ProtectedRoute>
                     }
                 />

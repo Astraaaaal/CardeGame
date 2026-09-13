@@ -25,6 +25,7 @@ const SORT_OPTIONS = [
     { value: "specialty", label: "Spécialité" },
     { value: "jewelry", label: "Bijou" },
     { value: "probability", label: "Rareté réelle" },
+    { value: "obtained_at", label: "Date d'obtention" },
 ];
 
 export default function Collection() {

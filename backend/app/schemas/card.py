@@ -32,6 +32,7 @@ class CardResponse(BaseModel):
     obtained_at: Optional[datetime] = None
     booster_id: Optional[str] = None
     booster_name: Optional[str] = None
+    booster_cover_url: Optional[str] = None
 
 
 class CardGroupResponse(BaseModel):

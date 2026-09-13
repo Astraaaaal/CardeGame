@@ -12,6 +12,7 @@ class FriendOut(BaseModel):
     display_name: str
     online: bool
     last_seen: datetime | None = None
+    close_friend: bool = False
 
 
 class SendFriendRequestBody(BaseModel):
@@ -42,3 +43,7 @@ class TradeRequestOut(BaseModel):
 class TradeRequestsResponse(BaseModel):
     incoming: list[TradeRequestOut] = []
     outgoing: list[TradeRequestOut] = []
+
+
+class SendTradeRequestBody(BaseModel):
+    username: str = Field(min_length=1, max_length=20)

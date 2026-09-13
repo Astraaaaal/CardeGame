@@ -18,6 +18,7 @@ export interface AdminBooster {
     description: string;
     active: boolean;
     visible_in_shop: boolean;
+    cover_image_url: string;
 }
 
 export interface AdminType {

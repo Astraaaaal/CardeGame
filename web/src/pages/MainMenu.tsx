@@ -11,6 +11,7 @@ import ResourceDisplay from "@/components/player/ResourceDisplay";
 import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
 import FriendsPanel from "@/components/social/FriendsPanel";
+import TradeRequestPopup from "@/components/social/TradeRequestPopup";
 import { useLogout } from "@/hooks/useAuth";
 
 export default function MainMenu() {
@@ -46,6 +47,7 @@ export default function MainMenu() {
   return (
     <div className="min-h-screen bg-game-bg flex flex-col">
       <DailyRewardPopup />
+      <TradeRequestPopup />
 
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">

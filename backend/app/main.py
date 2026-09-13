@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.api import auth, player, boosters, collection, admin, admin_content, types, shop, friends
+from app.api import auth, player, players, boosters, collection, admin, admin_content, types, shop, friends
 
 
 @asynccontextmanager
@@ -55,6 +55,7 @@ app.add_middleware(
 # ── Routes ──
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(player.router, prefix="/api/player", tags=["Player"])
+app.include_router(players.router, prefix="/api/players", tags=["Joueurs"])
 app.include_router(boosters.router, prefix="/api/boosters", tags=["Boosters"])
 app.include_router(collection.router, prefix="/api/collection", tags=["Collection"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])

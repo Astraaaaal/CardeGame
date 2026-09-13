@@ -2,12 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { shopApi } from "@/api/shop";
-import { collectionApi } from "@/api/collection";
 import type { ShopOffer } from "@/types/shop";
 import Button from "@/components/ui/Button";
-import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import CardImage from "@/components/card/CardImage";
+import CardPickerModal from "@/components/card/CardPickerModal";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -35,35 +33,6 @@ function offerPreview(o: ShopOffer): string {
     ].filter(Boolean).join(" + ");
     const mode = o.reroll_mode === "guaranteed_min" ? "garanti égal ou mieux" : "aléatoire (risqué)";
     return `Retire ${axes} — ${mode}`;
-}
-
-/** Petit sélecteur de carte possédée, pour les offres "reroll". */
-function CardPicker({ onPick, onClose }: { onPick: (cardId: string) => void; onClose: () => void }) {
-    const { data, isLoading } = useQuery({
-        queryKey: ["collection", { sort_by: "rarity" }],
-        queryFn: () => collectionApi.getCollection({ sort_by: "rarity" }),
-    });
-
-    return (
-        <Modal open onClose={onClose} title="Choisis une carte">
-            {isLoading ? (
-                <LoadingSpinner text="Chargement..." />
-            ) : (
-                <div className="grid grid-cols-3 gap-2 max-h-[60vh] overflow-y-auto">
-                    {(data?.groups ?? []).map((g) => (
-                        <button key={g.card.id} onClick={() => onPick(g.card.id)}>
-                            <CardImage card={g.card} size="sm" />
-                        </button>
-                    ))}
-                    {data && data.groups.length === 0 && (
-                        <p className="col-span-3 text-white/40 text-sm text-center py-6">
-                            Aucune carte dans ta collection.
-                        </p>
-                    )}
-                </div>
-            )}
-        </Modal>
-    );
 }
 
 export default function ResourceShop() {
@@ -159,7 +128,7 @@ export default function ResourceShop() {
             </main>
 
             {pickerFor && (
-                <CardPicker
+                <CardPickerModal
                     onClose={() => setPickerFor(null)}
                     onPick={(cardId) => buy.mutate({ offer: pickerFor, cardId })}
                 />

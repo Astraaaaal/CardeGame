@@ -30,6 +30,8 @@ class TradeRequest(SQLModel, table=True):
     Le choix des cartes et l'échange lui-même seront ajoutés plus tard ;
     pour l'instant une ligne ne porte qu'un statut "pending" à faire
     disparaître (accepter/annuler) une fois vue.
+    `seen` : sert au popup de notification (cf. app/api/friends.py) — passe
+    à True dès que le destinataire a vu la demande, pour ne la signaler qu'une fois.
     """
     __tablename__ = "trade_requests"
 
@@ -37,4 +39,39 @@ class TradeRequest(SQLModel, table=True):
     requester_id: int = Field(foreign_key="users.id", index=True)
     addressee_id: int = Field(foreign_key="users.id", index=True)
     status: str = Field(default="pending", max_length=20)
+    seen: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CloseFriend(SQLModel, table=True):
+    """
+    Marquage à sens unique : `user_id` considère `friend_user_id` comme un
+    ami proche (comme les "Close Friends" d'Instagram — pas besoin que
+    l'autre soit d'accord). Suppose une amitié déjà établie entre les deux ;
+    sert de filtre pour `User.trade_request_policy == "close_friends"`.
+    """
+    __tablename__ = "close_friends"
+
+    user_id: int = Field(foreign_key="users.id", primary_key=True)
+    friend_user_id: int = Field(foreign_key="users.id", primary_key=True)
+
+
+class TradeListing(SQLModel, table=True):
+    """
+    Une carte possédée mise en avant "à échanger" sur la vitrine, avec un
+    prix dans une ressource au choix. 3 emplacements par joueur (indépendants
+    des 3 cartes cosmétiques de la vitrine — une même carte peut apparaître
+    dans les deux).
+    - mode = "buy_now" : achat direct — la carte change de main immédiatement
+      contre le prix affiché (cf. app/api/players.py::buy_trade_listing).
+    - mode = "offer"   : prix indicatif — un clic crée juste une TradeRequest
+      (nécessite d'être amis, comme le reste du système d'échange).
+    """
+    __tablename__ = "trade_listings"
+
+    user_id: int = Field(foreign_key="users.id", primary_key=True)
+    slot: int = Field(primary_key=True)  # 0, 1, 2
+    user_card_id: str = Field(foreign_key="user_cards.id")
+    resource_id: str = Field(foreign_key="resources.id", max_length=30)
+    price: int = Field(default=0)
+    mode: str = Field(max_length=20)  # "buy_now" | "offer"

@@ -13,6 +13,12 @@ class ResourceBalance(BaseModel):
     amount: int
 
 
+class ResourceCatalogItem(BaseModel):
+    """Ressource du catalogue, sans solde — pour peupler un sélecteur de monnaie côté joueur."""
+    id: str
+    name: str
+
+
 class RecycleRequest(BaseModel):
     character_id: str
     rarity_id: str

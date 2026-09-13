@@ -120,6 +120,7 @@ class PackService:
                     obtained_at=user_card.obtained_at,
                     booster_id=booster.id,
                     booster_name=booster.name,
+                    booster_cover_url=booster.cover_image_url or None,
                 ))
 
             all_packs_response.append(pack_responses)

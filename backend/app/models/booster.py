@@ -21,6 +21,10 @@ class Booster(SQLModel, table=True):
     price: int = Field(default=100)
     guaranteed_rare: bool = Field(default=False)
     description: str = Field(default="")
+    # Nom de fichier dans web/public/boosters/ (même convention que
+    # Character.image_url) ; remplace le visuel générique du dos de pack
+    # (voir CardReveal côté web) et l'illustration dans la boutique.
+    cover_image_url: str = Field(default="", max_length=300)
 
     # Interrupteur global : si False, ce booster n'est ouvrable nulle part
     # (ni boutique classique, ni offre du shop à ressources).

@@ -9,35 +9,44 @@ interface BoosterCardProps {
 
 export default function BoosterCard({ booster, onSelect }: BoosterCardProps) {
     return (
-        <div className="bg-game-surface rounded-2xl p-4 border border-white/10
+        <div className="bg-game-surface rounded-2xl overflow-hidden border border-white/10
                     hover:border-accent/50 transition-all duration-200">
-            <div className="flex items-center justify-between mb-3">
-                <h3 className="text-white font-bold text-lg">{booster.name}</h3>
-                <span className="text-gold font-bold">
-                    {booster.price} {resourceIcon(booster.resource_id)}
-                </span>
+            {booster.cover_image_url && (
+                <img
+                    src={`/boosters/${booster.cover_image_url}`}
+                    alt=""
+                    className="w-full aspect-[16/9] object-cover"
+                />
+            )}
+            <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-white font-bold text-lg">{booster.name}</h3>
+                    <span className="text-gold font-bold">
+                        {booster.price} {resourceIcon(booster.resource_id)}
+                    </span>
+                </div>
+
+                <p className="text-white/60 text-sm mb-2">{booster.description}</p>
+
+                <div className="flex gap-2 text-xs text-white/40 mb-4">
+                    <span>{booster.cards_count} cartes</span>
+                    {booster.guaranteed_rare && (
+                        <span className="text-accent">• Rare garantie</span>
+                    )}
+                    {booster.set_ids.length > 1 && (
+                        <span>• Sets {booster.set_ids.join(", ")}</span>
+                    )}
+                </div>
+
+                <Button
+                    variant="primary"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => onSelect(booster)}
+                >
+                    Ouvrir
+                </Button>
             </div>
-
-            <p className="text-white/60 text-sm mb-2">{booster.description}</p>
-
-            <div className="flex gap-2 text-xs text-white/40 mb-4">
-                <span>{booster.cards_count} cartes</span>
-                {booster.guaranteed_rare && (
-                    <span className="text-accent">• Rare garantie</span>
-                )}
-                {booster.set_ids.length > 1 && (
-                    <span>• Sets {booster.set_ids.join(", ")}</span>
-                )}
-            </div>
-
-            <Button
-                variant="primary"
-                size="sm"
-                className="w-full"
-                onClick={() => onSelect(booster)}
-            >
-                Ouvrir
-            </Button>
         </div>
     );
 }

@@ -12,11 +12,16 @@ from app.core.ratelimit import rate_limit
 from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.models.token import RefreshToken
+from app.models.card import UserCard
 from app.models.economy import Resource, UserResource
+from app.models.social import TradeListing
 from app.schemas.player import PlayerResponse, DailyRewardResponse, UpdateProfileRequest
 from app.schemas.auth import ChangePasswordRequest, MessageResponse
 from app.schemas.economy import ResourceBalance
+from app.schemas.showcase import ShowcaseResponse, UpdateShowcaseRequest, UpdateTradeListingsRequest
+from app.schemas.settings import PlayerSettings, UpdatePlayerSettings
 from app.services.daily_reward import DailyRewardService
+from app.services.showcase_view import build_showcase_response
 
 router = APIRouter()
 daily_service = DailyRewardService()
@@ -43,6 +48,9 @@ async def _profile_response(session: AsyncSession, user: User) -> PlayerResponse
             ResourceBalance(id=ur.resource_id, name=name, amount=ur.amount)
             for ur, name in resources
         ],
+        allow_friend_requests=user.allow_friend_requests,
+        trade_request_policy=user.trade_request_policy,
+        trade_request_popup_enabled=user.trade_request_popup_enabled,
     )
 
 
@@ -91,6 +99,110 @@ async def change_password(
     await session.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
     await session.commit()
     return MessageResponse(message="Mot de passe changé. Reconnecte-toi.")
+
+
+@router.put("/showcase", response_model=ShowcaseResponse)
+async def update_showcase(
+    body: UpdateShowcaseRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Configure la vitrine publique : avatar (un personnage possédé) et jusqu'à
+    3 cartes possédées mises en avant. Remplace entièrement la configuration
+    précédente (pas de mise à jour partielle).
+    """
+    if body.avatar_character_id:
+        owns_character = (await session.execute(
+            select(UserCard).where(
+                UserCard.user_id == user.id,
+                UserCard.character_id == body.avatar_character_id,
+            )
+        )).first()
+        if not owns_character:
+            raise HTTPException(400, "Tu ne possèdes pas ce personnage.")
+    user.avatar_character_id = body.avatar_character_id
+
+    slot_fields = ["showcase_card_1_id", "showcase_card_2_id", "showcase_card_3_id"]
+    for field, card_id in zip(slot_fields, body.card_slots):
+        if card_id:
+            card = await session.get(UserCard, card_id)
+            if not card or card.user_id != user.id:
+                raise HTTPException(400, "Une des cartes choisies ne t'appartient pas.")
+        setattr(user, field, card_id)
+
+    session.add(user)
+    await session.commit()
+    return await build_showcase_response(session, user)
+
+
+@router.put("/trade-listings", response_model=ShowcaseResponse)
+async def update_trade_listings(
+    body: UpdateTradeListingsRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Configure jusqu'à 3 cartes possédées "à échanger", chacune avec un prix
+    dans une ressource au choix et un mode : "buy_now" (achat direct
+    immédiat par un autre joueur) ou "offer" (prix indicatif, un clic crée
+    une demande d'échange). Remplace entièrement la configuration précédente.
+    """
+    for slot, slot_in in enumerate(body.slots):
+        existing = await session.get(TradeListing, (user.id, slot))
+        if slot_in is None:
+            if existing:
+                await session.delete(existing)
+            continue
+
+        card = await session.get(UserCard, slot_in.user_card_id)
+        if not card or card.user_id != user.id:
+            raise HTTPException(400, "Une des cartes choisies ne t'appartient pas.")
+        if not await session.get(Resource, slot_in.resource_id):
+            raise HTTPException(400, f"La ressource '{slot_in.resource_id}' n'existe pas.")
+
+        if existing:
+            existing.user_card_id = slot_in.user_card_id
+            existing.resource_id = slot_in.resource_id
+            existing.price = slot_in.price
+            existing.mode = slot_in.mode
+            session.add(existing)
+        else:
+            session.add(TradeListing(
+                user_id=user.id, slot=slot, user_card_id=slot_in.user_card_id,
+                resource_id=slot_in.resource_id, price=slot_in.price, mode=slot_in.mode,
+            ))
+
+    await session.commit()
+    return await build_showcase_response(session, user)
+
+
+@router.get("/settings", response_model=PlayerSettings)
+async def get_settings(user: User = Depends(get_current_user)):
+    return PlayerSettings(
+        allow_friend_requests=user.allow_friend_requests,
+        trade_request_policy=user.trade_request_policy,
+        trade_request_popup_enabled=user.trade_request_popup_enabled,
+    )
+
+
+@router.patch("/settings", response_model=PlayerSettings)
+async def update_settings(
+    body: UpdatePlayerSettings,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Paramètres sociaux : qui peut envoyer une demande d'ami / d'échange, popup de notif."""
+    data = body.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(user, k, v)
+    session.add(user)
+    await session.commit()
+    return PlayerSettings(
+        allow_friend_requests=user.allow_friend_requests,
+        trade_request_policy=user.trade_request_policy,
+        trade_request_popup_enabled=user.trade_request_popup_enabled,
+    )
 
 
 @router.post("/daily-reward", response_model=DailyRewardResponse)

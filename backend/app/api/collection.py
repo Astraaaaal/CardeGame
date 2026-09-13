@@ -76,7 +76,7 @@ async def get_probabilities(session: AsyncSession = Depends(get_session)):
 
 @router.get("/", response_model=CollectionResponse)
 async def get_collection(
-    sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability)$"),
+    sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability|obtained_at)$"),
     set_id: Optional[str] = Query(None),
     rarity_id: Optional[str] = Query(None),
     rarity_op: str = Query("eq", pattern=_OP_PATTERN),
@@ -164,11 +164,20 @@ async def get_collection(
                         boosters_map[card.booster_id].name
                         if card.booster_id in boosters_map else None
                     ),
+                    booster_cover_url=(
+                        boosters_map[card.booster_id].cover_image_url or None
+                        if card.booster_id in boosters_map else None
+                    ),
                 ),
                 "quantity": 1,
             }
         else:
             groups[key]["quantity"] += 1
+            # Plusieurs exemplaires de la même combinaison peuvent avoir été
+            # obtenus à des moments différents : on retient la date la plus
+            # récente pour l'affichage et le tri par date d'obtention.
+            if card.obtained_at > groups[key]["card"].obtained_at:
+                groups[key]["card"].obtained_at = card.obtained_at
 
     # Trier — "profond" : le nom sert toujours de départage à rang égal.
     # Tri Python stable => on trie d'abord par nom (ordre alphabétique fixe),
@@ -198,6 +207,9 @@ async def get_collection(
         )
     elif sort_by == "probability":
         group_list.sort(key=lambda g: g["card"].drop_probability)
+    elif sort_by == "obtained_at":
+        # Plus récent d'abord (dernier exemplaire obtenu par groupe, cf. plus haut).
+        group_list.sort(key=lambda g: g["card"].obtained_at, reverse=True)
 
     return CollectionResponse(
         total_cards=len(all_cards),
