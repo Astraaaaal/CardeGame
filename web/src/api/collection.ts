@@ -1,18 +1,39 @@
 import api from "./client";
 import type { CardGroup, Card } from "@/types/card";
 
+export type TierOp = "eq" | "gte" | "lte";
+
 export interface CollectionParams {
     sort_by?: string;
     set_id?: string;
     rarity_id?: string;
+    rarity_op?: TierOp;
+    quality_id?: string;
+    quality_op?: TierOp;
     specialty_id?: string;
+    specialty_op?: TierOp;
     jewelry_id?: string;
+    jewelry_op?: TierOp;
 }
 
 export interface CollectionResponse {
     total_cards: number;
     unique_cards: number;
     groups: CardGroup[];
+}
+
+export interface ProbabilityItem {
+    id: string;
+    name: string;
+    weight: number;
+    percentage: number;
+}
+
+export interface ProbabilityTable {
+    rarities: ProbabilityItem[];
+    qualities: ProbabilityItem[];
+    specialties: ProbabilityItem[];
+    jewelries: ProbabilityItem[];
 }
 
 export interface RecycleRequest {
@@ -40,6 +61,11 @@ export const collectionApi = {
 
     getCardDetail: async (cardId: string): Promise<Card> => {
         const res = await api.get(`/collection/${cardId}`);
+        return res.data;
+    },
+
+    getProbabilities: async (): Promise<ProbabilityTable> => {
+        const res = await api.get("/collection/probabilities");
         return res.data;
     },
 

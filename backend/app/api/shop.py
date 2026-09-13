@@ -17,12 +17,13 @@ from app.models.card import UserCard
 from app.models.booster import Booster
 from app.models.character import Character, CharacterSet
 from app.models.reference import Rarity, Quality, Specialty, Jewelry
-from app.models.economy import Resource, UserResource, ShopOffer, ShopPurchase
+from app.models.economy import Resource, ShopOffer, ShopPurchase
 from app.schemas.economy import ShopOfferResponse, ShopBuyRequest, ShopBuyResponse
 from app.services.pack_service import PackService
 from app.services.card_view import build_card_response
 from app.services.daily_feature import get_todays_featured_offer_id
 from app.services.tier_order import rank
+from app.services.wallet import get_balance, apply_delta
 
 router = APIRouter()
 pack_service = PackService()
@@ -59,10 +60,6 @@ async def _offer_response(
         quality_id=o.quality_id, quality_name=await name_of(Quality, o.quality_id),
         specialty_id=o.specialty_id, specialty_name=await name_of(Specialty, o.specialty_id),
         jewelry_id=o.jewelry_id, jewelry_name=await name_of(Jewelry, o.jewelry_id),
-        target_quality_id=o.target_quality_id,
-        target_quality_name=await name_of(Quality, o.target_quality_id),
-        target_specialty_id=o.target_specialty_id,
-        target_specialty_name=await name_of(Specialty, o.target_specialty_id),
         reroll_rarity=o.reroll_rarity, reroll_quality=o.reroll_quality,
         reroll_specialty=o.reroll_specialty, reroll_jewelry=o.reroll_jewelry,
         reroll_mode=o.reroll_mode,
@@ -146,8 +143,7 @@ async def buy_offer(
                        f"({done_today}/{offer.purchase_limit_per_day}).",
             )
 
-    balance = await session.get(UserResource, (user.id, offer.resource_id))
-    have = balance.amount if balance else 0
+    have = await get_balance(session, user, offer.resource_id)
     if have < offer.price:
         resource = await session.get(Resource, offer.resource_id)
         raise HTTPException(
@@ -205,24 +201,6 @@ async def buy_offer(
         await session.flush()
         cards_out = [await build_card_response(session, card)]
 
-    elif offer.kind == "upgrade":
-        if not request.card_id:
-            raise HTTPException(status_code=400, detail="Choisis la carte à améliorer.")
-        card = (await session.execute(
-            select(UserCard).where(
-                UserCard.id == request.card_id, UserCard.user_id == user.id
-            )
-        )).scalar_one_or_none()
-        if not card:
-            raise HTTPException(status_code=404, detail="Carte introuvable.")
-        if offer.target_quality_id:
-            card.quality_id = offer.target_quality_id
-        if offer.target_specialty_id:
-            card.specialty_id = offer.target_specialty_id
-        card.drop_probability = await _recompute_probability(session, card)
-        session.add(card)
-        cards_out = [await build_card_response(session, card)]
-
     elif offer.kind == "reroll":
         if not request.card_id:
             raise HTTPException(status_code=400, detail="Choisis la carte à retirer.")
@@ -266,10 +244,7 @@ async def buy_offer(
     else:
         raise HTTPException(status_code=500, detail=f"Type d'offre inconnu: {offer.kind}")
 
-    if not balance:
-        balance = UserResource(user_id=user.id, resource_id=offer.resource_id, amount=0)
-        session.add(balance)
-    balance.amount -= offer.price
+    new_balance = await apply_delta(session, user, offer.resource_id, -offer.price)
     session.add(ShopPurchase(user_id=user.id, offer_id=offer.id))
 
     await session.commit()
@@ -277,6 +252,6 @@ async def buy_offer(
     return ShopBuyResponse(
         message=f"« {offer.name} » acheté !",
         resource_id=offer.resource_id,
-        new_balance=balance.amount,
+        new_balance=new_balance,
         cards=cards_out,
     )

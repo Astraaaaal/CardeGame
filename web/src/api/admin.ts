@@ -77,12 +77,16 @@ export const adminApi = {
     listTypes: () => http.get<AdminType[]>("/types").then((r) => r.data),
     createType: (b: { id: string; name: string; color_r: number; color_g: number; color_b: number }) =>
         http.post<AdminType>("/types", b).then((r) => r.data),
+    updateType: (id: string, b: Partial<{ name: string; color_r: number; color_g: number; color_b: number }>) =>
+        http.patch<AdminType>(`/types/${id}`, b).then((r) => r.data),
     deleteType: (id: string) => http.delete(`/types/${id}`).then(() => undefined),
 
     // ── Ressources ──
     listResources: () => http.get<AdminResource[]>("/resources").then((r) => r.data),
     createResource: (b: AdminResource) =>
         http.post<AdminResource>("/resources", b).then((r) => r.data),
+    updateResource: (id: string, b: Partial<Pick<AdminResource, "name" | "description">>) =>
+        http.patch<AdminResource>(`/resources/${id}`, b).then((r) => r.data),
     deleteResource: (id: string) => http.delete(`/resources/${id}`).then(() => undefined),
 
     // ── Offres du shop ──

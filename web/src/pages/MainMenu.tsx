@@ -1,26 +1,36 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
+import { friendsApi } from "@/api/friends";
 import { useAuthStore } from "@/stores/authStore";
 import Button from "@/components/ui/Button";
 import CoinDisplay from "@/components/player/CoinDisplay";
 import ResourceDisplay from "@/components/player/ResourceDisplay";
 import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
+import FriendsPanel from "@/components/social/FriendsPanel";
 import { useLogout } from "@/hooks/useAuth";
 
 export default function MainMenu() {
   const navigate = useNavigate();
   const { user, setUser } = useAuthStore();
   const logout = useLogout();
+  const [friendsOpen, setFriendsOpen] = useState(false);
 
   const { data: player } = useQuery({
     queryKey: ["player"],
     queryFn: playerApi.getMe,
     staleTime: 30_000,
   });
+
+  const { data: friendRequests } = useQuery({
+    queryKey: ["friend-requests"],
+    queryFn: friendsApi.listRequests,
+    staleTime: 30_000,
+  });
+  const pendingCount = friendRequests?.incoming.length ?? 0;
 
   useEffect(() => {
     if (player) setUser(player);
@@ -30,6 +40,7 @@ export default function MainMenu() {
     { label: "Boutique de Boosters", icon: "🛍️", path: "/shop", color: "bg-accent" },
     { label: "Shop Ressources", icon: "✨", path: "/resource-shop", color: "bg-purple-600" },
     { label: "Ma Collection", icon: "📚", path: "/collection", color: "bg-purple-600" },
+    { label: "Profil", icon: "👤", path: "/profile", color: "bg-purple-600" },
   ];
 
   return (
@@ -48,13 +59,29 @@ export default function MainMenu() {
             <StreakBadge streak={user?.login_streak ?? 0} />
           </div>
         </div>
-        <button
-          className="text-white/40 hover:text-white text-sm transition-colors"
-          onClick={() => { logout(); navigate("/login"); }}
-        >
-          Déconnexion
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            className="relative text-white/70 hover:text-white text-xl"
+            onClick={() => setFriendsOpen(true)}
+            title="Amis"
+          >
+            👥
+            {pendingCount > 0 && (
+              <span className="absolute -top-1 -right-1.5 inline-flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+          <button
+            className="text-white/40 hover:text-white text-sm transition-colors"
+            onClick={() => { logout(); navigate("/login"); }}
+          >
+            Déconnexion
+          </button>
+        </div>
       </header>
+
+      <FriendsPanel open={friendsOpen} onClose={() => setFriendsOpen(false)} />
 
       {/* Content */}
       <main className="flex-1 flex flex-col items-center justify-center gap-6 px-4">

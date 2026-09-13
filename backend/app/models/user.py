@@ -33,6 +33,9 @@ class User(SQLModel, table=True):
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: Optional[datetime] = Field(default=None)
+    # Mis à jour (au plus une fois/minute) à chaque requête authentifiée —
+    # sert à dériver un statut "en ligne" approximatif (cf. core/dependencies.py).
+    last_seen: Optional[datetime] = Field(default=None)
 
     # Relations
     cards: List["UserCard"] = Relationship(back_populates="user")

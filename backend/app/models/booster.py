@@ -15,6 +15,9 @@ class Booster(SQLModel, table=True):
     # booster vit dans BoosterSet ; set_id = le premier de cette liste.
     set_id: str = Field(foreign_key="sets.id", max_length=20)
     cards_count: int = Field(default=5)
+    # Monnaie utilisée pour l'achat classique de ce booster. "coins" est un
+    # id de ressource réservé, routé vers User.coins (cf. services/wallet.py).
+    resource_id: str = Field(default="coins", foreign_key="resources.id", max_length=30)
     price: int = Field(default=100)
     guaranteed_rare: bool = Field(default=False)
     description: str = Field(default="")

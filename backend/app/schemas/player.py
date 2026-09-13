@@ -2,7 +2,7 @@
 Schemas pour le profil joueur.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
@@ -20,6 +20,10 @@ class PlayerResponse(BaseModel):
     created_at: datetime
     last_login: Optional[datetime] = None
     resources: list[ResourceBalance] = []
+
+
+class UpdateProfileRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=20)
 
 
 class DailyRewardResponse(BaseModel):

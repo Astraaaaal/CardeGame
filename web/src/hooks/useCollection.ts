@@ -19,3 +19,12 @@ export function useCardDetail(cardId: string | null) {
         enabled: !!cardId,
     });
 }
+
+export function useProbabilities(enabled: boolean) {
+    return useQuery({
+        queryKey: ["probabilities"],
+        queryFn: collectionApi.getProbabilities,
+        enabled,
+        staleTime: 5 * 60_000, // change rarement (réglages admin)
+    });
+}

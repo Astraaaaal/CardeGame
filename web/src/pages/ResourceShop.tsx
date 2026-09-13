@@ -28,12 +28,6 @@ function offerPreview(o: ShopOffer): string {
         return [o.character_name, o.rarity_name, o.quality_name, o.specialty_name, o.jewelry_name]
             .filter(Boolean).join(" · ");
     }
-    if (o.kind === "upgrade") {
-        const parts = [];
-        if (o.target_quality_name) parts.push(`Qualité → ${o.target_quality_name}`);
-        if (o.target_specialty_name) parts.push(`Spécialité → ${o.target_specialty_name}`);
-        return parts.join(" · ") || "Amélioration";
-    }
     // reroll
     const axes = [
         o.reroll_rarity && "rareté", o.reroll_quality && "qualité",
@@ -43,7 +37,7 @@ function offerPreview(o: ShopOffer): string {
     return `Retire ${axes} — ${mode}`;
 }
 
-/** Petit sélecteur de carte possédée, pour les offres "upgrade" et "reroll". */
+/** Petit sélecteur de carte possédée, pour les offres "reroll". */
 function CardPicker({ onPick, onClose }: { onPick: (cardId: string) => void; onClose: () => void }) {
     const { data, isLoading } = useQuery({
         queryKey: ["collection", { sort_by: "rarity" }],
@@ -93,7 +87,7 @@ export default function ResourceShop() {
 
     const handleBuy = (offer: ShopOffer) => {
         setFeedback(null);
-        if (offer.kind === "upgrade" || offer.kind === "reroll") {
+        if (offer.kind === "reroll") {
             setPickerFor(offer);
         } else {
             buy.mutate({ offer });

@@ -36,6 +36,21 @@ _STATEMENTS = [
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS reroll_specialty BOOLEAN NOT NULL DEFAULT FALSE",
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS reroll_jewelry BOOLEAN NOT NULL DEFAULT FALSE",
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS reroll_mode VARCHAR(20)",
+    # Ressource système non supprimable (ex: "coins").
+    "ALTER TABLE resources ADD COLUMN IF NOT EXISTS protected BOOLEAN NOT NULL DEFAULT FALSE",
+    # Monnaie utilisée par un booster à l'achat classique (permet de vendre
+    # un booster contre une ressource autre que les pièces).
+    "ALTER TABLE boosters ADD COLUMN IF NOT EXISTS resource_id VARCHAR(30) NOT NULL DEFAULT 'coins'",
+    # Retrait du kind "upgrade" (initiative non demandée, redondante avec
+    # reroll en mode garanti). Nettoie les offres orphelines avant de retirer
+    # les colonnes qui n'étaient utilisées que par ce kind.
+    "DELETE FROM shop_purchases WHERE offer_id IN (SELECT id FROM shop_offers WHERE kind = 'upgrade')",
+    "DELETE FROM daily_features WHERE offer_id IN (SELECT id FROM shop_offers WHERE kind = 'upgrade')",
+    "DELETE FROM shop_offers WHERE kind = 'upgrade'",
+    "ALTER TABLE shop_offers DROP COLUMN IF EXISTS target_quality_id",
+    "ALTER TABLE shop_offers DROP COLUMN IF EXISTS target_specialty_id",
+    # Statut "en ligne" approximatif (cf. core/dependencies.py).
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP",
 ]
 
 # Types de personnage initiaux (portés depuis l'ancien TYPE_COLORS du renderer).
@@ -58,10 +73,14 @@ _DEFAULT_TYPES = [
     ("normal", "Normal", 150, 150, 150),
 ]
 
-# Ressources par défaut (recyclage / shop).
+# Ressources par défaut (recyclage / shop). "coins" est la ressource système
+# (pièces) : non supprimable, existe de base pour chaque joueur via User.coins
+# plutôt qu'une ligne UserResource (cf. services/wallet.py).
 _DEFAULT_RESOURCES = [
+    ("coins", "Pièces", "Monnaie de base. Ne peut pas être supprimée."),
     ("dust", "Poussière", "Obtenue en recyclant des cartes. Dépensable au shop."),
 ]
+_PROTECTED_RESOURCES = {"coins"}
 
 # Valeurs de recyclage par défaut, par table et par id. Appliquées uniquement
 # si la valeur est encore à 0 (ne stomp pas un réglage déjà fait par un admin).
@@ -96,14 +115,26 @@ async def apply_patches(conn: AsyncConnection) -> None:
             print(f"[migrations] avertissement seed type {type_id!r}: {exc}")
 
     insert_resource = text(
-        "INSERT INTO resources (id, name, description) "
-        "VALUES (:id, :name, :description) ON CONFLICT (id) DO NOTHING"
+        "INSERT INTO resources (id, name, description, protected) "
+        "VALUES (:id, :name, :description, :protected) ON CONFLICT (id) DO NOTHING"
     )
     for res_id, name, description in _DEFAULT_RESOURCES:
         try:
-            await conn.execute(insert_resource, {"id": res_id, "name": name, "description": description})
+            await conn.execute(insert_resource, {
+                "id": res_id, "name": name, "description": description,
+                "protected": res_id in _PROTECTED_RESOURCES,
+            })
         except Exception as exc:  # noqa: BLE001
             print(f"[migrations] avertissement seed resource {res_id!r}: {exc}")
+
+    # Au cas où "coins" existait déjà avant l'ajout de la colonne `protected`
+    # (déploiement antérieur) : force le flag, ne dépend pas de l'ordre d'insertion.
+    force_protected = text("UPDATE resources SET protected = TRUE WHERE id = :id")
+    for res_id in _PROTECTED_RESOURCES:
+        try:
+            await conn.execute(force_protected, {"id": res_id})
+        except Exception as exc:  # noqa: BLE001
+            print(f"[migrations] avertissement protected {res_id!r}: {exc}")
 
     for table, values in _RECYCLE_DEFAULTS.items():
         update = text(

@@ -13,6 +13,8 @@ class BoosterResponse(BaseModel):
     set_id: str  # premier set (compat) — cf. set_ids pour la liste complète
     set_ids: list[str] = []
     cards_count: int
+    resource_id: str = "coins"
+    resource_name: str = "Pièces"
     price: int
     guaranteed_rare: bool
     description: str = ""
@@ -27,4 +29,7 @@ class PackOpenResponse(BaseModel):
     """Résultat de l'ouverture de packs."""
     packs: list[list[CardResponse]]
     total_cost: int
-    remaining_coins: int
+    remaining_coins: int  # compat : solde de pièces après achat (inchangé si payé en une autre ressource)
+    resource_id: str = "coins"
+    resource_name: str = "Pièces"
+    new_balance: int = 0  # solde de la ressource utilisée pour payer, après achat

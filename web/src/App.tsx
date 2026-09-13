@@ -9,6 +9,7 @@ import BoosterShop from "@/pages/BoosterShop";
 import PackOpening from "@/pages/PackOpening";
 import Collection from "@/pages/Collection";
 import ResourceShop from "@/pages/ResourceShop";
+import Profile from "@/pages/Profile";
 import AdminPanel from "@/pages/AdminPanel";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -74,6 +75,14 @@ export default function App() {
                     element={
                         <ProtectedRoute>
                             <ResourceShop />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/profile"
+                    element={
+                        <ProtectedRoute>
+                            <Profile />
                         </ProtectedRoute>
                     }
                 />

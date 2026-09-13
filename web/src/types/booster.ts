@@ -4,6 +4,8 @@ export interface Booster {
     set_id: string;
     set_ids: string[];
     cards_count: number;
+    resource_id: string;
+    resource_name: string;
     price: number;
     guaranteed_rare: boolean;
     description: string;
@@ -18,4 +20,7 @@ export interface PackOpenResponse {
     packs: import("./card").Card[][];
     total_cost: number;
     remaining_coins: number;
+    resource_id: string;
+    resource_name: string;
+    new_balance: number;
 }

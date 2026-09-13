@@ -17,14 +17,61 @@ from app.models.booster import Booster
 from app.models.reference import Set, Rarity, Quality, Specialty, Jewelry
 from app.models.economy import Resource, UserResource
 from app.schemas.card import CardResponse, CardGroupResponse
-from app.schemas.collection import CollectionResponse
+from app.schemas.collection import CollectionResponse, ProbabilityItem, ProbabilityTableResponse
 from app.schemas.economy import RecycleRequest, RecycleResponse
 from app.services.card_view import build_card_response
-from app.services.tier_order import RARITY_ORDER, QUALITY_ORDER, SPECIALTY_ORDER, JEWELRY_ORDER
+from app.services.tier_order import (
+    RARITY_ORDER, QUALITY_ORDER, SPECIALTY_ORDER, JEWELRY_ORDER, rank,
+)
 
 router = APIRouter()
 
 RECYCLE_RESOURCE_ID = "dust"  # seule source de recyclage pour l'instant
+
+
+_OP_PATTERN = "^(eq|gte|lte)$"
+
+
+def _matches_tier(axis: str, card_value: str, filter_value: Optional[str], op: str) -> bool:
+    """
+    eq  : valeur exacte.
+    gte : ce palier OU AU-DESSUS ("à partir de tel palier").
+    lte : ce palier OU EN DESSOUS ("ce palier et en dessous").
+    """
+    if not filter_value:
+        return True
+    if op == "eq":
+        return card_value == filter_value
+    target = rank(axis, filter_value)
+    current = rank(axis, card_value)
+    return current >= target if op == "gte" else current <= target
+
+
+@router.get("/probabilities", response_model=ProbabilityTableResponse)
+async def get_probabilities(session: AsyncSession = Depends(get_session)):
+    """
+    Table publique des probabilités de base par axe (rareté/qualité/spécialité/
+    jewelry), telles qu'utilisées par le tirage normal d'un pack — cf.
+    CardGeneratorService._generate_single. Un booster "rare garantie" ou une
+    offre spéciale du shop peuvent temporairement relever la rareté du tirage ;
+    ce tableau montre les poids de base, pas ces overrides ponctuels.
+    """
+    async def _table(model, axis: str) -> list[ProbabilityItem]:
+        rows = (await session.execute(select(model))).scalars().all()
+        total = sum(r.weight for r in rows) or 1.0
+        items = [
+            ProbabilityItem(id=r.id, name=r.name, weight=r.weight, percentage=round(r.weight / total * 100, 3))
+            for r in rows
+        ]
+        items.sort(key=lambda i: rank(axis, i.id), reverse=True)
+        return items
+
+    return ProbabilityTableResponse(
+        rarities=await _table(Rarity, "rarity"),
+        qualities=await _table(Quality, "quality"),
+        specialties=await _table(Specialty, "specialty"),
+        jewelries=await _table(Jewelry, "jewelry"),
+    )
 
 
 @router.get("/", response_model=CollectionResponse)
@@ -32,30 +79,36 @@ async def get_collection(
     sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability)$"),
     set_id: Optional[str] = Query(None),
     rarity_id: Optional[str] = Query(None),
+    rarity_op: str = Query("eq", pattern=_OP_PATTERN),
+    quality_id: Optional[str] = Query(None),
+    quality_op: str = Query("eq", pattern=_OP_PATTERN),
     specialty_id: Optional[str] = Query(None),
+    specialty_op: str = Query("eq", pattern=_OP_PATTERN),
     jewelry_id: Optional[str] = Query(None),
+    jewelry_op: str = Query("eq", pattern=_OP_PATTERN),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """
     Retourne la collection du joueur, groupée par combinaison unique.
-    Supporte le tri et les filtres.
+    Supporte le tri et les filtres — pour rareté/qualité/spécialité/jewelry,
+    chaque filtre accepte un mode "eq" (exact), "gte" (ce palier et au-dessus)
+    ou "lte" (ce palier et en dessous), basé sur tier_order.rank().
     """
-    # Requête de base
+    # Requête de base — seul set_id reste un filtre exact simple côté SQL,
+    # les 4 axes à palier sont filtrés en Python (comparaison de rang).
     query = select(UserCard).where(UserCard.user_id == user.id)
-
-    # Filtres
     if set_id:
         query = query.where(UserCard.set_id == set_id)
-    if rarity_id:
-        query = query.where(UserCard.rarity_id == rarity_id)
-    if specialty_id:
-        query = query.where(UserCard.specialty_id == specialty_id)
-    if jewelry_id:
-        query = query.where(UserCard.jewelry_id == jewelry_id)
 
     result = await session.execute(query)
-    all_cards = result.scalars().all()
+    all_cards = [
+        c for c in result.scalars().all()
+        if _matches_tier("rarity", c.rarity_id, rarity_id, rarity_op)
+        and _matches_tier("quality", c.quality_id, quality_id, quality_op)
+        and _matches_tier("specialty", c.specialty_id, specialty_id, specialty_op)
+        and _matches_tier("jewelry", c.jewelry_id, jewelry_id, jewelry_op)
+    ]
 
     if not all_cards:
         return CollectionResponse(total_cards=0, unique_cards=0, groups=[])
@@ -117,15 +170,17 @@ async def get_collection(
         else:
             groups[key]["quantity"] += 1
 
-    # Trier
+    # Trier — "profond" : le nom sert toujours de départage à rang égal.
+    # Tri Python stable => on trie d'abord par nom (ordre alphabétique fixe),
+    # puis par la clé principale, qui ne fait alors que réordonner les groupes
+    # de même rang sans casser leur ordre alphabétique interne.
     group_list = list(groups.values())
+    group_list.sort(key=lambda g: g["card"].character_name.lower())
     if sort_by == "rarity":
         group_list.sort(
             key=lambda g: RARITY_ORDER.get(g["card"].rarity_id, 0),
             reverse=True,
         )
-    elif sort_by == "name":
-        group_list.sort(key=lambda g: g["card"].character_name)
     elif sort_by == "quality":
         group_list.sort(
             key=lambda g: QUALITY_ORDER.get(g["card"].quality_id, 0),

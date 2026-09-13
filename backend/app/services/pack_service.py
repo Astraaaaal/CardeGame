@@ -13,8 +13,10 @@ from app.models.user import User
 from app.models.card import UserCard
 from app.models.booster import Booster, BoosterSet
 from app.models.reference import Set
+from app.models.economy import Resource
 from app.services.card_generator import CardGeneratorService
 from app.services.card_renderer import CardRendererService
+from app.services.wallet import get_balance, apply_delta
 from app.schemas.card import CardResponse
 
 
@@ -132,9 +134,10 @@ class PackService:
         quantity: int,
     ) -> dict:
         """
-        Ouvre un ou plusieurs packs contre des pièces :
+        Ouvre un ou plusieurs packs contre la monnaie du booster (`resource_id`,
+        "coins" par défaut) :
         1. Vérifie le booster, 2. calcule le prix (réductions multi-pack),
-        3. vérifie/déduit les pièces, 4. génère + persiste, 5. commit.
+        3. vérifie/déduit la monnaie, 4. génère + persiste, 5. commit.
         """
         booster = await session.get(Booster, booster_id)
         if not booster:
@@ -156,13 +159,17 @@ class PackService:
         user = await session.get(User, user_id)
         if not user:
             raise HTTPException(status_code=404, detail="Utilisateur introuvable")
-        if user.coins < total_price:
+
+        have = await get_balance(session, user, booster.resource_id)
+        if have < total_price:
+            resource = await session.get(Resource, booster.resource_id)
             raise HTTPException(
                 status_code=400,
-                detail=f"Pas assez de pièces ({user.coins}/{total_price})",
+                detail=f"Pas assez de {resource.name if resource else booster.resource_id} "
+                       f"({have}/{total_price})",
             )
 
-        user.coins -= total_price
+        await apply_delta(session, user, booster.resource_id, -total_price)
         user.packs_opened += quantity
 
         all_packs_response, total_new_cards = await self.generate_and_persist_packs(
@@ -171,10 +178,14 @@ class PackService:
         user.total_cards += total_new_cards
         await session.commit()
 
+        resource = await session.get(Resource, booster.resource_id)
         return {
             "packs": all_packs_response,
             "total_cost": total_price,
             "remaining_coins": user.coins,
+            "resource_id": booster.resource_id,
+            "resource_name": resource.name if resource else booster.resource_id,
+            "new_balance": await get_balance(session, user, booster.resource_id),
         }
 
     async def _load_map(self, session: AsyncSession, model) -> dict:

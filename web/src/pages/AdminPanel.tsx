@@ -7,6 +7,7 @@ import type {
     GameSet,
     AdminBooster,
     AdminCharacter,
+    AdminType,
     AdminResource,
     AdminShopOffer,
     CharacterSetLink,
@@ -123,13 +124,17 @@ function SetForm({
 /* ─────────────────────────── Formulaire Booster ───────────────────────── */
 
 function BoosterForm({
-    initial, sets, onSaved, onClose,
-}: { initial: AdminBooster | null; sets: GameSet[]; onSaved: () => void; onClose: () => void }) {
+    initial, sets, resources, onSaved, onClose,
+}: {
+    initial: AdminBooster | null; sets: GameSet[]; resources: AdminResource[];
+    onSaved: () => void; onClose: () => void;
+}) {
     const isNew = !initial;
     const [f, setF] = useState<AdminBooster>(
         initial ?? {
             id: "", name: "", set_ids: sets[0] ? [sets[0].id] : [], cards_count: 5,
-            price: 100, guaranteed_rare: false, description: "",
+            resource_id: "coins", resource_name: "Pièces", price: 100,
+            guaranteed_rare: false, description: "",
             active: true, visible_in_shop: true,
         }
     );
@@ -196,6 +201,13 @@ function BoosterForm({
                     <input type="number" className={inputCls} value={f.price}
                         onChange={(e) => setF({ ...f, price: +e.target.value })} />
                 </div>
+            </div>
+            <div>
+                <label className={labelCls}>Monnaie</label>
+                <select className={inputCls} value={f.resource_id}
+                    onChange={(e) => setF({ ...f, resource_id: e.target.value })}>
+                    {resources.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
             </div>
             <label className="flex items-center gap-2 text-sm text-white/80">
                 <input type="checkbox" checked={f.guaranteed_rare}
@@ -337,11 +349,26 @@ function CharacterForm({
 
 /* ─────────────────────────── Formulaire Type ─────────────────────────── */
 
-function TypeForm({ onSaved, onClose }: { onSaved: () => void; onClose: () => void }) {
-    const [f, setF] = useState({ id: "", name: "", color_r: 150, color_g: 150, color_b: 150 });
+function TypeForm({
+    initial, onSaved, onClose,
+}: { initial: AdminType | null; onSaved: () => void; onClose: () => void }) {
+    const isNew = !initial;
+    const [f, setF] = useState(
+        initial
+            ? {
+                id: initial.id, name: initial.name,
+                color_r: initial.color[0], color_g: initial.color[1], color_b: initial.color[2],
+            }
+            : { id: "", name: "", color_r: 150, color_g: 150, color_b: 150 }
+    );
     const [err, setErr] = useState("");
     const m = useMutation({
-        mutationFn: () => adminApi.createType(f),
+        mutationFn: () =>
+            isNew
+                ? adminApi.createType(f)
+                : adminApi.updateType(f.id, {
+                    name: f.name, color_r: f.color_r, color_g: f.color_g, color_b: f.color_b,
+                }),
         onSuccess: onSaved,
         onError: (e) => setErr(errMsg(e)),
     });
@@ -350,7 +377,7 @@ function TypeForm({ onSaved, onClose }: { onSaved: () => void; onClose: () => vo
         <div className="space-y-3">
             <div>
                 <label className={labelCls}>Identifiant (slug)</label>
-                <input className={inputCls} value={f.id} placeholder="ex: cristal"
+                <input className={inputCls} value={f.id} disabled={!isNew} placeholder="ex: cristal"
                     onChange={(e) => setF({ ...f, id: e.target.value.toLowerCase() })} />
             </div>
             <div>
@@ -381,7 +408,7 @@ function TypeForm({ onSaved, onClose }: { onSaved: () => void; onClose: () => vo
             {err && <p className="text-red-400 text-xs">{err}</p>}
             <div className="flex gap-2 pt-1">
                 <Button variant="primary" className="flex-1" loading={m.isPending} onClick={() => m.mutate()}>
-                    Créer
+                    {isNew ? "Créer" : "Enregistrer"}
                 </Button>
                 <Button variant="secondary" onClick={onClose}>Annuler</Button>
             </div>
@@ -391,11 +418,19 @@ function TypeForm({ onSaved, onClose }: { onSaved: () => void; onClose: () => vo
 
 /* ────────────────────────── Formulaire Ressource ─────────────────────── */
 
-function ResourceForm({ onSaved, onClose }: { onSaved: () => void; onClose: () => void }) {
-    const [f, setF] = useState<AdminResource>({ id: "", name: "", description: "" });
+function ResourceForm({
+    initial, onSaved, onClose,
+}: { initial: AdminResource | null; onSaved: () => void; onClose: () => void }) {
+    const isNew = !initial;
+    const [f, setF] = useState<AdminResource>(
+        initial ?? { id: "", name: "", description: "", protected: false }
+    );
     const [err, setErr] = useState("");
     const m = useMutation({
-        mutationFn: () => adminApi.createResource(f),
+        mutationFn: () =>
+            isNew
+                ? adminApi.createResource(f)
+                : adminApi.updateResource(f.id, { name: f.name, description: f.description }),
         onSuccess: onSaved,
         onError: (e) => setErr(errMsg(e)),
     });
@@ -404,7 +439,7 @@ function ResourceForm({ onSaved, onClose }: { onSaved: () => void; onClose: () =
         <div className="space-y-3">
             <div>
                 <label className={labelCls}>Identifiant (slug)</label>
-                <input className={inputCls} value={f.id} placeholder="ex: shards"
+                <input className={inputCls} value={f.id} disabled={!isNew} placeholder="ex: shards"
                     onChange={(e) => setF({ ...f, id: e.target.value.toLowerCase() })} />
             </div>
             <div>
@@ -420,7 +455,7 @@ function ResourceForm({ onSaved, onClose }: { onSaved: () => void; onClose: () =
             {err && <p className="text-red-400 text-xs">{err}</p>}
             <div className="flex gap-2 pt-1">
                 <Button variant="primary" className="flex-1" loading={m.isPending} onClick={() => m.mutate()}>
-                    Créer
+                    {isNew ? "Créer" : "Enregistrer"}
                 </Button>
                 <Button variant="secondary" onClick={onClose}>Annuler</Button>
             </div>
@@ -433,7 +468,6 @@ function ResourceForm({ onSaved, onClose }: { onSaved: () => void; onClose: () =
 const OFFER_KINDS: { value: AdminShopOffer["kind"]; label: string }[] = [
     { value: "booster", label: "Booster" },
     { value: "specific_card", label: "Carte précise" },
-    { value: "upgrade", label: "Amélioration (palier exact)" },
     { value: "reroll", label: "Reroll (retirage)" },
 ];
 
@@ -577,27 +611,6 @@ function ShopOfferForm({
                 </div>
             )}
 
-            {f.kind === "upgrade" && (
-                <div className="grid grid-cols-2 gap-2">
-                    <div>
-                        <label className={labelCls}>Qualité cible</label>
-                        <select className={inputCls} value={f.target_quality_id ?? ""}
-                            onChange={(e) => setF({ ...f, target_quality_id: e.target.value || undefined })}>
-                            <option value="">— aucune —</option>
-                            {qualities.map((q) => <option key={q.id} value={q.id}>{q.name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className={labelCls}>Spécialité cible</label>
-                        <select className={inputCls} value={f.target_specialty_id ?? ""}
-                            onChange={(e) => setF({ ...f, target_specialty_id: e.target.value || undefined })}>
-                            <option value="">— aucune —</option>
-                            {specialties.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                    </div>
-                </div>
-            )}
-
             {f.kind === "reroll" && (
                 <div className="space-y-2">
                     <label className={labelCls}>Axes retirés (le joueur choisit la carte à l'achat)</label>
@@ -669,8 +682,8 @@ function Panel() {
         | { kind: "set"; data: GameSet | null }
         | { kind: "booster"; data: AdminBooster | null }
         | { kind: "character"; data: AdminCharacter | null }
-        | { kind: "type" }
-        | { kind: "resource" }
+        | { kind: "type"; data: AdminType | null }
+        | { kind: "resource"; data: AdminResource | null }
         | { kind: "offer" }
         | null
     >(null);
@@ -752,7 +765,7 @@ function Panel() {
 
     const Row = ({
         title, subtitle, onEdit, onDelete,
-    }: { title: string; subtitle: string; onEdit?: () => void; onDelete: () => void }) => (
+    }: { title: string; subtitle: string; onEdit?: () => void; onDelete?: () => void }) => (
         <div className="flex items-center justify-between bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2">
             {onEdit ? (
                 <button className="text-left flex-1 min-w-0" onClick={onEdit}>
@@ -765,9 +778,13 @@ function Panel() {
                     <p className="text-white/40 text-xs truncate">{subtitle}</p>
                 </div>
             )}
-            <button className="text-red-400/70 hover:text-red-400 text-sm px-2" onClick={onDelete}>
-                Suppr.
-            </button>
+            {onDelete ? (
+                <button className="text-red-400/70 hover:text-red-400 text-sm px-2" onClick={onDelete}>
+                    Suppr.
+                </button>
+            ) : (
+                <span className="text-white/25 text-xs px-2 shrink-0">protégée</span>
+            )}
         </div>
     );
 
@@ -821,8 +838,8 @@ function Panel() {
                         setEditing(
                             tab === "sets" ? { kind: "set", data: null }
                                 : tab === "boosters" ? { kind: "booster", data: null }
-                                    : tab === "types" ? { kind: "type" }
-                                        : tab === "resources" ? { kind: "resource" }
+                                    : tab === "types" ? { kind: "type", data: null }
+                                        : tab === "resources" ? { kind: "resource", data: null }
                                             : tab === "offers" ? { kind: "offer" }
                                                 : { kind: "character", data: null }
                         )
@@ -847,7 +864,7 @@ function Panel() {
                         filteredBoosters.map((b) => (
                             <Row key={b.id}
                                 title={`${b.active ? "" : "🚫 "}${b.name}  ·  ${b.id}`}
-                                subtitle={`sets ${b.set_ids.join(", ")} — ${b.cards_count} cartes — ${b.price} 🪙`
+                                subtitle={`sets ${b.set_ids.join(", ")} — ${b.cards_count} cartes — ${b.price} ${b.resource_name}`
                                     + `${b.guaranteed_rare ? " — rare garantie" : ""}`
                                     + `${!b.visible_in_shop ? " — masqué de la boutique classique" : ""}`}
                                 onEdit={() => setEditing({ kind: "booster", data: b })}
@@ -872,6 +889,7 @@ function Panel() {
                             <Row key={t.id}
                                 title={`${t.name}  ·  ${t.id}`}
                                 subtitle={`${t.in_use} personnage(s) l'utilisent`}
+                                onEdit={() => setEditing({ kind: "type", data: t })}
                                 onDelete={() => setToDelete({ kind: "types", id: t.id, label: `le type « ${t.name} »` })}
                             />
                         )))}
@@ -882,7 +900,10 @@ function Panel() {
                             <Row key={r.id}
                                 title={`${r.name}  ·  ${r.id}`}
                                 subtitle={r.description || "—"}
-                                onDelete={() => setToDelete({ kind: "resources", id: r.id, label: `la ressource « ${r.name} »` })}
+                                onEdit={() => setEditing({ kind: "resource", data: r })}
+                                onDelete={r.protected
+                                    ? undefined
+                                    : () => setToDelete({ kind: "resources", id: r.id, label: `la ressource « ${r.name} »` })}
                             />
                         )))}
 
@@ -956,8 +977,8 @@ function Panel() {
                 title={
                     editing?.kind === "set" ? "Set"
                         : editing?.kind === "booster" ? "Booster"
-                            : editing?.kind === "type" ? "Nouveau type"
-                                : editing?.kind === "resource" ? "Nouvelle ressource"
+                            : editing?.kind === "type" ? "Type"
+                                : editing?.kind === "resource" ? "Ressource"
                                     : editing?.kind === "offer" ? "Nouvelle offre"
                                         : "Personnage"
                 }
@@ -966,16 +987,16 @@ function Panel() {
                     <SetForm initial={editing.data} onSaved={refresh} onClose={() => setEditing(null)} />
                 )}
                 {editing?.kind === "booster" && (
-                    <BoosterForm initial={editing.data} sets={sets} onSaved={refresh} onClose={() => setEditing(null)} />
+                    <BoosterForm initial={editing.data} sets={sets} resources={resources} onSaved={refresh} onClose={() => setEditing(null)} />
                 )}
                 {editing?.kind === "character" && (
                     <CharacterForm initial={editing.data} sets={sets} onSaved={refresh} onClose={() => setEditing(null)} />
                 )}
                 {editing?.kind === "type" && (
-                    <TypeForm onSaved={refresh} onClose={() => setEditing(null)} />
+                    <TypeForm initial={editing.data} onSaved={refresh} onClose={() => setEditing(null)} />
                 )}
                 {editing?.kind === "resource" && (
-                    <ResourceForm onSaved={refresh} onClose={() => setEditing(null)} />
+                    <ResourceForm initial={editing.data} onSaved={refresh} onClose={() => setEditing(null)} />
                 )}
                 {editing?.kind === "offer" && (
                     <ShopOfferForm

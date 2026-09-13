@@ -4,6 +4,19 @@ import { useCollection } from "@/hooks/useCollection";
 import type { CollectionParams } from "@/api/collection";
 import CardGrid from "@/components/card/CardGrid";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import FilterModal from "@/components/collection/FilterModal";
+import ProbabilityModal from "@/components/collection/ProbabilityModal";
+
+const TIER_FILTER_KEYS = [
+    "rarity_id", "rarity_op", "quality_id", "quality_op",
+    "specialty_id", "specialty_op", "jewelry_id", "jewelry_op",
+] as const;
+
+function countActiveFilters(f: CollectionParams): number {
+    return ["rarity_id", "quality_id", "specialty_id", "jewelry_id"].filter(
+        (k) => !!f[k as keyof CollectionParams]
+    ).length;
+}
 
 const SORT_OPTIONS = [
     { value: "rarity", label: "Rareté" },
@@ -19,6 +32,18 @@ export default function Collection() {
     const [filters, setFilters] = useState<CollectionParams>({ sort_by: "rarity" });
     const [reversed, setReversed] = useState(false);
     const [search, setSearch] = useState("");
+    const [filterModalOpen, setFilterModalOpen] = useState(false);
+    const [probModalOpen, setProbModalOpen] = useState(false);
+
+    const patchFilters = (patch: Partial<CollectionParams>) =>
+        setFilters((f) => ({ ...f, ...patch }));
+    const resetTierFilters = () =>
+        setFilters((f) => {
+            const next = { ...f };
+            for (const k of TIER_FILTER_KEYS) delete next[k];
+            return next;
+        });
+    const activeFilterCount = countActiveFilters(filters);
 
     const { data, isLoading, isFetching } = useCollection(filters);
 
@@ -44,15 +69,24 @@ export default function Collection() {
                     ← Retour
                 </button>
                 <h1 className="text-white font-bold">📚 Collection</h1>
-                <div className="text-white/40 text-xs text-right">
-                    {data ? (
-                        <>
-                            <p>{data.unique_cards} uniques</p>
-                            <p>{data.total_cards} total</p>
-                        </>
-                    ) : (
-                        <p>...</p>
-                    )}
+                <div className="flex items-center gap-3">
+                    <button
+                        className="text-white/50 hover:text-white text-lg"
+                        title="Table des probabilités"
+                        onClick={() => setProbModalOpen(true)}
+                    >
+                        📊
+                    </button>
+                    <div className="text-white/40 text-xs text-right">
+                        {data ? (
+                            <>
+                                <p>{data.unique_cards} uniques</p>
+                                <p>{data.total_cards} total</p>
+                            </>
+                        ) : (
+                            <p>...</p>
+                        )}
+                    </div>
                 </div>
             </header>
 
@@ -84,7 +118,14 @@ export default function Collection() {
                     </button>
                 ))}
                 <button
-                    className="shrink-0 ml-auto w-8 h-8 rounded-full bg-white/10 text-white/70
+                    className={`shrink-0 relative px-3 py-1.5 rounded-full text-xs font-semibold transition-all ml-auto
+                        ${activeFilterCount > 0 ? "bg-accent text-white" : "bg-white/10 text-white/50 hover:bg-white/20"}`}
+                    onClick={() => setFilterModalOpen(true)}
+                >
+                    🔎 Filtres{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                </button>
+                <button
+                    className="shrink-0 w-8 h-8 rounded-full bg-white/10 text-white/70
                      hover:bg-white/20 transition-all flex items-center justify-center"
                     title={reversed ? "Sens inversé" : "Sens normal"}
                     onClick={() => setReversed((r) => !r)}
@@ -120,6 +161,15 @@ export default function Collection() {
                     </div>
                 )}
             </main>
+
+            <FilterModal
+                open={filterModalOpen}
+                onClose={() => setFilterModalOpen(false)}
+                filters={filters}
+                onChange={patchFilters}
+                onReset={resetTierFilters}
+            />
+            <ProbabilityModal open={probModalOpen} onClose={() => setProbModalOpen(false)} />
         </div>
     );
 }

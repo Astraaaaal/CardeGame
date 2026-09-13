@@ -11,6 +11,8 @@ export interface AdminBooster {
     name: string;
     set_ids: string[];
     cards_count: number;
+    resource_id: string;
+    resource_name: string;
     price: number;
     guaranteed_rare: boolean;
     description: string;
@@ -29,11 +31,12 @@ export interface AdminResource {
     id: string;
     name: string;
     description: string;
+    protected: boolean;
 }
 
 export interface AdminShopOffer {
     id: string;
-    kind: "booster" | "specific_card" | "upgrade" | "reroll";
+    kind: "booster" | "specific_card" | "reroll";
     name: string;
     description: string;
     active: boolean;
@@ -58,10 +61,6 @@ export interface AdminShopOffer {
     specialty_name: string | null;
     jewelry_id: string | null;
     jewelry_name: string | null;
-    target_quality_id: string | null;
-    target_quality_name: string | null;
-    target_specialty_id: string | null;
-    target_specialty_name: string | null;
     reroll_rarity: boolean;
     reroll_quality: boolean;
     reroll_specialty: boolean;

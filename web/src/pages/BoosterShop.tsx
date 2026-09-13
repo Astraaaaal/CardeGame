@@ -11,6 +11,7 @@ import BoosterCard from "@/components/shop/BoosterCard";
 import PriceTag from "@/components/shop/PriceTag";
 import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { getResourceBalance } from "@/utils/resources";
 
 type Quantity = 1 | 5 | 10;
 
@@ -37,6 +38,13 @@ export default function BoosterShop() {
     };
 
     const quantities: Quantity[] = [1, 5, 10];
+
+    const discount = (q: Quantity) => (q >= 10 ? 0.15 : q >= 5 ? 0.1 : 0);
+    const totalPrice = selected
+        ? Math.floor(selected.price * quantity * (1 - discount(quantity)))
+        : 0;
+    const balance = getResourceBalance(user, selected?.resource_id ?? "coins");
+    const cantAfford = !!selected && balance < totalPrice;
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col">
@@ -106,7 +114,11 @@ export default function BoosterShop() {
                             </div>
 
                             <div className="flex items-center justify-center">
-                                <PriceTag basePrice={selected.price} quantity={quantity} />
+                                <PriceTag
+                                    basePrice={selected.price}
+                                    quantity={quantity}
+                                    resourceId={selected.resource_id}
+                                />
                             </div>
 
                             <Button
@@ -115,28 +127,16 @@ export default function BoosterShop() {
                                 className="w-full"
                                 onClick={handleOpen}
                                 loading={openMutation.isPending}
-                                disabled={
-                                    (user?.coins ?? 0) <
-                                    Math.floor(
-                                        selected.price *
-                                        quantity *
-                                        (1 - (quantity >= 10 ? 0.15 : quantity >= 5 ? 0.1 : 0))
-                                    )
-                                }
+                                disabled={cantAfford}
                             >
                                 Acheter et Ouvrir
                             </Button>
 
-                            {(user?.coins ?? 0) <
-                                Math.floor(
-                                    selected.price *
-                                    quantity *
-                                    (1 - (quantity >= 10 ? 0.15 : quantity >= 5 ? 0.1 : 0))
-                                ) && (
-                                    <p className="text-red-400 text-xs text-center">
-                                        Pas assez de pièces
-                                    </p>
-                                )}
+                            {cantAfford && (
+                                <p className="text-red-400 text-xs text-center">
+                                    Pas assez de {selected.resource_name.toLowerCase()}
+                                </p>
+                            )}
                         </motion.div>
                     )}
                 </AnimatePresence>

@@ -58,10 +58,6 @@ class ShopOfferResponse(BaseModel):
     specialty_name: str | None = None
     jewelry_id: str | None = None
     jewelry_name: str | None = None
-    target_quality_id: str | None = None
-    target_quality_name: str | None = None
-    target_specialty_id: str | None = None
-    target_specialty_name: str | None = None
     reroll_rarity: bool = False
     reroll_quality: bool = False
     reroll_specialty: bool = False
@@ -85,7 +81,7 @@ class ShopBuyResponse(BaseModel):
 
 class ShopOfferIn(BaseModel):
     id: str = Field(min_length=1, max_length=30, pattern=r"^[a-z0-9_.\-]+$")
-    kind: str = Field(pattern=r"^(booster|specific_card|upgrade|reroll)$")
+    kind: str = Field(pattern=r"^(booster|specific_card|reroll)$")
     name: str = Field(min_length=1, max_length=100)
     description: str = ""
     active: bool = True
@@ -104,9 +100,6 @@ class ShopOfferIn(BaseModel):
     specialty_id: str | None = None
     jewelry_id: str | None = None
 
-    target_quality_id: str | None = None
-    target_specialty_id: str | None = None
-
     reroll_rarity: bool = False
     reroll_quality: bool = False
     reroll_specialty: bool = False
@@ -118,6 +111,11 @@ class ResourceIn(BaseModel):
     id: str = Field(min_length=1, max_length=30, pattern=r"^[a-z0-9_.\-]+$")
     name: str = Field(min_length=1, max_length=50)
     description: str = ""
+
+
+class ResourcePatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=50)
+    description: str | None = None
 
 
 class DailyFeatureIn(BaseModel):

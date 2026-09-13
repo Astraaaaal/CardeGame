@@ -11,6 +11,7 @@ from app.core.dependencies import get_current_user
 from app.core.ratelimit import rate_limit
 from app.models.user import User
 from app.models.booster import Booster, BoosterSet
+from app.models.economy import Resource
 from app.schemas.booster import BoosterResponse, PackOpenRequest, PackOpenResponse
 from app.services.pack_service import PackService
 
@@ -33,6 +34,8 @@ async def list_boosters(
     for link in links:
         sets_by_booster.setdefault(link.booster_id, []).append(link.set_id)
 
+    resources = {r.id: r.name for r in (await session.execute(select(Resource))).scalars().all()}
+
     return [
         BoosterResponse(
             id=b.id,
@@ -40,6 +43,8 @@ async def list_boosters(
             set_id=b.set_id,
             set_ids=sets_by_booster.get(b.id) or [b.set_id],
             cards_count=b.cards_count,
+            resource_id=b.resource_id,
+            resource_name=resources.get(b.resource_id, b.resource_id),
             price=b.price,
             guaranteed_rare=b.guaranteed_rare,
             description=b.description,

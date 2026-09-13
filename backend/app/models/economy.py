@@ -14,6 +14,9 @@ class Resource(SQLModel, table=True):
     id: str = Field(primary_key=True, max_length=30)  # slug, ex: "dust"
     name: str = Field(max_length=50)                   # ex: "Poussière"
     description: str = Field(default="")
+    # Ressource système (ex: "coins") : non supprimable/non éditable depuis
+    # l'admin, existe par défaut pour chaque joueur via User.coins.
+    protected: bool = Field(default=False)
 
 
 class UserResource(SQLModel, table=True):
@@ -30,8 +33,6 @@ class ShopOffer(SQLModel, table=True):
     Offre du shop à ressources. Une table unique, plusieurs `kind` :
     - "booster"          : ouvre 1 pack du booster `booster_id`
     - "specific_card"    : donne directement une carte avec la combinaison fixée
-    - "upgrade"          : améliore une carte déjà possédée à un palier EXACT
-                            (qualité et/ou spécialité), sans hasard
     - "reroll"           : re-tire au hasard un ou plusieurs axes d'une carte
                             déjà possédée (rareté/qualité/spécialité/jewelry)
     Les colonnes non pertinentes pour un `kind` donné restent NULL.
@@ -66,10 +67,6 @@ class ShopOffer(SQLModel, table=True):
     quality_id: Optional[str] = Field(default=None, foreign_key="qualities.id", max_length=20)
     specialty_id: Optional[str] = Field(default=None, foreign_key="specialties.id", max_length=20)
     jewelry_id: Optional[str] = Field(default=None, foreign_key="jewelries.id", max_length=20)
-
-    # kind = upgrade (palier EXACT, déterministe)
-    target_quality_id: Optional[str] = Field(default=None, foreign_key="qualities.id", max_length=20)
-    target_specialty_id: Optional[str] = Field(default=None, foreign_key="specialties.id", max_length=20)
 
     # kind = reroll (axes concernés + mode)
     reroll_rarity: bool = Field(default=False)
