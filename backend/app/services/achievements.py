@@ -271,6 +271,18 @@ async def claim_achievement(session: AsyncSession, user: User, achievement_id: s
     ua.claimed_at = datetime.utcnow()
     session.add(ua)
     await session.commit()
+    await session.refresh(ua)
 
-    achievements = await list_achievements(session, user)
-    return next((x for x in achievements if x["id"] == achievement_id), {})
+    # Construit la réponse directement plutôt que de la piocher dans
+    # list_achievements() : cet achievement vient d'être récupéré, donc le
+    # filtrage "empilage" de list_achievements (qui masque les paliers d'une
+    # chaîne déjà récupérés au profit du suivant) l'exclurait désormais de sa
+    # sortie, faisant échouer la validation de la réponse (AchievementOut).
+    threshold = await effective_threshold(session, a)
+    return {
+        "id": a.id, "name": a.name, "description": a.description, "category": a.category,
+        "threshold": threshold, "progress": threshold,
+        "reward_resource_id": a.reward_resource_id, "reward_amount": a.reward_amount,
+        "reward_booster_id": a.reward_booster_id,
+        "unlocked_at": ua.unlocked_at, "claimed_at": ua.claimed_at,
+    }

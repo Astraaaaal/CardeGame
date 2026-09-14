@@ -168,3 +168,26 @@ export const adminMessagesApi = {
     send: (b: SendAdminMessageBody) =>
         httpMessages.post<{ sent_count: number }>("/", b).then((r) => r.data),
 };
+
+// Route sœur de /api/admin/content, hors de son préfixe — client dédié.
+const httpBugReports = axios.create({ baseURL: `${API_URL}/api/admin/bug-reports` });
+httpBugReports.interceptors.request.use((config) => {
+    config.headers.set("X-Admin-Key", adminKey.get());
+    return config;
+});
+
+export interface AdminBugReport {
+    id: number;
+    username: string;
+    subject: string;
+    body: string;
+    page_context: string | null;
+    created_at: string;
+    resolved_at: string | null;
+}
+
+export const adminBugReportsApi = {
+    list: () => httpBugReports.get<AdminBugReport[]>("/").then((r) => r.data),
+    resolve: (id: number) => httpBugReports.post<AdminBugReport>(`/${id}/resolve`).then((r) => r.data),
+    remove: (id: number) => httpBugReports.delete(`/${id}`).then(() => undefined),
+};

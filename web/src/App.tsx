@@ -14,6 +14,7 @@ import Leaderboard from "@/pages/Leaderboard";
 import Progression from "@/pages/Progression";
 import TradeSessionPage from "@/pages/TradeSessionPage";
 import AdminPanel from "@/pages/AdminPanel";
+import LegalNotice from "@/pages/LegalNotice";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, setUser } = useAuthStore();
@@ -41,6 +42,7 @@ export default function App() {
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/admin" element={<AdminPanel />} />
+                <Route path="/legal" element={<LegalNotice />} />
                 <Route
                     path="/"
                     element={

@@ -1,7 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
+import { useLogout } from "@/hooks/useAuth";
 import type { PlayerSettings, TradeRequestPolicy, GiftPolicy } from "@/types/player";
+import Button from "@/components/ui/Button";
+import DeleteAccountModal from "@/components/profile/DeleteAccountModal";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -35,7 +39,10 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 
 export default function SettingsEditor() {
     const qc = useQueryClient();
+    const navigate = useNavigate();
+    const logout = useLogout();
     const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [deleteOpen, setDeleteOpen] = useState(false);
 
     const { data, isLoading } = useQuery({ queryKey: ["player-settings"], queryFn: playerApi.getSettings });
 
@@ -118,6 +125,26 @@ export default function SettingsEditor() {
 
             {msg && (
                 <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>
+            )}
+
+            <div className="bg-game-surface rounded-2xl border border-red-500/30 p-4">
+                <h3 className="text-white font-bold text-sm mb-1">Zone dangereuse</h3>
+                <p className="text-white/40 text-xs mb-3">
+                    Supprime définitivement ton compte et toutes tes données. Cette action est irréversible.
+                </p>
+                <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+                    Supprimer mon compte
+                </Button>
+            </div>
+
+            {deleteOpen && (
+                <DeleteAccountModal
+                    onClose={() => setDeleteOpen(false)}
+                    onDeleted={() => {
+                        logout();
+                        navigate("/login");
+                    }}
+                />
             )}
         </div>
     );

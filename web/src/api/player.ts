@@ -32,4 +32,9 @@ export const playerApi = {
         const res = await api.post("/player/daily-reward");
         return res.data;
     },
+
+    deleteAccount: async (password: string): Promise<MessageResponse> => {
+        const res = await api.delete("/player/me", { data: { password } });
+        return res.data;
+    },
 };

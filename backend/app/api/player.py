@@ -16,12 +16,13 @@ from app.models.card import UserCard
 from app.models.economy import Resource, UserResource
 from app.models.social import TradeListing
 from app.schemas.player import PlayerResponse, DailyRewardResponse, UpdateProfileRequest
-from app.schemas.auth import ChangePasswordRequest, MessageResponse
+from app.schemas.auth import ChangePasswordRequest, DeleteAccountRequest, MessageResponse
 from app.schemas.economy import ResourceBalance
 from app.schemas.showcase import ShowcaseResponse, UpdateShowcaseRequest, UpdateTradeListingsRequest
 from app.schemas.settings import PlayerSettings, UpdatePlayerSettings
 from app.services.daily_reward import DailyRewardService
 from app.services.showcase_view import build_showcase_response
+from app.services.account import delete_account
 
 router = APIRouter()
 daily_service = DailyRewardService()
@@ -99,6 +100,26 @@ async def change_password(
     await session.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
     await session.commit()
     return MessageResponse(message="Mot de passe changé. Reconnecte-toi.")
+
+
+@router.delete(
+    "/me",
+    response_model=MessageResponse,
+    dependencies=[Depends(rate_limit(5, 60))],
+)
+async def delete_my_account(
+    body: DeleteAccountRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Supprime définitivement le compte (et toutes les données associées),
+    après vérification du mot de passe. Irréversible.
+    """
+    if not verify_password(body.password, user.password_hash):
+        raise HTTPException(400, "Mot de passe incorrect.")
+    await delete_account(session, user)
+    return MessageResponse(message="Compte supprimé.")
 
 
 @router.put("/showcase", response_model=ShowcaseResponse)

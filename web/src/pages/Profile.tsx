@@ -13,6 +13,7 @@ import ShowcaseEditor from "@/components/profile/ShowcaseEditor";
 import TradeListingsEditor from "@/components/profile/TradeListingsEditor";
 import SettingsEditor from "@/components/profile/SettingsEditor";
 import MessagesInbox from "@/components/profile/MessagesInbox";
+import SupportPanel from "@/components/profile/SupportPanel";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -27,7 +28,7 @@ function fmtDate(iso: string | null | undefined): string {
     return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
 
-type Tab = "stats" | "profile" | "showcase" | "messages" | "settings";
+type Tab = "stats" | "profile" | "showcase" | "messages" | "support" | "settings";
 
 export default function Profile() {
     const navigate = useNavigate();
@@ -110,6 +111,7 @@ export default function Profile() {
                     { key: "profile", label: "Profil" },
                     { key: "showcase", label: "Vitrine" },
                     { key: "messages", label: "Messages" },
+                    { key: "support", label: "Support" },
                     { key: "settings", label: "Paramètres" },
                 ] as const).map((t) => (
                     <button
@@ -238,6 +240,8 @@ export default function Profile() {
                 )}
 
                 {tab === "messages" && <MessagesInbox />}
+
+                {tab === "support" && <SupportPanel />}
 
                 {tab === "settings" && <SettingsEditor />}
             </main>
