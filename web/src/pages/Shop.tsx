@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/stores/authStore";
 import { useBoosters } from "@/hooks/useBoosters";
-import { usePackOpening } from "@/hooks/usePackOpening";
+import { usePackOpening, useOpenOwnedBoosters } from "@/hooks/usePackOpening";
+import { boostersApi } from "@/api/boosters";
 import { shopApi } from "@/api/shop";
 import type { Booster } from "@/types/booster";
 import type { ShopOffer } from "@/types/shop";
@@ -32,9 +33,19 @@ function BoostersTab() {
     const { user } = useAuthStore();
     const { data: boosters, isLoading } = useBoosters();
     const openMutation = usePackOpening();
+    const openOwnedMutation = useOpenOwnedBoosters();
+
+    const { data: inventory } = useQuery({ queryKey: ["booster-inventory"], queryFn: boostersApi.getInventory });
 
     const [selected, setSelected] = useState<Booster | null>(null);
     const [quantity, setQuantity] = useState<Quantity>(1);
+
+    const handleOpenOwned = (boosterId: string, ownedQuantity: number) => {
+        openOwnedMutation.mutate(
+            { booster_id: boosterId, quantity: ownedQuantity },
+            { onSuccess: () => navigate("/opening") },
+        );
+    };
 
     const handleOpen = () => {
         if (!selected) return;
@@ -60,6 +71,29 @@ function BoostersTab() {
 
     return (
         <>
+            {!!inventory?.length && (
+                <div className="max-w-sm mx-auto mb-5 space-y-2">
+                    <h3 className="text-white/50 text-xs font-semibold uppercase tracking-wide">
+                        🎁 Boosters reçus — à ouvrir
+                    </h3>
+                    {inventory.map((o) => (
+                        <div key={o.booster_id} className="flex items-center justify-between bg-gold/10 border border-gold/30 rounded-xl px-4 py-3">
+                            <div>
+                                <p className="text-white font-semibold text-sm">{o.booster_name}</p>
+                                <p className="text-white/40 text-xs">×{o.quantity} possédé{o.quantity > 1 ? "s" : ""}</p>
+                            </div>
+                            <Button
+                                variant="gold" size="sm"
+                                loading={openOwnedMutation.isPending && openOwnedMutation.variables?.booster_id === o.booster_id}
+                                onClick={() => handleOpenOwned(o.booster_id, o.quantity)}
+                            >
+                                Ouvrir
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {isLoading ? (
                 <LoadingSpinner text="Chargement des boosters..." />
             ) : (

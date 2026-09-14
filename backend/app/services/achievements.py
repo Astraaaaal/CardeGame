@@ -18,13 +18,10 @@ from app.models.social import FriendRequest
 from app.models.message import Message
 from app.models.trade_session import TradeSession, STATUS_COMPLETED
 from app.models.achievement import AchievementDef, UserAchievement
-from app.models.booster import Booster
 from app.services.levels import current_level_for_power, get_all_tiers, get_total_power
-from app.services.pack_service import PackService
 from app.services.power import combined_rarity as _combined_rarity
 from app.services.wallet import apply_delta
-
-_pack_service = PackService()
+from app.services import booster_inventory
 
 
 async def _trades_completed(session: AsyncSession, user_id: int) -> int:
@@ -118,6 +115,8 @@ async def evaluate_metric(session: AsyncSession, user: User, achievement: Achiev
     metric = achievement.metric
     if metric == "total_cards":
         return user.total_cards
+    if metric == "packs_opened":
+        return user.packs_opened
     if metric == "trades_completed":
         return await _trades_completed(session, user.id)
     if metric == "friends_count":
@@ -224,6 +223,29 @@ async def list_achievements(session: AsyncSession, user: User) -> list[dict]:
             "unlocked_at": ua.unlocked_at if ua else None,
             "claimed_at": ua.claimed_at if ua else None,
         })
+
+    # Empilage : les achievements incrémentaux (même métrique + même
+    # paramètre, ex. total_cards à 10/50/100/250/500) ne montrent que le
+    # PROCHAIN palier non encore récupéré — les précédents (récupérés)
+    # restent masqués, comme les suivants (pas encore atteints). Si toute
+    # la chaîne est récupérée, on garde le dernier palier (état "terminé").
+    chains: dict[tuple, list[AchievementDef]] = {}
+    for a in defs.values():
+        chains.setdefault((a.metric, a.metric_param), []).append(a)
+
+    visible_ids = set()
+    for members in chains.values():
+        if len(members) == 1:
+            visible_ids.add(members[0].id)
+            continue
+        members.sort(key=lambda a: a.threshold)
+        chosen = next(
+            (a for a in members if not (unlocked.get(a.id) and unlocked[a.id].claimed_at)),
+            members[-1],
+        )
+        visible_ids.add(chosen.id)
+
+    out = [o for o in out if o["id"] in visible_ids]
     out.sort(key=lambda x: (x["category"], x["unlocked_at"] is None, x["name"]))
     return out
 
@@ -242,12 +264,9 @@ async def claim_achievement(session: AsyncSession, user: User, achievement_id: s
     if a.reward_resource_id and a.reward_amount:
         await apply_delta(session, user, a.reward_resource_id, a.reward_amount)
     if a.reward_booster_id:
-        booster = await session.get(Booster, a.reward_booster_id)
-        if booster:
-            _, total_new_cards = await _pack_service.generate_and_persist_packs(session, user.id, booster, 1)
-            user.total_cards += total_new_cards
-            user.packs_opened += 1
-            session.add(user)
+        # Crédité à l'inventaire plutôt qu'ouvert directement — le joueur
+        # l'ouvre depuis la boutique, avec la même animation qu'un achat.
+        await booster_inventory.grant(session, user.id, a.reward_booster_id, 1)
 
     ua.claimed_at = datetime.utcnow()
     session.add(ua)

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_session
 from app.core.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.progression import LevelStatus, AchievementOut, QuestOut
+from app.schemas.progression import LevelStatus, LevelTierOut, AchievementOut, QuestOut
 from app.services import levels as levels_svc
 from app.services import achievements as achievements_svc
 from app.services import quests as quests_svc
@@ -22,6 +22,14 @@ async def get_level_status(
     session: AsyncSession = Depends(get_session),
 ):
     return await levels_svc.get_status(session, user)
+
+
+@router.get("/levels/tiers", response_model=list[LevelTierOut])
+async def get_level_tiers(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await levels_svc.get_tiers_overview(session, user)
 
 
 @router.post("/levels/claim", response_model=LevelStatus)

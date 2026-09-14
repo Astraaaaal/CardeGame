@@ -2,6 +2,8 @@ export interface PendingLevelReward {
     level: number;
     reward_resource_id: string | null;
     reward_amount: number | null;
+    reward_booster_id: string | null;
+    reward_booster_name: string | null;
 }
 
 export interface LevelStatus {
@@ -11,6 +13,18 @@ export interface LevelStatus {
     next_level_power_required: number | null;
     pending_rewards: PendingLevelReward[];
     has_unclaimed: boolean;
+}
+
+export interface LevelTierOverview {
+    level: number;
+    power_required: number;
+    reward_resource_id: string | null;
+    reward_resource_name: string | null;
+    reward_amount: number | null;
+    reward_booster_id: string | null;
+    reward_booster_name: string | null;
+    reached: boolean;
+    claimed: boolean;
 }
 
 export type AchievementCategory = "collection" | "social" | "economy" | "progression" | "meta";

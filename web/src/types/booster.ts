@@ -25,3 +25,15 @@ export interface PackOpenResponse {
     resource_name: string;
     new_balance: number;
 }
+
+export interface OwnedBooster {
+    booster_id: string;
+    booster_name: string;
+    booster_cover_url: string | null;
+    quantity: number;
+}
+
+export interface OpenOwnedRequest {
+    booster_id: string;
+    quantity: number;
+}

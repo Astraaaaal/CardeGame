@@ -6,6 +6,7 @@ import type { Achievement, AchievementCategory, Quest } from "@/types/progressio
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ResourceIcon from "@/components/ui/ResourceIcon";
+import TrophyRoad from "@/components/progression/TrophyRoad";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -26,6 +27,7 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
 
 function LevelTab() {
     const qc = useQueryClient();
+    const [roadOpen, setRoadOpen] = useState(false);
     const { data, isLoading } = useQuery({ queryKey: ["level-status"], queryFn: progressionApi.getLevel });
 
     const claim = useMutation({
@@ -33,6 +35,8 @@ function LevelTab() {
         onSuccess: (status) => {
             qc.setQueryData(["level-status"], status);
             qc.invalidateQueries({ queryKey: ["player"] });
+            qc.invalidateQueries({ queryKey: ["booster-inventory"] });
+            qc.invalidateQueries({ queryKey: ["level-tiers"] });
         },
     });
 
@@ -42,7 +46,10 @@ function LevelTab() {
 
     return (
         <div className="space-y-5">
-            <div className="bg-game-surface rounded-2xl border border-white/10 p-6 text-center">
+            <button
+                className="w-full bg-game-surface rounded-2xl border border-white/10 p-6 text-center hover:border-accent/40 transition-colors"
+                onClick={() => setRoadOpen(true)}
+            >
                 <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Niveau</p>
                 <p className="text-5xl font-extrabold text-accent mb-3">{data.current_level}</p>
                 <p className="text-white/60 text-sm mb-2">
@@ -58,7 +65,8 @@ function LevelTab() {
                 ) : (
                     <p className="text-white/30 text-xs">Niveau maximum atteint !</p>
                 )}
-            </div>
+                <p className="text-accent text-xs mt-3">🏆 Voir la route des niveaux →</p>
+            </button>
 
             {data.has_unclaimed && (
                 <div className="bg-gold/10 border border-gold/30 rounded-2xl p-4">
@@ -67,8 +75,13 @@ function LevelTab() {
                         {data.pending_rewards.map((r) => (
                             <div key={r.level} className="flex items-center gap-2 text-sm text-white/80">
                                 <span className="text-accent font-semibold">Niv. {r.level}</span>
-                                <ResourceIcon resourceId={r.reward_resource_id ?? "coins"} className="w-4 h-4" />
-                                <span>{r.reward_amount?.toLocaleString("fr-FR")}</span>
+                                {r.reward_amount != null && r.reward_resource_id && (
+                                    <span className="flex items-center gap-1">
+                                        <ResourceIcon resourceId={r.reward_resource_id} className="w-4 h-4" />
+                                        {r.reward_amount.toLocaleString("fr-FR")}
+                                    </span>
+                                )}
+                                {r.reward_booster_id && <span>🎁 {r.reward_booster_name}</span>}
                             </div>
                         ))}
                     </div>
@@ -77,6 +90,8 @@ function LevelTab() {
                     </Button>
                 </div>
             )}
+
+            <TrophyRoad open={roadOpen} onClose={() => setRoadOpen(false)} />
         </div>
     );
 }

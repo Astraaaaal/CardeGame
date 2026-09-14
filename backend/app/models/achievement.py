@@ -9,12 +9,13 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 
 # Métriques supportées par app/services/achievements.py :
-# total_cards, trades_completed, friends_count, gifts_sent, cards_recycled,
-# coins_balance, login_streak, level, types_owned_distinct, type_complete,
-# rarity_owned (metric_param = id de rareté), jewelry_owned (metric_param),
-# specialty_owned (metric_param), card_power, combined_rarity, meta_unlocked_ratio
+# total_cards, packs_opened, trades_completed, friends_count, gifts_sent,
+# cards_recycled, coins_balance, login_streak, level, types_owned_distinct,
+# type_complete, rarity_owned (metric_param = id de rareté), jewelry_owned
+# (metric_param), specialty_owned (metric_param), card_power, combined_rarity,
+# meta_unlocked_ratio
 ACHIEVEMENT_METRICS = (
-    "total_cards", "trades_completed", "friends_count", "gifts_sent", "cards_recycled",
+    "total_cards", "packs_opened", "trades_completed", "friends_count", "gifts_sent", "cards_recycled",
     "coins_balance", "login_streak", "level", "types_owned_distinct", "type_complete",
     "rarity_owned", "jewelry_owned", "specialty_owned", "card_power", "combined_rarity",
     "meta_unlocked_ratio",

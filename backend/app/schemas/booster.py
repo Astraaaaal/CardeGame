@@ -26,6 +26,18 @@ class PackOpenRequest(BaseModel):
     quantity: Literal[1, 5, 10] = 1
 
 
+class OpenOwnedRequest(BaseModel):
+    booster_id: str
+    quantity: int = 1
+
+
+class OwnedBoosterOut(BaseModel):
+    booster_id: str
+    booster_name: str
+    booster_cover_url: str | None = None
+    quantity: int
+
+
 class PackOpenResponse(BaseModel):
     """Résultat de l'ouverture de packs."""
     packs: list[list[CardResponse]]

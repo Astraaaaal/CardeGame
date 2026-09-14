@@ -85,7 +85,19 @@ _STATEMENTS = [
     # Progression : niveaux (paliers de puissance) et achievements.
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS cards_recycled INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS claimed_level INTEGER NOT NULL DEFAULT 0",
+    # Un palier de niveau peut AUSSI donner un booster (crédité à l'inventaire,
+    # cf. app/models/booster_inventory.py), en plus d'une récompense en ressource.
+    "ALTER TABLE level_tiers ADD COLUMN IF NOT EXISTS reward_booster_id VARCHAR(30)",
+    # Correctif : "first_pack" avait le même metric ("total_cards") que la
+    # chaîne cards_10/50/100/250/500, ce qui les fusionnait par erreur dans le
+    # même "empilage" (cf. app/services/achievements.py::list_achievements) —
+    # bloquait la chaîne sur first_pack tant qu'il restait non récupéré.
+    "UPDATE achievement_defs SET metric = 'packs_opened' WHERE id = 'first_pack' AND metric = 'total_cards'",
 ]
+
+# Boosters offerts à certains paliers de niveau (en plus des pièces) —
+# appliqué après le seed des paliers eux-mêmes (cf. plus bas dans apply_patches).
+_LEVEL_BOOSTER_REWARDS = {10: "booster_A1", 20: "booster_A1"}
 
 # Types de personnage initiaux (portés depuis l'ancien TYPE_COLORS du renderer).
 _DEFAULT_TYPES = [
@@ -131,7 +143,7 @@ _DEFAULT_LEVEL_TIERS = [
 # id, name, description, category, metric, threshold, metric_param,
 # reward_resource_id, reward_amount, reward_booster_id
 _DEFAULT_ACHIEVEMENTS = [
-    ("first_pack", "Premier pas", "Ouvrir ton tout premier booster.", "collection", "total_cards", 1, None, "coins", 50, None),
+    ("first_pack", "Premier pas", "Ouvrir ton tout premier booster.", "collection", "packs_opened", 1, None, "coins", 50, None),
     ("cards_10", "Petite collection", "Posséder 10 cartes.", "collection", "total_cards", 10, None, "coins", 100, None),
     ("cards_50", "Collectionneur", "Posséder 50 cartes.", "collection", "total_cards", 50, None, "coins", 250, None),
     ("cards_100", "Grand collectionneur", "Posséder 100 cartes.", "collection", "total_cards", 100, None, "coins", 500, None),
@@ -257,6 +269,18 @@ async def apply_patches(conn: AsyncConnection) -> None:
             })
         except Exception as exc:  # noqa: BLE001
             print(f"[migrations] avertissement seed level tier {level!r}: {exc}")
+
+    # Ne renseigne le booster-bonus que si la colonne est encore vide (ne
+    # stomp pas un réglage déjà fait par un admin), même logique que recycle_value.
+    set_level_booster = text(
+        "UPDATE level_tiers SET reward_booster_id = :booster_id "
+        "WHERE level = :level AND reward_booster_id IS NULL"
+    )
+    for level, booster_id in _LEVEL_BOOSTER_REWARDS.items():
+        try:
+            await conn.execute(set_level_booster, {"level": level, "booster_id": booster_id})
+        except Exception as exc:  # noqa: BLE001
+            print(f"[migrations] avertissement level booster reward {level!r}: {exc}")
 
     insert_achievement = text(
         "INSERT INTO achievement_defs "

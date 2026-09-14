@@ -17,3 +17,7 @@ class LevelTier(SQLModel, table=True):
     power_required: int = Field(default=0)
     reward_resource_id: Optional[str] = Field(default=None, foreign_key="resources.id", max_length=30)
     reward_amount: Optional[int] = Field(default=None)
+    # Optionnel, en plus (pas à la place) de la récompense en ressource —
+    # crédité à l'inventaire de boosters (cf. booster_inventory.py), pas
+    # ouvert directement.
+    reward_booster_id: Optional[str] = Field(default=None, foreign_key="boosters.id", max_length=30)

@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useGameStore } from "@/stores/gameStore";
+import type { Card } from "@/types/card";
 import CardReveal from "@/components/card/CardReveal";
 import CardImage from "@/components/card/CardImage";
+import CardDetail from "@/components/card/CardDetail";
 import Button from "@/components/ui/Button";
 
 export default function PackOpening() {
   const navigate = useNavigate();
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const {
     currentPacks,
     currentPackIndex,
@@ -76,10 +80,17 @@ export default function PackOpening() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.03 }}
               >
-                <CardImage card={c} size="sm" />
+                <CardImage card={c} size="sm" onClick={() => setSelectedCard(c)} />
               </motion.div>
             ))}
           </div>
+
+          <CardDetail
+            open={!!selectedCard}
+            card={selectedCard}
+            quantity={1}
+            onClose={() => setSelectedCard(null)}
+          />
 
           <div className="space-y-2">
             <Button
