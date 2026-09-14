@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
 import { messagesApi } from "@/api/messages";
+import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/useAuth";
 import Button from "@/components/ui/Button";
@@ -33,7 +34,11 @@ export default function Profile() {
     const { user, setUser } = useAuthStore();
     const logout = useLogout();
     const qc = useQueryClient();
-    const [tab, setTab] = useState<Tab>("stats");
+    // Si on revient d'une sélection de carte pour un cadeau (cf. SendGiftModal),
+    // rouvre directement l'onglet Messages plutôt que de perdre le contexte.
+    const [tab, setTab] = useState<Tab>(() =>
+        useCardSelectionStore.getState().result?.context?.purpose === "gift" ? "messages" : "stats"
+    );
 
     const { data: unreadCount } = useQuery({
         queryKey: ["messages-unread-count"],

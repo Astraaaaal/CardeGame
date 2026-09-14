@@ -2,20 +2,24 @@ import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCollection } from "@/hooks/useCollection";
 import type { CollectionParams } from "@/api/collection";
+import type { Card } from "@/types/card";
+import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import CardGrid from "@/components/card/CardGrid";
+import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import FilterModal from "@/components/collection/FilterModal";
 import ProbabilityModal from "@/components/collection/ProbabilityModal";
 
 const TIER_FILTER_KEYS = [
     "rarity_id", "rarity_op", "quality_id", "quality_op",
-    "specialty_id", "specialty_op", "jewelry_id", "jewelry_op",
+    "specialty_id", "specialty_op", "jewelry_id", "jewelry_op", "type_names",
 ] as const;
 
 function countActiveFilters(f: CollectionParams): number {
-    return ["rarity_id", "quality_id", "specialty_id", "jewelry_id"].filter(
+    const tierCount = ["rarity_id", "quality_id", "specialty_id", "jewelry_id"].filter(
         (k) => !!f[k as keyof CollectionParams]
     ).length;
+    return tierCount + (f.type_names?.length ? 1 : 0);
 }
 
 const SORT_OPTIONS = [
@@ -40,6 +44,46 @@ export default function Collection() {
     const [probModalOpen, setProbModalOpen] = useState(false);
     const [showScrollTop, setShowScrollTop] = useState(false);
     const scrollRef = useRef<HTMLElement>(null);
+
+    const selectionRequest = useCardSelectionStore((s) => s.request);
+    const resolveSelection = useCardSelectionStore((s) => s.resolveSelection);
+    const cancelSelection = useCardSelectionStore((s) => s.cancelSelection);
+    const [picked, setPicked] = useState<Map<string, Card>>(new Map());
+
+    const inSelectionMode = !!selectionRequest;
+
+    const toggleSelection = (cardId: string, preview: Card) => {
+        setPicked((prev) => {
+            const next = new Map(prev);
+            if (next.has(cardId)) {
+                next.delete(cardId);
+                return next;
+            }
+            if (selectionRequest && next.size >= selectionRequest.max) {
+                if (selectionRequest.max === 1) {
+                    next.clear();
+                } else {
+                    return prev;
+                }
+            }
+            next.set(cardId, preview);
+            return next;
+        });
+    };
+
+    const confirmSelection = () => {
+        resolveSelection(Array.from(picked, ([id, preview]) => ({ id, preview })));
+        const to = selectionRequest?.returnTo ?? "/";
+        setPicked(new Map());
+        navigate(to);
+    };
+
+    const cancelAndLeave = () => {
+        cancelSelection();
+        const to = selectionRequest?.returnTo ?? "/";
+        setPicked(new Map());
+        navigate(to);
+    };
 
     const patchFilters = (patch: Partial<CollectionParams>) =>
         setFilters((f) => ({ ...f, ...patch }));
@@ -70,21 +114,27 @@ export default function Collection() {
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button
                     className="text-accent text-sm font-semibold"
-                    onClick={() => navigate("/")}
+                    onClick={() => inSelectionMode ? cancelAndLeave() : navigate("/")}
                 >
-                    ← Retour
+                    {inSelectionMode ? "× Annuler" : "← Retour"}
                 </button>
-                <h1 className="text-white font-bold">📚 Collection</h1>
+                <h1 className="text-white font-bold">
+                    {inSelectionMode ? selectionRequest!.title : "📚 Collection"}
+                </h1>
                 <div className="flex items-center gap-3">
-                    <button
-                        className="text-white/50 hover:text-white text-lg"
-                        title="Table des probabilités"
-                        onClick={() => setProbModalOpen(true)}
-                    >
-                        📊
-                    </button>
+                    {!inSelectionMode && (
+                        <button
+                            className="text-white/50 hover:text-white text-lg"
+                            title="Table des probabilités"
+                            onClick={() => setProbModalOpen(true)}
+                        >
+                            📊
+                        </button>
+                    )}
                     <div className="text-white/40 text-xs text-right">
-                        {data ? (
+                        {inSelectionMode ? (
+                            <p>{picked.size} / {selectionRequest!.max}</p>
+                        ) : data ? (
                             <>
                                 <p>{data.unique_cards} uniques</p>
                                 <p>{data.total_cards} total</p>
@@ -143,14 +193,20 @@ export default function Collection() {
             {/* Cards */}
             <main
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto py-4"
+                className={`flex-1 overflow-y-auto py-4 ${inSelectionMode ? "pb-24" : ""}`}
                 onScroll={(e) => setShowScrollTop(e.currentTarget.scrollTop > 400)}
             >
                 {isLoading ? (
                     <LoadingSpinner text="Chargement de la collection..." />
                 ) : groups.length > 0 ? (
                     <div className={isFetching ? "opacity-60 transition-opacity" : "transition-opacity"}>
-                        <CardGrid groups={groups} />
+                        <CardGrid
+                            groups={groups}
+                            selectionMode={inSelectionMode}
+                            excludeIds={selectionRequest ? new Set(selectionRequest.excludeIds) : undefined}
+                            selectedIds={inSelectionMode ? new Set(picked.keys()) : undefined}
+                            onToggle={toggleSelection}
+                        />
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-64 text-white/30">
@@ -172,7 +228,7 @@ export default function Collection() {
                 )}
             </main>
 
-            {showScrollTop && (
+            {showScrollTop && !inSelectionMode && (
                 <button
                     className="absolute bottom-6 right-4 z-30 w-11 h-11 rounded-full bg-accent text-white
                      shadow-lg flex items-center justify-center text-xl hover:bg-accent/80 transition-colors"
@@ -181,6 +237,19 @@ export default function Collection() {
                 >
                     ↑
                 </button>
+            )}
+
+            {inSelectionMode && (
+                <div className="absolute bottom-0 left-0 right-0 z-30 bg-game-surface border-t border-white/10 p-4">
+                    <Button
+                        variant="gold"
+                        className="w-full max-w-sm mx-auto block"
+                        disabled={picked.size === 0}
+                        onClick={confirmSelection}
+                    >
+                        Valider ({picked.size})
+                    </Button>
+                </div>
             )}
 
             <FilterModal

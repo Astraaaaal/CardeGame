@@ -19,21 +19,16 @@ class ResourceCatalogItem(BaseModel):
     name: str
 
 
-class RecycleRequest(BaseModel):
-    character_id: str
-    rarity_id: str
-    quality_id: str
-    specialty_id: str
-    jewelry_id: str
-    count: int = Field(ge=1, le=999)
+class RecycleByIdsRequest(BaseModel):
+    card_ids: list[str] = Field(min_length=1, max_length=999)
 
 
-class RecycleResponse(BaseModel):
+class RecycleByIdsResponse(BaseModel):
     resource_id: str
     resource_name: str
     gained: int
     new_balance: int
-    remaining_quantity: int
+    recycled_count: int
 
 
 class ShopOfferResponse(BaseModel):

@@ -22,6 +22,7 @@ class CollectionFilters(BaseModel):
     specialty_op: TierOp = "eq"
     jewelry_id: Optional[str] = None
     jewelry_op: TierOp = "eq"
+    type_names: list[str] = []
 
 
 class CollectionResponse(BaseModel):

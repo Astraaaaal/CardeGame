@@ -1,15 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { tradeSessionsApi } from "@/api/tradeSessions";
 import type { TradeSessionItem } from "@/types/trade";
+import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
-import AddCardModal from "@/components/trade/AddCardModal";
 import AddResourceModal from "@/components/trade/AddResourceModal";
+
+const MAX_ITEMS_PER_SIDE = 12;
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -66,9 +68,10 @@ export default function TradeSessionPage() {
     const id = Number(sessionId);
     const navigate = useNavigate();
     const qc = useQueryClient();
-    const [addCardOpen, setAddCardOpen] = useState(false);
     const [addResourceOpen, setAddResourceOpen] = useState(false);
     const [err, setErr] = useState("");
+    const requestSelection = useCardSelectionStore((s) => s.requestSelection);
+    const consumeResult = useCardSelectionStore((s) => s.consumeResult);
 
     const { data: trade, isLoading } = useQuery({
         queryKey: ["trade-session", id],
@@ -80,9 +83,19 @@ export default function TradeSessionPage() {
 
     const addCard = useMutation({
         mutationFn: (cardId: string) => tradeSessionsApi.addCard(id, cardId),
-        onSuccess: (data) => { qc.setQueryData(["trade-session", id], data); setAddCardOpen(false); setErr(""); },
+        onSuccess: (data) => { qc.setQueryData(["trade-session", id], data); setErr(""); },
         onError: (e) => setErr(errMsg(e)),
     });
+
+    // Retour depuis la page Collection (mode sélection) : ajoute chaque carte choisie.
+    useEffect(() => {
+        const result = consumeResult();
+        if (!result || result.context?.purpose !== "trade-add" || result.context?.tradeSessionId !== sessionId) return;
+        for (const { id: cardId } of result.selectedCards) {
+            addCard.mutate(cardId);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sessionId]);
     const addResource = useMutation({
         mutationFn: ({ resourceId, amount }: { resourceId: string; amount: number }) =>
             tradeSessionsApi.addResource(id, resourceId, amount),
@@ -190,13 +203,23 @@ export default function TradeSessionPage() {
                             <>
                                 <button
                                     className="aspect-[5/7] rounded-xl border-2 border-dashed border-white/15 hover:border-accent/50 flex items-center justify-center text-white/30 hover:text-accent text-3xl"
-                                    onClick={() => { setAddResourceOpen(false); setAddCardOpen(true); }}
+                                    onClick={() => {
+                                        setAddResourceOpen(false);
+                                        requestSelection({
+                                            max: Math.max(1, MAX_ITEMS_PER_SIDE - trade.my_items.length),
+                                            title: "Choisis une carte à échanger",
+                                            excludeIds: Array.from(myCardIds),
+                                            returnTo: `/trade/${id}`,
+                                            context: { purpose: "trade-add", tradeSessionId: sessionId ?? "" },
+                                        });
+                                        navigate("/collection");
+                                    }}
                                 >
                                     🃏
                                 </button>
                                 <button
                                     className="aspect-[5/7] rounded-xl border-2 border-dashed border-white/15 hover:border-accent/50 flex items-center justify-center text-white/30 hover:text-accent text-3xl"
-                                    onClick={() => { setAddCardOpen(false); setAddResourceOpen(true); }}
+                                    onClick={() => setAddResourceOpen(true)}
                                 >
                                     +
                                 </button>
@@ -276,13 +299,6 @@ export default function TradeSessionPage() {
                 )}
             </div>
 
-            {addCardOpen && (
-                <AddCardModal
-                    excludeIds={myCardIds}
-                    onPick={(cardId) => addCard.mutate(cardId)}
-                    onClose={() => setAddCardOpen(false)}
-                />
-            )}
             {addResourceOpen && (
                 <AddResourceModal
                     current={myResourceAmounts}

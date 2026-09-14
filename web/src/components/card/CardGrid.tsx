@@ -1,44 +1,94 @@
 import { useState } from "react";
-import type { CardGroup } from "@/types/card";
+import type { Card, CardGroup } from "@/types/card";
 import CardImage from "./CardImage";
 import CardDetail from "./CardDetail";
+import CopyPickerModal from "./CopyPickerModal";
 
 interface CardGridProps {
     groups: CardGroup[];
+    /** Mode sélection (cadeau, échange...) : tapoter une carte la coche au
+     * lieu d'ouvrir son détail. `excludeIds` = exemplaires déjà engagés
+     * ailleurs (non sélectionnables) ; `selectedCards` = choisis dans CETTE
+     * sélection (togglables) ; `onToggle` reçoit l'id + un aperçu de la carte. */
+    selectionMode?: boolean;
+    excludeIds?: Set<string>;
+    selectedIds?: Set<string>;
+    onToggle?: (cardId: string, preview: Card) => void;
 }
 
-export default function CardGrid({ groups }: CardGridProps) {
+export default function CardGrid({
+    groups, selectionMode, excludeIds, selectedIds, onToggle,
+}: CardGridProps) {
     // Sélection par id de carte (pas par index) : la liste peut se ré-trier.
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const selected = groups.find((g) => g.card.id === selectedId) ?? null;
+    const [pickerGroup, setPickerGroup] = useState<CardGroup | null>(null);
+
+    const handleTap = (g: CardGroup) => {
+        if (!selectionMode) {
+            setSelectedId(g.card.id);
+            return;
+        }
+        if (g.quantity > 1) {
+            setPickerGroup(g);
+        } else {
+            onToggle?.(g.card.id, g.card);
+        }
+    };
 
     return (
         <>
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 px-2">
-                {groups.map((g) => (
-                    <div key={g.card.id} className="relative">
-                        <CardImage
-                            card={g.card}
-                            size="sm"
-                            onClick={() => setSelectedId(g.card.id)}
-                        />
-                        {g.quantity > 1 && (
-                            <span className="absolute -top-1 -right-1 bg-gold text-game-bg
+                {groups.map((g) => {
+                    const isSingleSelected = selectionMode && g.quantity === 1 && selectedIds?.has(g.card.id);
+                    const isSingleExcluded = selectionMode && g.quantity === 1 && excludeIds?.has(g.card.id);
+                    return (
+                        <div key={g.card.id} className="relative">
+                            <div className={isSingleSelected ? "ring-2 ring-accent rounded-xl" : undefined}>
+                                <CardImage
+                                    card={g.card}
+                                    size="sm"
+                                    onClick={isSingleExcluded ? undefined : () => handleTap(g)}
+                                    className={isSingleExcluded ? "opacity-30 pointer-events-none" : undefined}
+                                />
+                            </div>
+                            {g.quantity > 1 && (
+                                <span className="absolute -top-1 -right-1 bg-gold text-game-bg
                              text-xs font-bold rounded-full w-5 h-5
                              flex items-center justify-center">
-                                {g.quantity}
-                            </span>
-                        )}
-                    </div>
-                ))}
+                                    {g.quantity}
+                                </span>
+                            )}
+                            {isSingleSelected && (
+                                <span className="absolute -top-1 -left-1 bg-accent text-white
+                             text-xs font-bold rounded-full w-5 h-5
+                             flex items-center justify-center">
+                                    ✓
+                                </span>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
 
-            <CardDetail
-                open={!!selected}
-                card={selected?.card ?? null}
-                quantity={selected?.quantity}
-                onClose={() => setSelectedId(null)}
-            />
+            {!selectionMode && (
+                <CardDetail
+                    open={!!selected}
+                    card={selected?.card ?? null}
+                    quantity={selected?.quantity}
+                    onClose={() => setSelectedId(null)}
+                />
+            )}
+
+            {selectionMode && pickerGroup && (
+                <CopyPickerModal
+                    group={pickerGroup}
+                    excludeIds={excludeIds ?? new Set()}
+                    selectedIds={selectedIds}
+                    onToggle={(id, preview) => onToggle?.(id, preview)}
+                    onClose={() => setPickerGroup(null)}
+                />
+            )}
         </>
     );
 }

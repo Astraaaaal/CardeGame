@@ -16,9 +16,9 @@ from app.models.character import Character
 from app.models.booster import Booster
 from app.models.reference import Set, Rarity, Quality, Specialty, Jewelry
 from app.models.economy import Resource, UserResource
-from app.schemas.card import CardResponse, CardGroupResponse, CardPowerBreakdown, CardCopyOut, CardCopiesResponse
+from app.schemas.card import CardResponse, CardGroupResponse, CardCopyOut, CardCopiesResponse
 from app.schemas.collection import CollectionResponse, ProbabilityItem, ProbabilityTableResponse
-from app.schemas.economy import RecycleRequest, RecycleResponse
+from app.schemas.economy import RecycleByIdsRequest, RecycleByIdsResponse
 from app.services.card_view import build_card_response
 from app.services.power import combined_rarity
 from app.services import quest_progress
@@ -88,6 +88,7 @@ async def get_collection(
     specialty_op: str = Query("eq", pattern=_OP_PATTERN),
     jewelry_id: Optional[str] = Query(None),
     jewelry_op: str = Query("eq", pattern=_OP_PATTERN),
+    type_names: list[str] = Query([]),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -96,12 +97,16 @@ async def get_collection(
     Supporte le tri et les filtres — pour rareté/qualité/spécialité/jewelry,
     chaque filtre accepte un mode "eq" (exact), "gte" (ce palier et au-dessus)
     ou "lte" (ce palier et en dessous), basé sur tier_order.rank().
+    `type_names` : un ou plusieurs types de personnage (nom, pas id) — vide = tous.
     """
     # Requête de base — seul set_id reste un filtre exact simple côté SQL,
-    # les 4 axes à palier sont filtrés en Python (comparaison de rang).
+    # les 4 axes à palier + le type sont filtrés en Python.
     query = select(UserCard).where(UserCard.user_id == user.id)
     if set_id:
         query = query.where(UserCard.set_id == set_id)
+
+    # Chargé avant le filtrage : nécessaire pour filtrer par type de personnage.
+    chars_map = await _load_map(session, Character)
 
     result = await session.execute(query)
     all_cards = [
@@ -110,13 +115,13 @@ async def get_collection(
         and _matches_tier("quality", c.quality_id, quality_id, quality_op)
         and _matches_tier("specialty", c.specialty_id, specialty_id, specialty_op)
         and _matches_tier("jewelry", c.jewelry_id, jewelry_id, jewelry_op)
+        and (not type_names or (chars_map.get(c.character_id) and chars_map[c.character_id].type in type_names))
     ]
 
     if not all_cards:
         return CollectionResponse(total_cards=0, unique_cards=0, groups=[])
 
-    # Charger les tables de référence
-    chars_map = await _load_map(session, Character)
+    # Charger le reste des tables de référence
     sets_map = await _load_map(session, Set)
     rarities_map = await _load_map(session, Rarity)
     qualities_map = await _load_map(session, Quality)
@@ -187,7 +192,7 @@ async def get_collection(
                 groups[key]["card"].obtained_at = card.obtained_at
             # Idem pour la puissance : on retient le meilleur tirage parmi les
             # exemplaires possédés de cette combinaison (le détail par
-            # exemplaire reste consultable via GET /collection/powers).
+            # exemplaire reste consultable via GET /collection/copies).
             if (card.power or 0) > (groups[key]["card"].power or 0):
                 groups[key]["card"].power = card.power
                 groups[key]["card"].combined_rarity = combined_rarity(
@@ -250,35 +255,6 @@ async def get_collection(
     )
 
 
-@router.get("/powers", response_model=CardPowerBreakdown)
-async def get_card_powers(
-    character_id: str = Query(...),
-    rarity_id: str = Query(...),
-    quality_id: str = Query(...),
-    specialty_id: str = Query(...),
-    jewelry_id: str = Query(...),
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    """
-    Détail de la puissance de chaque exemplaire possédé d'une combinaison —
-    la carte groupée n'affiche que la meilleure des deux, ceci permet de
-    voir la répartition réelle (au clic, côté collection).
-    """
-    rows = (await session.execute(
-        select(UserCard.power).where(
-            UserCard.user_id == user.id,
-            UserCard.character_id == character_id,
-            UserCard.rarity_id == rarity_id,
-            UserCard.quality_id == quality_id,
-            UserCard.specialty_id == specialty_id,
-            UserCard.jewelry_id == jewelry_id,
-        )
-    )).scalars().all()
-    powers = sorted(rows, key=lambda p: (p is None, -(p or 0)))
-    return CardPowerBreakdown(powers=powers)
-
-
 @router.get("/copies", response_model=CardCopiesResponse)
 async def get_card_copies(
     character_id: str = Query(...),
@@ -291,8 +267,7 @@ async def get_card_copies(
 ):
     """
     Identifiant + puissance de chaque exemplaire possédé d'une combinaison —
-    sert à choisir un exemplaire précis à apporter dans une session d'échange
-    (contrairement à /powers qui ne sert qu'à l'affichage, sans id).
+    sert à choisir un exemplaire précis (échange, cadeau, recyclage ciblé...).
     """
     rows = (await session.execute(
         select(UserCard.id, UserCard.power).where(
@@ -333,53 +308,50 @@ async def get_card_detail(
 
 @router.post(
     "/recycle",
-    response_model=RecycleResponse,
+    response_model=RecycleByIdsResponse,
     dependencies=[Depends(rate_limit(30, 60))],
 )
 async def recycle_cards(
-    request: RecycleRequest,
+    request: RecycleByIdsRequest,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Recycle `count` exemplaires d'une combinaison de carte possédée contre de
-    la poussière. Valeur = somme des `recycle_value` de rareté/qualité/
-    spécialité/jewelry, tunable côté données (cf. app/migrations.py).
+    Recycle des exemplaires PRÉCIS (par id) contre de la poussière — pas un
+    simple compte sur une combinaison, pour pouvoir choisir lesquels quand
+    plusieurs exemplaires d'une même carte ont des puissances différentes.
+    Valeur par carte = somme des `recycle_value` de sa propre rareté/qualité/
+    spécialité/jewelry (tunable côté données, cf. app/migrations.py).
     """
+    ids = list(dict.fromkeys(request.card_ids))  # dédoublonne en gardant l'ordre
     owned = (await session.execute(
-        select(UserCard).where(
-            UserCard.user_id == user.id,
-            UserCard.character_id == request.character_id,
-            UserCard.rarity_id == request.rarity_id,
-            UserCard.quality_id == request.quality_id,
-            UserCard.specialty_id == request.specialty_id,
-            UserCard.jewelry_id == request.jewelry_id,
-        )
+        select(UserCard).where(UserCard.id.in_(ids), UserCard.user_id == user.id)
     )).scalars().all()
 
-    if len(owned) < request.count:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Tu ne possèdes que {len(owned)} exemplaire(s) de cette carte.",
-        )
+    if len(owned) != len(ids):
+        raise HTTPException(status_code=404, detail="Une ou plusieurs cartes sont introuvables ou ne t'appartiennent pas.")
 
     resource = await session.get(Resource, RECYCLE_RESOURCE_ID)
     if not resource:
         raise HTTPException(status_code=500, detail="Ressource de recyclage introuvable.")
 
-    rarity = await session.get(Rarity, request.rarity_id)
-    quality = await session.get(Quality, request.quality_id)
-    specialty = await session.get(Specialty, request.specialty_id)
-    jewelry = await session.get(Jewelry, request.jewelry_id)
-    per_card = (
-        (rarity.recycle_value if rarity else 0)
-        + (quality.recycle_value if quality else 0)
-        + (specialty.recycle_value if specialty else 0)
-        + (jewelry.recycle_value if jewelry else 0)
-    )
-    total_gain = per_card * request.count
+    rarities_map = await _load_map(session, Rarity)
+    qualities_map = await _load_map(session, Quality)
+    specialties_map = await _load_map(session, Specialty)
+    jewelries_map = await _load_map(session, Jewelry)
 
-    for card in owned[: request.count]:
+    total_gain = 0
+    for card in owned:
+        rarity = rarities_map.get(card.rarity_id)
+        quality = qualities_map.get(card.quality_id)
+        specialty = specialties_map.get(card.specialty_id)
+        jewelry = jewelries_map.get(card.jewelry_id)
+        total_gain += (
+            (rarity.recycle_value if rarity else 0)
+            + (quality.recycle_value if quality else 0)
+            + (specialty.recycle_value if specialty else 0)
+            + (jewelry.recycle_value if jewelry else 0)
+        )
         await session.delete(card)
 
     user_res = await session.get(UserResource, (user.id, RECYCLE_RESOURCE_ID))
@@ -387,18 +359,18 @@ async def recycle_cards(
         user_res = UserResource(user_id=user.id, resource_id=RECYCLE_RESOURCE_ID, amount=0)
         session.add(user_res)
     user_res.amount += total_gain
-    user.total_cards = max(0, user.total_cards - request.count)
-    user.cards_recycled += request.count
+    user.total_cards = max(0, user.total_cards - len(owned))
+    user.cards_recycled += len(owned)
 
-    await quest_progress.increment(session, user.id, "cards_recycled", request.count)
+    await quest_progress.increment(session, user.id, "cards_recycled", len(owned))
     await session.commit()
 
-    return RecycleResponse(
+    return RecycleByIdsResponse(
         resource_id=RECYCLE_RESOURCE_ID,
         resource_name=resource.name,
         gained=total_gain,
         new_balance=user_res.amount,
-        remaining_quantity=len(owned) - request.count,
+        recycled_count=len(owned),
     )
 
 

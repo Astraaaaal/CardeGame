@@ -39,10 +39,9 @@ function errMsg(e: unknown): string {
  */
 export default function CardDetail({ open, card, quantity, onClose }: CardDetailProps) {
     const qc = useQueryClient();
-    const [recycleCount, setRecycleCount] = useState(1);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [result, setResult] = useState<string | null>(null);
     const [confirmingRecycle, setConfirmingRecycle] = useState(false);
-    const [showPowers, setShowPowers] = useState(false);
 
     const [lastCard, setLastCard] = useState<Card | null>(card);
     const [lastQuantity, setLastQuantity] = useState<number | undefined>(quantity);
@@ -50,48 +49,53 @@ export default function CardDetail({ open, card, quantity, onClose }: CardDetail
         if (card) {
             setLastCard(card);
             setLastQuantity(quantity);
-            setRecycleCount(1);
+            setSelectedIds(new Set());
             setResult(null);
-            setShowPowers(false);
         }
     }, [card, quantity]);
 
     const displayCard = card ?? lastCard;
     const owned = lastQuantity ?? 1;
 
-    const powersQ = useQuery({
-        queryKey: ["card-powers", displayCard?.character_id, displayCard?.rarity_id, displayCard?.quality_id, displayCard?.specialty_id, displayCard?.jewelry_id],
-        queryFn: () => collectionApi.getCardPowers({
+    const copiesQ = useQuery({
+        queryKey: ["card-copies", displayCard?.character_id, displayCard?.rarity_id, displayCard?.quality_id, displayCard?.specialty_id, displayCard?.jewelry_id],
+        queryFn: () => collectionApi.getCardCopies({
             character_id: displayCard!.character_id,
             rarity_id: displayCard!.rarity_id,
             quality_id: displayCard!.quality_id,
             specialty_id: displayCard!.specialty_id,
             jewelry_id: displayCard!.jewelry_id,
         }),
-        enabled: showPowers && owned > 1 && !!displayCard,
+        enabled: owned > 1 && !!displayCard,
     });
 
+    const recycleIds = owned > 1 ? Array.from(selectedIds) : (displayCard ? [displayCard.id] : []);
+
     const recycle = useMutation({
-        mutationFn: () => collectionApi.recycle({
-            character_id: displayCard!.character_id,
-            rarity_id: displayCard!.rarity_id,
-            quality_id: displayCard!.quality_id,
-            specialty_id: displayCard!.specialty_id,
-            jewelry_id: displayCard!.jewelry_id,
-            count: recycleCount,
-        }),
+        mutationFn: () => collectionApi.recycle({ card_ids: recycleIds }),
         onSuccess: (res) => {
             setResult(`+${res.gained.toLocaleString("fr-FR")} ${res.resource_name} (solde : ${res.new_balance.toLocaleString("fr-FR")})`);
             setConfirmingRecycle(false);
+            setSelectedIds(new Set());
             qc.invalidateQueries({ queryKey: ["collection"] });
             qc.invalidateQueries({ queryKey: ["player"] });
+            qc.invalidateQueries({ queryKey: ["card-copies"] });
         },
         onError: (e) => { setResult(errMsg(e)); setConfirmingRecycle(false); },
     });
 
+    const toggleCopy = (id: string) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
     if (!displayCard) return null;
 
     const rarityColor = rarityColorToCSS(displayCard.rarity_color);
+    const recycleCount = recycleIds.length;
     const losesAllCopies = recycleCount >= owned;
     const cardLabel = [displayCard.character_name, displayCard.rarity_name, displayCard.quality_name,
         displayCard.specialty_id !== "normal" ? displayCard.specialty_name : null,
@@ -184,27 +188,7 @@ export default function CardDetail({ open, card, quantity, onClose }: CardDetail
                                 {owned > 1 && (
                                     <p>
                                         Exemplaires: <span className="text-gold font-bold">×{owned}</span>
-                                        {" — "}
-                                        <button
-                                            className="text-accent hover:underline"
-                                            onClick={() => setShowPowers((v) => !v)}
-                                        >
-                                            {showPowers ? "masquer les puissances" : "voir les puissances"}
-                                        </button>
                                     </p>
-                                )}
-                                {showPowers && owned > 1 && (
-                                    <div className="bg-black/30 rounded-lg px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
-                                        {powersQ.isLoading ? (
-                                            <span className="text-white/40 text-xs">Chargement...</span>
-                                        ) : (
-                                            (powersQ.data?.powers ?? []).map((p, i) => (
-                                                <span key={i} className="text-xs text-white/80">
-                                                    {p != null ? `⚡${p}` : "—"}
-                                                </span>
-                                            ))
-                                        )}
-                                    </div>
                                 )}
                             </div>
 
@@ -213,21 +197,37 @@ export default function CardDetail({ open, card, quantity, onClose }: CardDetail
                                 <p className="text-white/60 text-xs mb-2">
                                     Recycler contre de la poussière (irréversible)
                                 </p>
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        max={owned}
-                                        value={recycleCount}
-                                        onChange={(e) => setRecycleCount(
-                                            Math.max(1, Math.min(owned, +e.target.value || 1))
+
+                                {owned > 1 && (
+                                    <div className="mb-2">
+                                        <p className="text-white/40 text-[11px] mb-1.5">
+                                            Coche le ou les exemplaires à recycler :
+                                        </p>
+                                        {copiesQ.isLoading ? (
+                                            <p className="text-white/40 text-xs">Chargement...</p>
+                                        ) : (
+                                            <div className="bg-black/30 rounded-lg px-3 py-2 space-y-1.5 max-h-32 overflow-y-auto">
+                                                {(copiesQ.data?.copies ?? []).map((c) => (
+                                                    <label key={c.id} className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedIds.has(c.id)}
+                                                            onChange={() => toggleCopy(c.id)}
+                                                        />
+                                                        {c.power != null ? `⚡${c.power}` : "—"}
+                                                    </label>
+                                                ))}
+                                            </div>
                                         )}
-                                        className="w-16 bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white text-center"
-                                    />
+                                    </div>
+                                )}
+
+                                <div className="flex items-center gap-2">
                                     <Button
                                         variant="secondary"
                                         size="sm"
                                         className="flex-1"
+                                        disabled={recycleCount === 0}
                                         onClick={() => { setResult(null); setConfirmingRecycle(true); }}
                                     >
                                         Recycler {recycleCount > 1 ? `×${recycleCount}` : ""}

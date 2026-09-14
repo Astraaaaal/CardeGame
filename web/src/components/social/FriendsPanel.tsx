@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendsApi } from "@/api/friends";
+import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import Button from "@/components/ui/Button";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import SendGiftModal from "@/components/profile/SendGiftModal";
+import SendGiftModal, { type SendGiftInitialState } from "@/components/profile/SendGiftModal";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -32,6 +33,24 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
     const [tradeErr, setTradeErr] = useState("");
     const [toRemove, setToRemove] = useState<{ id: number; name: string } | null>(null);
     const [giftTarget, setGiftTarget] = useState<string | null>(null);
+    const [giftInitialState, setGiftInitialState] = useState<SendGiftInitialState | undefined>(undefined);
+    const consumeCardSelection = useCardSelectionStore((s) => s.consumeResult);
+
+    // Retour depuis la Collection (mode sélection) après avoir choisi une
+    // carte pour un cadeau initié depuis ce panneau — rouvre le compositeur.
+    useEffect(() => {
+        const result = consumeCardSelection();
+        if (!result || result.context?.purpose !== "gift") return;
+        const card = result.selectedCards[0];
+        setGiftInitialState({
+            username: result.context.username ?? "",
+            subject: result.context.subject ?? "Cadeau",
+            body: result.context.body ?? "",
+            pickedCard: card ? { id: card.id, preview: card.preview } : null,
+        });
+        setGiftTarget(result.context.username ?? "");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const friendsQ = useQuery({
         queryKey: ["friends"], queryFn: friendsApi.list,
@@ -229,7 +248,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                                                 </Button>
                                                                 <Button
                                                                     variant="secondary" size="sm"
-                                                                    onClick={() => setGiftTarget(f.username)}
+                                                                    onClick={() => { setGiftInitialState(undefined); setGiftTarget(f.username); }}
                                                                 >
                                                                     🎁
                                                                 </Button>
@@ -391,7 +410,12 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
             />
 
             {giftTarget && (
-                <SendGiftModal presetUsername={giftTarget} onClose={() => setGiftTarget(null)} />
+                <SendGiftModal
+                    presetUsername={giftTarget}
+                    returnTo="/"
+                    initialState={giftInitialState}
+                    onClose={() => { setGiftTarget(null); setGiftInitialState(undefined); }}
+                />
             )}
         </>
     );

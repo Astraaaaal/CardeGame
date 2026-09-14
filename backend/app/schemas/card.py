@@ -43,15 +43,10 @@ class CardGroupResponse(BaseModel):
     quantity: int = 1
 
 
-class CardPowerBreakdown(BaseModel):
-    """Puissance de chaque exemplaire possédé d'une combinaison — la carte
-    groupée n'affiche que la meilleure, ceci donne le détail au clic."""
-    powers: list[Optional[int]] = []
-
-
 class CardCopyOut(BaseModel):
     """Un exemplaire précis (id + puissance) d'une combinaison possédée —
-    sert à choisir LEQUEL apporter dans une session d'échange."""
+    sert à choisir LEQUEL apporter dans une session d'échange, un cadeau,
+    ou recycler précisément."""
     id: str
     power: Optional[int] = None
 

@@ -1,11 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { messagesApi } from "@/api/messages";
+import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
-import AddCardModal from "@/components/trade/AddCardModal";
 import AddResourceModal from "@/components/trade/AddResourceModal";
 import type { Card } from "@/types/card";
 
@@ -17,19 +18,32 @@ function errMsg(e: unknown): string {
     return "Erreur.";
 }
 
+export interface SendGiftInitialState {
+    username: string;
+    subject: string;
+    body: string;
+    pickedCard: { id: string; preview: Card } | null;
+}
+
 interface SendGiftModalProps {
     presetUsername?: string;
+    /** Chemin de la page qui monte ce modal — sert de point de retour après
+     * être passé par la Collection pour choisir une carte. */
+    returnTo: string;
+    initialState?: SendGiftInitialState;
     onClose: () => void;
     onSent?: () => void;
 }
 
-export default function SendGiftModal({ presetUsername, onClose, onSent }: SendGiftModalProps) {
-    const [username, setUsername] = useState(presetUsername ?? "");
-    const [subject, setSubject] = useState("Cadeau");
-    const [body, setBody] = useState("");
-    const [pickedCard, setPickedCard] = useState<{ id: string; preview: Card } | null>(null);
+export default function SendGiftModal({ presetUsername, returnTo, initialState, onClose, onSent }: SendGiftModalProps) {
+    const navigate = useNavigate();
+    const requestSelection = useCardSelectionStore((s) => s.requestSelection);
+
+    const [username, setUsername] = useState(initialState?.username ?? presetUsername ?? "");
+    const [subject, setSubject] = useState(initialState?.subject ?? "Cadeau");
+    const [body, setBody] = useState(initialState?.body ?? "");
+    const [pickedCard, setPickedCard] = useState<{ id: string; preview: Card } | null>(initialState?.pickedCard ?? null);
     const [pickedResource, setPickedResource] = useState<{ id: string; amount: number } | null>(null);
-    const [cardPickerOpen, setCardPickerOpen] = useState(false);
     const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
     const [err, setErr] = useState("");
 
@@ -50,6 +64,18 @@ export default function SendGiftModal({ presetUsername, onClose, onSent }: SendG
     });
 
     const canSend = !!username.trim() && (!!pickedCard || !!pickedResource);
+
+    const chooseCard = () => {
+        requestSelection({
+            max: 1,
+            title: "Choisis une carte à offrir",
+            excludeIds: [],
+            returnTo,
+            context: { purpose: "gift", username, subject, body },
+        });
+        onClose();
+        navigate("/collection");
+    };
 
     return (
         <>
@@ -104,7 +130,7 @@ export default function SendGiftModal({ presetUsername, onClose, onSent }: SendG
                         </div>
                     ) : (
                         <div className="flex gap-2">
-                            <Button variant="secondary" size="sm" className="flex-1" onClick={() => setCardPickerOpen(true)}>
+                            <Button variant="secondary" size="sm" className="flex-1" onClick={chooseCard}>
                                 🃏 Choisir une carte
                             </Button>
                             <Button variant="secondary" size="sm" className="flex-1" onClick={() => setResourcePickerOpen(true)}>
@@ -121,13 +147,6 @@ export default function SendGiftModal({ presetUsername, onClose, onSent }: SendG
                 </div>
             </Modal>
 
-            {cardPickerOpen && (
-                <AddCardModal
-                    excludeIds={new Set()}
-                    onPick={(cardId, preview) => { setPickedCard({ id: cardId, preview }); setCardPickerOpen(false); }}
-                    onClose={() => setCardPickerOpen(false)}
-                />
-            )}
             {resourcePickerOpen && (
                 <AddResourceModal
                     current={{}}

@@ -1,6 +1,7 @@
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { useProbabilities } from "@/hooks/useCollection";
+import { useTypes } from "@/hooks/useTypes";
 import type { CollectionParams, TierOp, ProbabilityItem } from "@/api/collection";
 
 interface AxisConfig {
@@ -25,6 +26,7 @@ interface FilterModalProps {
 
 export default function FilterModal({ open, onClose, filters, onChange, onReset }: FilterModalProps) {
     const { data } = useProbabilities(open);
+    const { data: types } = useTypes();
 
     const axes: AxisConfig[] = data
         ? [
@@ -35,9 +37,38 @@ export default function FilterModal({ open, onClose, filters, onChange, onReset 
         ]
         : [];
 
+    const selectedTypes = filters.type_names ?? [];
+    const toggleType = (name: string) => {
+        const next = selectedTypes.includes(name)
+            ? selectedTypes.filter((t) => t !== name)
+            : [...selectedTypes, name];
+        onChange({ type_names: next.length ? next : undefined });
+    };
+
     return (
         <Modal open={open} onClose={onClose} title="🔎 Filtres avancés">
             <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+                <div>
+                    <label className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-1.5 block">
+                        Type{selectedTypes.length > 0 ? ` (${selectedTypes.length})` : ""}
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                        {(types ?? []).map((t) => (
+                            <button
+                                key={t.id}
+                                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all ${
+                                    selectedTypes.includes(t.name)
+                                        ? "bg-accent text-white"
+                                        : "bg-white/10 text-white/50 hover:bg-white/20"
+                                }`}
+                                onClick={() => toggleType(t.name)}
+                            >
+                                {t.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 {axes.map((axis) => {
                     const idKey = `${axis.key}_id` as const;
                     const opKey = `${axis.key}_op` as const;
