@@ -82,6 +82,9 @@ _STATEMENTS = [
     "ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_reward_card_id_fkey",
     "ALTER TABLE messages ADD CONSTRAINT messages_reward_card_id_fkey "
     "FOREIGN KEY (reward_card_id) REFERENCES user_cards(id) ON DELETE SET NULL",
+    # Progression : niveaux (paliers de puissance) et achievements.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS cards_recycled INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS claimed_level INTEGER NOT NULL DEFAULT 0",
 ]
 
 # Types de personnage initiaux (portés depuis l'ancien TYPE_COLORS du renderer).
@@ -112,6 +115,81 @@ _DEFAULT_RESOURCES = [
     ("dust", "Poussière", "Obtenue en recyclant des cartes. Dépensable au shop."),
 ]
 _PROTECTED_RESOURCES = {"coins"}
+
+# Paliers de niveau par défaut (level, power_required, reward_amount en
+# pièces) — calibré sur le roster actuel (1 personnage) : à retoucher depuis
+# l'admin quand le roster grossit (la puissance moyenne par carte augmente
+# avec le nombre de personnages, cf. conversation de conception).
+_DEFAULT_LEVEL_TIERS = [
+    (1, 0, None), (2, 1_000, 100), (3, 2_500, 150), (4, 5_000, 200),
+    (5, 8_500, 300), (6, 13_000, 400), (7, 19_000, 500), (8, 27_000, 650),
+    (9, 37_000, 800), (10, 50_000, 1_000), (11, 65_000, 1_200), (12, 85_000, 1_500),
+    (13, 110_000, 1_800), (14, 140_000, 2_200), (15, 175_000, 2_700), (16, 220_000, 3_300),
+    (17, 275_000, 4_000), (18, 340_000, 4_800), (19, 420_000, 5_800), (20, 520_000, 7_000),
+]
+
+# id, name, description, category, metric, threshold, metric_param,
+# reward_resource_id, reward_amount, reward_booster_id
+_DEFAULT_ACHIEVEMENTS = [
+    ("first_pack", "Premier pas", "Ouvrir ton tout premier booster.", "collection", "total_cards", 1, None, "coins", 50, None),
+    ("cards_10", "Petite collection", "Posséder 10 cartes.", "collection", "total_cards", 10, None, "coins", 100, None),
+    ("cards_50", "Collectionneur", "Posséder 50 cartes.", "collection", "total_cards", 50, None, "coins", 250, None),
+    ("cards_100", "Grand collectionneur", "Posséder 100 cartes.", "collection", "total_cards", 100, None, "coins", 500, None),
+    ("cards_250", "Collection imposante", "Posséder 250 cartes.", "collection", "total_cards", 250, None, "coins", 1_000, None),
+    ("cards_500", "Collection légendaire", "Posséder 500 cartes.", "collection", "total_cards", 500, None, "coins", 2_000, None),
+    ("first_rare", "Un peu de chance", "Obtenir ta première carte Rare.", "collection", "rarity_owned", 1, "rare", "dust", 100, None),
+    ("first_epic", "Belle prise", "Obtenir ta première carte Epic.", "collection", "rarity_owned", 1, "epic", "dust", 250, None),
+    ("first_legendary", "Jackpot", "Obtenir ta première carte Legendary.", "collection", "rarity_owned", 1, "legendary", "dust", 500, None),
+    ("first_jewelry_silver", "Éclat d'argent", "Obtenir ta première carte avec un bijou argent.", "collection", "jewelry_owned", 1, "silver", "dust", 100, None),
+    ("first_jewelry_gold", "Éclat d'or", "Obtenir ta première carte avec un bijou or.", "collection", "jewelry_owned", 1, "gold", "dust", 200, None),
+    ("first_jewelry_diamond", "Éclat de diamant", "Obtenir ta première carte avec un bijou diamant.", "collection", "jewelry_owned", 1, "diamond", "dust", 400, None),
+    ("first_jewelry_prismatic", "Éclat prismatique", "Obtenir ta première carte avec un bijou prismatique.", "collection", "jewelry_owned", 1, "prismatic", "dust", 800, None),
+    ("first_shiny", "Ça brille", "Obtenir ta première carte Shiny.", "collection", "specialty_owned", 1, "shiny", "dust", 300, None),
+    ("first_full_art", "Toile complète", "Obtenir ta première carte Full Art.", "collection", "specialty_owned", 1, "full_art", "dust", 200, None),
+    ("first_ex", "Format EX", "Obtenir ta première carte EX.", "collection", "specialty_owned", 1, "ex", "dust", 250, None),
+    ("one_of_each_type", "Touche-à-tout", "Posséder au moins une carte de chaque type existant.", "collection", "types_owned_distinct", 9_999, None, "coins", 500, None),
+    ("type_master", "Spécialiste", "Posséder toutes les cartes d'un même type.", "collection", "type_complete", 1, None, None, None, "booster_A1"),
+    ("power_1000", "Montée en puissance", "Obtenir une carte de puissance ≥ 1000.", "collection", "card_power", 1_000, None, "coins", 200, None),
+    ("power_5000", "Puissance rare", "Obtenir une carte de puissance ≥ 5000.", "collection", "card_power", 5_000, None, "coins", 500, None),
+    ("power_10000", "Puissance maximale", "Obtenir une carte de puissance ≥ 10000.", "collection", "card_power", 10_000, None, "coins", 1_000, None),
+    ("lucky_rare", "Coup du destin", "Obtenir une carte de rareté globale 1 sur 10 000 ou plus.", "collection", "combined_rarity", 10_000, None, "dust", 500, None),
+    ("first_friend", "Pas si seul", "Ajouter ton premier ami.", "social", "friends_count", 1, None, "coins", 50, None),
+    ("friends_10", "Populaire", "Avoir 10 amis.", "social", "friends_count", 10, None, "coins", 300, None),
+    ("friends_25", "Grand réseau", "Avoir 25 amis.", "social", "friends_count", 25, None, "coins", 600, None),
+    ("first_trade", "Premier échange", "Conclure ton premier échange.", "social", "trades_completed", 1, None, "coins", 100, None),
+    ("trades_10", "Marchand", "Conclure 10 échanges.", "social", "trades_completed", 10, None, "coins", 300, None),
+    ("trades_100", "Grand marchand", "Conclure 100 échanges.", "social", "trades_completed", 100, None, "coins", 1_500, None),
+    ("first_gift", "Générosité", "Envoyer ton premier cadeau.", "social", "gifts_sent", 1, None, "dust", 50, None),
+    ("gifts_10", "Père Noël", "Envoyer 10 cadeaux.", "social", "gifts_sent", 10, None, "dust", 200, None),
+    ("gifts_50", "Philanthrope", "Envoyer 50 cadeaux.", "social", "gifts_sent", 50, None, "dust", 600, None),
+    ("recycle_10", "Recycleur", "Recycler 10 cartes.", "economy", "cards_recycled", 10, None, "coins", 100, None),
+    ("recycle_100", "Grand recycleur", "Recycler 100 cartes.", "economy", "cards_recycled", 100, None, "coins", 500, None),
+    ("rich_10k", "À l'aise", "Avoir 10 000 pièces en banque en même temps.", "economy", "coins_balance", 10_000, None, "dust", 200, None),
+    ("rich_100k", "Fortune", "Avoir 100 000 pièces en banque en même temps.", "economy", "coins_balance", 100_000, None, "dust", 1_000, None),
+    ("level_5", "Niveau 5", "Atteindre le niveau 5.", "progression", "level", 5, None, "coins", 200, None),
+    ("level_10", "Niveau 10", "Atteindre le niveau 10.", "progression", "level", 10, None, "coins", 500, None),
+    ("level_20", "Niveau 20", "Atteindre le niveau 20.", "progression", "level", 20, None, "coins", 1_200, None),
+    ("streak_7", "Une semaine", "Une série de connexion de 7 jours.", "progression", "login_streak", 7, None, "coins", 150, None),
+    ("streak_30", "Un mois", "Une série de connexion de 30 jours.", "progression", "login_streak", 30, None, "coins", 500, None),
+    ("streak_100", "Fidèle", "Une série de connexion de 100 jours.", "progression", "login_streak", 100, None, "coins", 2_000, None),
+    ("halfway_there", "À mi-chemin", "Débloquer la moitié des autres achievements.", "meta", "meta_unlocked_ratio", 50, None, "coins", 1_000, None),
+]
+
+# id, name, description, period, metric, threshold, reward_resource_id, reward_amount
+_DEFAULT_QUESTS = [
+    ("d_open_1_pack", "Petit tirage", "Ouvre 1 booster.", "daily", "packs_opened", 1, "coins", 30),
+    ("d_open_3_packs", "Ouverture groupée", "Ouvre 3 boosters.", "daily", "packs_opened", 3, "coins", 80),
+    ("d_recycle_1", "Tri du jour", "Recycle 1 carte.", "daily", "cards_recycled", 1, "dust", 20),
+    ("d_recycle_3", "Grand tri", "Recycle 3 cartes.", "daily", "cards_recycled", 3, "dust", 50),
+    ("d_trade_1", "Petit échange", "Conclue un échange.", "daily", "trades_completed", 1, "coins", 50),
+    ("d_gift_1", "Petit geste", "Envoie un cadeau.", "daily", "gifts_sent", 1, "coins", 40),
+    ("d_friend_request_1", "Nouvelle rencontre", "Envoie une demande d'ami.", "daily", "friend_requests_sent", 1, "coins", 30),
+    ("w_open_10_packs", "Semaine chargée", "Ouvre 10 boosters cette semaine.", "weekly", "packs_opened", 10, "coins", 300),
+    ("w_trade_3", "Négociateur", "Conclue 3 échanges cette semaine.", "weekly", "trades_completed", 3, "coins", 250),
+    ("w_recycle_10", "Grand ménage", "Recycle 10 cartes cette semaine.", "weekly", "cards_recycled", 10, "dust", 150),
+    ("w_gift_5", "Cœur généreux", "Envoie 5 cadeaux cette semaine.", "weekly", "gifts_sent", 5, "coins", 200),
+    ("w_friend_request_3", "Réseau grandissant", "Envoie 3 demandes d'ami cette semaine.", "weekly", "friend_requests_sent", 3, "coins", 150),
+]
 
 # Valeurs de recyclage par défaut, par table et par id. Appliquées uniquement
 # si la valeur est encore à 0 (ne stomp pas un réglage déjà fait par un admin).
@@ -166,6 +244,55 @@ async def apply_patches(conn: AsyncConnection) -> None:
             await conn.execute(force_protected, {"id": res_id})
         except Exception as exc:  # noqa: BLE001
             print(f"[migrations] avertissement protected {res_id!r}: {exc}")
+
+    insert_tier = text(
+        "INSERT INTO level_tiers (level, power_required, reward_resource_id, reward_amount) "
+        "VALUES (:level, :power_required, :reward_resource_id, :reward_amount) ON CONFLICT (level) DO NOTHING"
+    )
+    for level, power_required, reward_amount in _DEFAULT_LEVEL_TIERS:
+        try:
+            await conn.execute(insert_tier, {
+                "level": level, "power_required": power_required,
+                "reward_resource_id": "coins" if reward_amount else None, "reward_amount": reward_amount,
+            })
+        except Exception as exc:  # noqa: BLE001
+            print(f"[migrations] avertissement seed level tier {level!r}: {exc}")
+
+    insert_achievement = text(
+        "INSERT INTO achievement_defs "
+        "(id, name, description, category, metric, threshold, metric_param, "
+        " reward_resource_id, reward_amount, reward_booster_id, active) "
+        "VALUES (:id, :name, :description, :category, :metric, :threshold, :metric_param, "
+        " :reward_resource_id, :reward_amount, :reward_booster_id, TRUE) ON CONFLICT (id) DO NOTHING"
+    )
+    for (a_id, name, description, category, metric, threshold, metric_param,
+         reward_resource_id, reward_amount, reward_booster_id) in _DEFAULT_ACHIEVEMENTS:
+        try:
+            await conn.execute(insert_achievement, {
+                "id": a_id, "name": name, "description": description, "category": category,
+                "metric": metric, "threshold": threshold, "metric_param": metric_param,
+                "reward_resource_id": reward_resource_id, "reward_amount": reward_amount,
+                "reward_booster_id": reward_booster_id,
+            })
+        except Exception as exc:  # noqa: BLE001
+            print(f"[migrations] avertissement seed achievement {a_id!r}: {exc}")
+
+    insert_quest = text(
+        "INSERT INTO quest_defs (id, name, description, period, metric, threshold, "
+        " reward_resource_id, reward_amount, active) "
+        "VALUES (:id, :name, :description, :period, :metric, :threshold, "
+        " :reward_resource_id, :reward_amount, TRUE) ON CONFLICT (id) DO NOTHING"
+    )
+    for (q_id, name, description, period, metric, threshold,
+         reward_resource_id, reward_amount) in _DEFAULT_QUESTS:
+        try:
+            await conn.execute(insert_quest, {
+                "id": q_id, "name": name, "description": description, "period": period,
+                "metric": metric, "threshold": threshold,
+                "reward_resource_id": reward_resource_id, "reward_amount": reward_amount,
+            })
+        except Exception as exc:  # noqa: BLE001
+            print(f"[migrations] avertissement seed quest {q_id!r}: {exc}")
 
     for table, values in _RECYCLE_DEFAULTS.items():
         update = text(

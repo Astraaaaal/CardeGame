@@ -14,6 +14,9 @@ from app.models.booster import Booster, BoosterSet
 from app.models.character import Character, CharacterSet, CharacterType
 from app.models.card import UserCard
 from app.models.economy import Resource, UserResource, ShopOffer, ShopPurchase, DailyFeature
+from app.models.level import LevelTier
+from app.models.achievement import AchievementDef
+from app.models.quest import QuestDef
 from app.schemas.content import (
     SetIn, SetPatch, SetOut,
     BoosterIn, BoosterPatch, BoosterOut,
@@ -21,6 +24,7 @@ from app.schemas.content import (
     TypeIn, TypePatch, TypeOut,
 )
 from app.schemas.economy import ResourceIn, ResourcePatch, ShopOfferIn, DailyFeatureIn, DailyFeatureOut
+from app.schemas.progression_admin import LevelTierPatch, AchievementDefPatch, QuestDefPatch
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 
@@ -562,3 +566,77 @@ async def tuning(session: AsyncSession = Depends(get_session)):
         "specialties": await dump(Specialty),
         "jewelries": await dump(Jewelry),
     }
+
+
+# ────────────────────  PROGRESSION (niveaux / achievements / quêtes)  ─────
+
+@router.get("/level-tiers")
+async def list_level_tiers(session: AsyncSession = Depends(get_session)):
+    rows = (await session.execute(select(LevelTier).order_by(LevelTier.level))).scalars().all()
+    return [
+        {"level": t.level, "power_required": t.power_required,
+         "reward_resource_id": t.reward_resource_id, "reward_amount": t.reward_amount}
+        for t in rows
+    ]
+
+
+@router.patch("/level-tiers/{level}")
+async def update_level_tier(level: int, body: LevelTierPatch, session: AsyncSession = Depends(get_session)):
+    t = await session.get(LevelTier, level)
+    if not t:
+        raise HTTPException(404, "Palier introuvable.")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(t, k, v)
+    await session.commit()
+    return {"level": t.level, "power_required": t.power_required,
+            "reward_resource_id": t.reward_resource_id, "reward_amount": t.reward_amount}
+
+
+@router.get("/achievements")
+async def list_achievement_defs(session: AsyncSession = Depends(get_session)):
+    rows = (await session.execute(select(AchievementDef).order_by(AchievementDef.category, AchievementDef.name))).scalars().all()
+    return [
+        {"id": a.id, "name": a.name, "description": a.description, "category": a.category,
+         "metric": a.metric, "threshold": a.threshold, "metric_param": a.metric_param,
+         "reward_resource_id": a.reward_resource_id, "reward_amount": a.reward_amount,
+         "reward_booster_id": a.reward_booster_id, "active": a.active}
+        for a in rows
+    ]
+
+
+@router.patch("/achievements/{achievement_id}")
+async def update_achievement_def(achievement_id: str, body: AchievementDefPatch, session: AsyncSession = Depends(get_session)):
+    a = await session.get(AchievementDef, achievement_id)
+    if not a:
+        raise HTTPException(404, "Achievement introuvable.")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(a, k, v)
+    await session.commit()
+    return {"id": a.id, "name": a.name, "description": a.description, "category": a.category,
+            "metric": a.metric, "threshold": a.threshold, "metric_param": a.metric_param,
+            "reward_resource_id": a.reward_resource_id, "reward_amount": a.reward_amount,
+            "reward_booster_id": a.reward_booster_id, "active": a.active}
+
+
+@router.get("/quest-defs")
+async def list_quest_defs(session: AsyncSession = Depends(get_session)):
+    rows = (await session.execute(select(QuestDef).order_by(QuestDef.period, QuestDef.name))).scalars().all()
+    return [
+        {"id": q.id, "name": q.name, "description": q.description, "period": q.period,
+         "metric": q.metric, "threshold": q.threshold,
+         "reward_resource_id": q.reward_resource_id, "reward_amount": q.reward_amount, "active": q.active}
+        for q in rows
+    ]
+
+
+@router.patch("/quest-defs/{quest_id}")
+async def update_quest_def(quest_id: str, body: QuestDefPatch, session: AsyncSession = Depends(get_session)):
+    q = await session.get(QuestDef, quest_id)
+    if not q:
+        raise HTTPException(404, "Quête introuvable.")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(q, k, v)
+    await session.commit()
+    return {"id": q.id, "name": q.name, "description": q.description, "period": q.period,
+            "metric": q.metric, "threshold": q.threshold,
+            "reward_resource_id": q.reward_resource_id, "reward_amount": q.reward_amount, "active": q.active}

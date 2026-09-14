@@ -21,6 +21,7 @@ from app.models.trade_session import (
 from app.schemas.trade_session import TradeSessionOut, TradeSessionItemOut
 from app.services.card_view import build_card_response
 from app.services.wallet import get_balance, apply_delta, COINS_ID
+from app.services import quest_progress
 
 ONLINE_THRESHOLD_S = 300
 
@@ -344,6 +345,9 @@ async def _execute_trade(session: AsyncSession, trade: TradeSession) -> list[str
     user_b.total_cards = max(0, user_b.total_cards - cards_from_b + cards_from_a)
     session.add(user_a)
     session.add(user_b)
+
+    await quest_progress.increment(session, trade.user_a_id, "trades_completed", 1)
+    await quest_progress.increment(session, trade.user_b_id, "trades_completed", 1)
 
     trade.status = STATUS_COMPLETED
     _touch(trade)

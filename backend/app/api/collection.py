@@ -21,6 +21,7 @@ from app.schemas.collection import CollectionResponse, ProbabilityItem, Probabil
 from app.schemas.economy import RecycleRequest, RecycleResponse
 from app.services.card_view import build_card_response
 from app.services.power import combined_rarity
+from app.services import quest_progress
 from app.services.tier_order import (
     RARITY_ORDER, QUALITY_ORDER, SPECIALTY_ORDER, JEWELRY_ORDER, rank,
 )
@@ -387,7 +388,9 @@ async def recycle_cards(
         session.add(user_res)
     user_res.amount += total_gain
     user.total_cards = max(0, user.total_cards - request.count)
+    user.cards_recycled += request.count
 
+    await quest_progress.increment(session, user.id, "cards_recycled", request.count)
     await session.commit()
 
     return RecycleResponse(

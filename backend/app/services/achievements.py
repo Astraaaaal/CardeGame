@@ -1,0 +1,257 @@
+"""
+Achievements — évaluation à la demande (pas d'événements suivis en temps
+réel : chaque métrique est recalculée quand le joueur consulte sa page,
+et débloquée dès que le seuil est franchi). Les paramètres et récompenses
+vivent dans AchievementDef (éditable depuis l'admin).
+"""
+
+from datetime import datetime
+
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select, func, or_
+
+from app.models.user import User
+from app.models.card import UserCard
+from app.models.character import Character, CharacterType
+from app.models.social import FriendRequest
+from app.models.message import Message
+from app.models.trade_session import TradeSession, STATUS_COMPLETED
+from app.models.achievement import AchievementDef, UserAchievement
+from app.models.booster import Booster
+from app.services.levels import current_level_for_power, get_all_tiers, get_total_power
+from app.services.pack_service import PackService
+from app.services.power import combined_rarity as _combined_rarity
+from app.services.wallet import apply_delta
+
+_pack_service = PackService()
+
+
+async def _trades_completed(session: AsyncSession, user_id: int) -> int:
+    rows = (await session.execute(
+        select(func.count()).select_from(TradeSession).where(
+            TradeSession.status == STATUS_COMPLETED,
+            or_(TradeSession.user_a_id == user_id, TradeSession.user_b_id == user_id),
+        )
+    )).scalar()
+    return int(rows or 0)
+
+
+async def _friends_count(session: AsyncSession, user_id: int) -> int:
+    rows = (await session.execute(
+        select(func.count()).select_from(FriendRequest).where(
+            FriendRequest.status == "accepted",
+            or_(FriendRequest.requester_id == user_id, FriendRequest.addressee_id == user_id),
+        )
+    )).scalar()
+    return int(rows or 0)
+
+
+async def _gifts_sent(session: AsyncSession, user_id: int) -> int:
+    rows = (await session.execute(
+        select(func.count()).select_from(Message).where(
+            Message.sender_type == "player", Message.sender_user_id == user_id,
+        )
+    )).scalar()
+    return int(rows or 0)
+
+
+async def _types_owned_distinct(session: AsyncSession, user_id: int) -> tuple[int, int]:
+    owned = (await session.execute(
+        select(Character.type).distinct()
+        .join(UserCard, UserCard.character_id == Character.id)
+        .where(UserCard.user_id == user_id)
+    )).scalars().all()
+    total = (await session.execute(select(func.count()).select_from(CharacterType))).scalar()
+    return len(owned), int(total or 0)
+
+
+async def _has_complete_type(session: AsyncSession, user_id: int) -> bool:
+    owned_rows = (await session.execute(
+        select(Character.type, UserCard.character_id).distinct()
+        .join(UserCard, UserCard.character_id == Character.id)
+        .where(UserCard.user_id == user_id)
+    )).all()
+    owned_by_type: dict[str, set] = {}
+    for t, cid in owned_rows:
+        owned_by_type.setdefault(t, set()).add(cid)
+
+    all_rows = (await session.execute(select(Character.type, Character.id))).all()
+    total_by_type: dict[str, set] = {}
+    for t, cid in all_rows:
+        total_by_type.setdefault(t, set()).add(cid)
+
+    return any(ids and owned_by_type.get(t, set()) >= ids for t, ids in total_by_type.items())
+
+
+async def _has_card_with(session: AsyncSession, user_id: int, column, value: str) -> bool:
+    row = (await session.execute(
+        select(UserCard.id).where(UserCard.user_id == user_id, column == value).limit(1)
+    )).first()
+    return row is not None
+
+
+async def _max_power(session: AsyncSession, user_id: int) -> int:
+    val = (await session.execute(
+        select(func.max(UserCard.power)).where(UserCard.user_id == user_id)
+    )).scalar()
+    return int(val or 0)
+
+
+async def _max_combined_rarity(session: AsyncSession, user_id: int) -> int:
+    rows = (await session.execute(
+        select(UserCard.power, UserCard.drop_probability, UserCard.rarity_id,
+               UserCard.quality_id, UserCard.specialty_id, UserCard.jewelry_id)
+        .where(UserCard.user_id == user_id, UserCard.power != None)  # noqa: E711
+    )).all()
+    best = 0
+    for power, prob, rarity_id, quality_id, specialty_id, jewelry_id in rows:
+        cr = _combined_rarity(power, prob, rarity_id, quality_id, specialty_id, jewelry_id)
+        if cr and cr > best:
+            best = cr
+    return best
+
+
+async def evaluate_metric(session: AsyncSession, user: User, achievement: AchievementDef) -> int:
+    """Retourne la valeur courante de la métrique de cet achievement pour ce joueur
+    (comparée à `achievement.threshold` par l'appelant pour savoir si débloqué)."""
+    metric = achievement.metric
+    if metric == "total_cards":
+        return user.total_cards
+    if metric == "trades_completed":
+        return await _trades_completed(session, user.id)
+    if metric == "friends_count":
+        return await _friends_count(session, user.id)
+    if metric == "gifts_sent":
+        return await _gifts_sent(session, user.id)
+    if metric == "cards_recycled":
+        return user.cards_recycled
+    if metric == "coins_balance":
+        return user.coins
+    if metric == "login_streak":
+        return user.login_streak
+    if metric == "level":
+        tiers = await get_all_tiers(session)
+        total_power = await get_total_power(session, user.id)
+        return current_level_for_power(tiers, total_power)
+    if metric == "types_owned_distinct":
+        owned, _total = await _types_owned_distinct(session, user.id)
+        return owned
+    if metric == "type_complete":
+        return 1 if await _has_complete_type(session, user.id) else 0
+    if metric == "rarity_owned":
+        return 1 if await _has_card_with(session, user.id, UserCard.rarity_id, achievement.metric_param) else 0
+    if metric == "jewelry_owned":
+        return 1 if await _has_card_with(session, user.id, UserCard.jewelry_id, achievement.metric_param) else 0
+    if metric == "specialty_owned":
+        return 1 if await _has_card_with(session, user.id, UserCard.specialty_id, achievement.metric_param) else 0
+    if metric == "card_power":
+        return await _max_power(session, user.id)
+    if metric == "combined_rarity":
+        return await _max_combined_rarity(session, user.id)
+    if metric == "meta_unlocked_ratio":
+        total_defs = (await session.execute(
+            select(func.count()).select_from(AchievementDef).where(
+                AchievementDef.active == True, AchievementDef.metric != "meta_unlocked_ratio",  # noqa: E712
+            )
+        )).scalar() or 0
+        unlocked = (await session.execute(
+            select(func.count()).select_from(UserAchievement).where(UserAchievement.user_id == user.id)
+        )).scalar() or 0
+        return round(unlocked / total_defs * 100) if total_defs else 0
+    return 0
+
+
+async def effective_threshold(session: AsyncSession, achievement: AchievementDef) -> int:
+    """Le seuil réel à afficher/comparer — pour "types_owned_distinct" c'est le
+    nombre ACTUEL de types existants (peut grandir avec le contenu du jeu),
+    pas la valeur figée en base au moment du seed."""
+    if achievement.metric == "types_owned_distinct":
+        total = (await session.execute(select(func.count()).select_from(CharacterType))).scalar()
+        return int(total or achievement.threshold)
+    return achievement.threshold
+
+
+async def sync_unlocked(session: AsyncSession, user: User) -> list[UserAchievement]:
+    """Débloque (crée UserAchievement) tout ce qui vient d'atteindre son seuil.
+    Ne touche jamais un achievement déjà débloqué (pas de re-verrouillage)."""
+    defs = (await session.execute(
+        select(AchievementDef).where(AchievementDef.active == True)  # noqa: E712
+    )).scalars().all()
+    already = {
+        row.achievement_id for row in (await session.execute(
+            select(UserAchievement).where(UserAchievement.user_id == user.id)
+        )).scalars().all()
+    }
+
+    newly_unlocked = []
+    for a in defs:
+        if a.id in already:
+            continue
+        value = await evaluate_metric(session, user, a)
+        if value >= await effective_threshold(session, a):
+            row = UserAchievement(user_id=user.id, achievement_id=a.id)
+            session.add(row)
+            newly_unlocked.append(row)
+
+    if newly_unlocked:
+        await session.commit()
+    return newly_unlocked
+
+
+async def list_achievements(session: AsyncSession, user: User) -> list[dict]:
+    await sync_unlocked(session, user)
+
+    defs = {a.id: a for a in (await session.execute(
+        select(AchievementDef).where(AchievementDef.active == True)  # noqa: E712
+    )).scalars().all()}
+    unlocked = {
+        row.achievement_id: row for row in (await session.execute(
+            select(UserAchievement).where(UserAchievement.user_id == user.id)
+        )).scalars().all()
+    }
+
+    out = []
+    for a in defs.values():
+        ua = unlocked.get(a.id)
+        threshold = await effective_threshold(session, a)
+        progress = await evaluate_metric(session, user, a) if not ua else threshold
+        out.append({
+            "id": a.id, "name": a.name, "description": a.description, "category": a.category,
+            "threshold": threshold, "progress": min(progress, threshold),
+            "reward_resource_id": a.reward_resource_id, "reward_amount": a.reward_amount,
+            "reward_booster_id": a.reward_booster_id,
+            "unlocked_at": ua.unlocked_at if ua else None,
+            "claimed_at": ua.claimed_at if ua else None,
+        })
+    out.sort(key=lambda x: (x["category"], x["unlocked_at"] is None, x["name"]))
+    return out
+
+
+async def claim_achievement(session: AsyncSession, user: User, achievement_id: str) -> dict:
+    ua = await session.get(UserAchievement, (user.id, achievement_id))
+    if not ua:
+        raise HTTPException(404, "Achievement pas encore débloqué.")
+    if ua.claimed_at:
+        raise HTTPException(409, "Récompense déjà récupérée.")
+
+    a = await session.get(AchievementDef, achievement_id)
+    if not a:
+        raise HTTPException(404, "Achievement introuvable.")
+
+    if a.reward_resource_id and a.reward_amount:
+        await apply_delta(session, user, a.reward_resource_id, a.reward_amount)
+    if a.reward_booster_id:
+        booster = await session.get(Booster, a.reward_booster_id)
+        if booster:
+            _, total_new_cards = await _pack_service.generate_and_persist_packs(session, user.id, booster, 1)
+            user.total_cards += total_new_cards
+            user.packs_opened += 1
+            session.add(user)
+
+    ua.claimed_at = datetime.utcnow()
+    session.add(ua)
+    await session.commit()
+
+    achievements = await list_achievements(session, user)
+    return next((x for x in achievements if x["id"] == achievement_id), {})

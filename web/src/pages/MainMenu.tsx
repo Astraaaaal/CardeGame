@@ -42,6 +42,7 @@ export default function MainMenu() {
     { label: "Boutique", icon: "🛍️", path: "/shop", color: "bg-accent" },
     { label: "Ma Collection", icon: "📚", path: "/collection", color: "bg-purple-600" },
     { label: "Classement", icon: "🏆", path: "/leaderboard", color: "bg-purple-600" },
+    { label: "Progression", icon: "⭐", path: "/progression", color: "bg-purple-600" },
     { label: "Profil", icon: "👤", path: "/profile", color: "bg-purple-600" },
   ];
 

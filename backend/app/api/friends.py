@@ -21,6 +21,7 @@ from app.schemas.trade_session import TradeSessionOut
 from app.services.friendship import friendship_between as _friendship_between
 from app.services.trade_requests import create_trade_request as _create_trade_request
 from app.services.trade_session import create_session as _create_trade_session, build_out as _build_trade_session_out
+from app.services import quest_progress
 
 router = APIRouter()
 
@@ -178,6 +179,7 @@ async def send_friend_request(
 
     req = FriendRequest(requester_id=user.id, addressee_id=target.id)
     session.add(req)
+    await quest_progress.increment(session, user.id, "friend_requests_sent", 1)
     await session.commit()
     await session.refresh(req)
     return FriendRequestOut(

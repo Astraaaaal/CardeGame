@@ -103,7 +103,51 @@ export const adminApi = {
         http.post<DailyFeature>("/daily-feature", { offer_id: offerId }).then((r) => r.data),
     clearDailyFeature: (isoDate: string) =>
         http.delete(`/daily-feature/${isoDate}`).then(() => undefined),
+
+    // ── Progression (niveaux / achievements / quêtes) ──
+    listLevelTiers: () => http.get<AdminLevelTier[]>("/level-tiers").then((r) => r.data),
+    updateLevelTier: (level: number, b: Partial<Omit<AdminLevelTier, "level">>) =>
+        http.patch<AdminLevelTier>(`/level-tiers/${level}`, b).then((r) => r.data),
+    listAchievementDefs: () => http.get<AdminAchievementDef[]>("/achievements").then((r) => r.data),
+    updateAchievementDef: (id: string, b: Partial<Pick<AdminAchievementDef, "threshold" | "reward_resource_id" | "reward_amount" | "reward_booster_id" | "active">>) =>
+        http.patch<AdminAchievementDef>(`/achievements/${id}`, b).then((r) => r.data),
+    listQuestDefs: () => http.get<AdminQuestDef[]>("/quest-defs").then((r) => r.data),
+    updateQuestDef: (id: string, b: Partial<Pick<AdminQuestDef, "threshold" | "reward_resource_id" | "reward_amount" | "active">>) =>
+        http.patch<AdminQuestDef>(`/quest-defs/${id}`, b).then((r) => r.data),
 };
+
+export interface AdminLevelTier {
+    level: number;
+    power_required: number;
+    reward_resource_id: string | null;
+    reward_amount: number | null;
+}
+
+export interface AdminAchievementDef {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    metric: string;
+    threshold: number;
+    metric_param: string | null;
+    reward_resource_id: string | null;
+    reward_amount: number | null;
+    reward_booster_id: string | null;
+    active: boolean;
+}
+
+export interface AdminQuestDef {
+    id: string;
+    name: string;
+    description: string;
+    period: string;
+    metric: string;
+    threshold: number;
+    reward_resource_id: string | null;
+    reward_amount: number | null;
+    active: boolean;
+}
 
 // Route sœur de /api/admin/content, hors de son préfixe — client dédié.
 const httpMessages = axios.create({ baseURL: `${API_URL}/api/admin/messages` });

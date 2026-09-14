@@ -17,6 +17,7 @@ from app.schemas.message import MessageOut
 from app.services.card_view import build_card_response
 from app.services.wallet import get_balance, apply_delta, COINS_ID
 from app.services.gift_policy import can_send_gift
+from app.services import quest_progress
 
 MAX_RECIPIENTS_PER_SEND = 200
 
@@ -144,6 +145,7 @@ async def send_gift(
         reward_resource_id=reward_resource_id, reward_amount=reward_amount, reward_card_id=reward_card_id,
     )
     session.add(msg)
+    await quest_progress.increment(session, sender.id, "gifts_sent", 1)
     await session.commit()
     await session.refresh(msg)
     return msg

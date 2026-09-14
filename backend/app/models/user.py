@@ -54,6 +54,15 @@ class User(SQLModel, table=True):
     # Idem pour les cadeaux (carte/ressource envoyés par un autre joueur).
     gift_policy: str = Field(default="friends", max_length=20)
 
+    # Progression — niveaux (paliers de puissance) et achievements.
+    # cards_recycled : compteur cumulatif (les cartes recyclées sont
+    # supprimées, donc pas re-déductible d'une requête a posteriori).
+    cards_recycled: int = Field(default=0)
+    # Dernier niveau dont la récompense a été récupérée (le niveau "courant"
+    # se déduit à la volée de total_power ; celui-ci ne sert qu'à savoir
+    # jusqu'où la récompense a déjà été réclamée).
+    claimed_level: int = Field(default=0)
+
     # Relations
     # foreign_keys explicite : les colonnes showcase_card_*_id ajoutent un
     # second chemin de FK entre users et user_cards (dans l'autre sens), donc

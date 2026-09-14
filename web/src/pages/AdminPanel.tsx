@@ -17,6 +17,7 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import AdminMessagesComposer from "@/components/admin/AdminMessagesComposer";
+import AdminProgressionEditor from "@/components/admin/AdminProgressionEditor";
 
 const inputCls =
     "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
@@ -683,7 +684,7 @@ function ShopOfferForm({
 
 /* ─────────────────────────────── Panneau ────────────────────────────── */
 
-type Tab = "characters" | "boosters" | "sets" | "types" | "resources" | "offers" | "messages";
+type Tab = "characters" | "boosters" | "sets" | "types" | "resources" | "offers" | "messages" | "progression";
 
 function Panel() {
     const navigate = useNavigate();
@@ -816,7 +817,7 @@ function Panel() {
             </header>
 
             <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
-                {(["characters", "boosters", "sets", "types", "resources", "offers", "messages"] as Tab[]).map((t) => (
+                {(["characters", "boosters", "sets", "types", "resources", "offers", "messages", "progression"] as Tab[]).map((t) => (
                     <button
                         key={t}
                         className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${tab === t ? "bg-accent text-white" : "bg-white/10 text-white/50 hover:bg-white/20"
@@ -826,13 +827,13 @@ function Panel() {
                         {{
                             characters: "Personnages", boosters: "Boosters", sets: "Sets",
                             types: "Types", resources: "Ressources", offers: "Offres shop",
-                            messages: "Messagerie",
+                            messages: "Messagerie", progression: "Progression",
                         }[t]}
                     </button>
                 ))}
             </div>
 
-            {tab !== "messages" && (
+            {tab !== "messages" && tab !== "progression" && (
                 <div className="px-4 pb-2">
                     <input
                         type="search"
@@ -845,7 +846,7 @@ function Panel() {
             )}
 
             <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-2">
-                {tab !== "messages" && (
+                {tab !== "messages" && tab !== "progression" && (
                     <Button
                         variant="secondary"
                         size="sm"
@@ -866,6 +867,7 @@ function Panel() {
                 )}
 
                 {tab === "messages" && <AdminMessagesComposer resources={resources} />}
+                {tab === "progression" && <AdminProgressionEditor resources={resources} />}
 
                 {tab === "sets" &&
                     (setsQ.isLoading ? <p className="text-white/40 text-sm">…</p> :
