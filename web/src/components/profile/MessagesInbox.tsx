@@ -89,6 +89,20 @@ function MessageRow({ message }: { message: AppMessage }) {
                             </span>
                         </div>
                     )}
+                    {message.reward_booster_id && message.reward_booster_qty != null && (
+                        <div className="flex items-center gap-3 bg-black/20 rounded-lg p-2">
+                            {message.reward_booster_cover_url && (
+                                <img
+                                    src={`/boosters/${message.reward_booster_cover_url}`}
+                                    alt=""
+                                    className="w-10 h-10 rounded object-cover shrink-0"
+                                />
+                            )}
+                            <span className="text-white text-sm">
+                                {message.reward_booster_name} ×{message.reward_booster_qty}
+                            </span>
+                        </div>
+                    )}
 
                     {message.claim_error && (
                         <p className="text-red-400 text-xs">{message.claim_error}</p>

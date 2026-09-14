@@ -17,6 +17,10 @@ class MessageOut(BaseModel):
     reward_resource_name: str | None = None
     reward_amount: int | None = None
     reward_card: CardResponse | None = None
+    reward_booster_id: str | None = None
+    reward_booster_name: str | None = None
+    reward_booster_cover_url: str | None = None
+    reward_booster_qty: int | None = None
     has_reward: bool
     created_at: datetime
     read_at: datetime | None = None
@@ -28,10 +32,11 @@ class SendGiftBody(BaseModel):
     username: str = Field(min_length=1, max_length=20)
     subject: str = Field(default="Cadeau", max_length=100)
     body: str = Field(default="", max_length=2000)
-    item_type: str = Field(pattern="^(card|resource)$")
+    item_type: str = Field(pattern="^(card|resource|booster)$")
     user_card_id: str | None = None
     resource_id: str | None = None
     amount: int | None = None
+    booster_id: str | None = None
 
 
 class SendAdminMessageBody(BaseModel):

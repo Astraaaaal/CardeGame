@@ -23,6 +23,14 @@ async def grant(session: AsyncSession, user_id: int, booster_id: str, quantity: 
     session.add(row)
 
 
+async def consume(session: AsyncSession, user_id: int, booster_id: str, quantity: int) -> None:
+    row = await session.get(UserBoosterInventory, (user_id, booster_id))
+    if not row or row.quantity < quantity:
+        raise HTTPException(400, f"Tu ne possèdes que {row.quantity if row else 0} exemplaire(s) de ce booster.")
+    row.quantity -= quantity
+    session.add(row)
+
+
 async def list_owned(session: AsyncSession, user_id: int) -> list[dict]:
     rows = (await session.execute(
         select(UserBoosterInventory).where(

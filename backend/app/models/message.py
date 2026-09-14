@@ -24,6 +24,9 @@ class Message(SQLModel, table=True):
     - reward_card_id : une carte précise (cadeau joueur uniquement pour l'instant) ;
       reste chez l'expéditeur jusqu'à la récupération (revalidée à ce moment,
       même logique défensive que la session d'échange).
+    - reward_booster_id + reward_booster_qty : booster(s) non ouvert(s)
+      (cadeau joueur uniquement) ; déjà débités de l'inventaire de
+      l'expéditeur, crédités à celui du destinataire à la récupération.
     """
     __tablename__ = "messages"
 
@@ -40,6 +43,8 @@ class Message(SQLModel, table=True):
     reward_card_id: Optional[str] = Field(
         default=None, sa_column=Column(String, ForeignKey("user_cards.id", ondelete="SET NULL")),
     )
+    reward_booster_id: Optional[str] = Field(default=None, foreign_key="boosters.id", max_length=30)
+    reward_booster_qty: Optional[int] = Field(default=None)
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     read_at: Optional[datetime] = Field(default=None)

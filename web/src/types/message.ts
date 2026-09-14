@@ -12,6 +12,10 @@ export interface AppMessage {
     reward_resource_name: string | null;
     reward_amount: number | null;
     reward_card: Card | null;
+    reward_booster_id: string | null;
+    reward_booster_name: string | null;
+    reward_booster_cover_url: string | null;
+    reward_booster_qty: number | null;
     has_reward: boolean;
     created_at: string;
     read_at: string | null;

@@ -12,12 +12,14 @@ from sqlmodel import select
 from app.models.user import User
 from app.models.card import UserCard
 from app.models.economy import Resource
+from app.models.booster import Booster
 from app.models.message import Message
 from app.schemas.message import MessageOut
 from app.services.card_view import build_card_response
 from app.services.wallet import get_balance, apply_delta, COINS_ID
 from app.services.gift_policy import can_send_gift
 from app.services import quest_progress
+from app.services import booster_inventory
 
 MAX_RECIPIENTS_PER_SEND = 200
 
@@ -53,7 +55,11 @@ async def mark_read(session: AsyncSession, message: Message) -> Message:
 
 
 def _has_unclaimed_reward(message: Message) -> bool:
-    has_reward = bool(message.reward_card_id) or bool(message.reward_resource_id and message.reward_amount)
+    has_reward = (
+        bool(message.reward_card_id)
+        or bool(message.reward_resource_id and message.reward_amount)
+        or bool(message.reward_booster_id and message.reward_booster_qty)
+    )
     return has_reward and not message.claimed_at
 
 
@@ -67,7 +73,11 @@ async def delete_message(session: AsyncSession, message: Message) -> None:
 async def claim(session: AsyncSession, message: Message) -> Message:
     if message.claimed_at:
         raise HTTPException(409, "Récompense déjà récupérée.")
-    if not message.reward_card_id and not (message.reward_resource_id and message.reward_amount):
+    if (
+        not message.reward_card_id
+        and not (message.reward_resource_id and message.reward_amount)
+        and not (message.reward_booster_id and message.reward_booster_qty)
+    ):
         raise HTTPException(400, "Ce message ne contient pas de récompense.")
 
     recipient = await session.get(User, message.recipient_user_id)
@@ -88,6 +98,9 @@ async def claim(session: AsyncSession, message: Message) -> Message:
     if not error and message.reward_resource_id and message.reward_amount:
         await apply_delta(session, recipient, message.reward_resource_id, message.reward_amount)
 
+    if not error and message.reward_booster_id and message.reward_booster_qty:
+        await booster_inventory.grant(session, recipient.id, message.reward_booster_id, message.reward_booster_qty)
+
     message.claimed_at = datetime.utcnow()
     message.claim_error = error
     if not message.read_at:
@@ -101,8 +114,9 @@ async def claim(session: AsyncSession, message: Message) -> Message:
 async def send_gift(
     session: AsyncSession, sender: User, target_username: str, subject: str, body: str,
     item_type: str, user_card_id: str | None, resource_id: str | None, amount: int | None,
+    booster_id: str | None = None,
 ) -> Message:
-    if item_type not in ("card", "resource"):
+    if item_type not in ("card", "resource", "booster"):
         raise HTTPException(400, "Type de cadeau invalide.")
 
     target = (await session.execute(
@@ -118,6 +132,8 @@ async def send_gift(
     reward_card_id = None
     reward_resource_id = None
     reward_amount = None
+    reward_booster_id = None
+    reward_booster_qty = None
 
     if item_type == "card":
         if not user_card_id:
@@ -126,6 +142,15 @@ async def send_gift(
         if not card or card.user_id != sender.id:
             raise HTTPException(404, "Tu ne possèdes pas cette carte.")
         reward_card_id = user_card_id
+    elif item_type == "booster":
+        if not booster_id or not amount or amount <= 0:
+            raise HTTPException(400, "Booster ou quantité invalide.")
+        if not await session.get(Booster, booster_id):
+            raise HTTPException(404, "Booster introuvable.")
+        # Débité tout de suite (le cadeau est déjà "engagé"), crédité à la récupération.
+        await booster_inventory.consume(session, sender.id, booster_id, amount)
+        reward_booster_id = booster_id
+        reward_booster_qty = amount
     else:
         if not resource_id or not amount or amount <= 0:
             raise HTTPException(400, "Ressource ou quantité invalide.")
@@ -143,6 +168,7 @@ async def send_gift(
         sender_type="player", sender_user_id=sender.id, recipient_user_id=target.id,
         subject=subject.strip() or "Cadeau", body=body.strip(),
         reward_resource_id=reward_resource_id, reward_amount=reward_amount, reward_card_id=reward_card_id,
+        reward_booster_id=reward_booster_id, reward_booster_qty=reward_booster_qty,
     )
     session.add(msg)
     await quest_progress.increment(session, sender.id, "gifts_sent", 1)
@@ -199,13 +225,27 @@ async def build_out(session: AsyncSession, message: Message) -> MessageOut:
         if card:
             reward_card = await build_card_response(session, card)
 
-    has_reward = bool(message.reward_card_id) or bool(message.reward_resource_id and message.reward_amount)
+    reward_booster_name = None
+    reward_booster_cover_url = None
+    if message.reward_booster_id:
+        booster = await session.get(Booster, message.reward_booster_id)
+        if booster:
+            reward_booster_name = booster.name
+            reward_booster_cover_url = booster.cover_image_url or None
+
+    has_reward = (
+        bool(message.reward_card_id)
+        or bool(message.reward_resource_id and message.reward_amount)
+        or bool(message.reward_booster_id and message.reward_booster_qty)
+    )
 
     return MessageOut(
         id=message.id, sender_type=message.sender_type, sender_display_name=sender_name,
         subject=message.subject, body=message.body,
         reward_resource_id=message.reward_resource_id, reward_resource_name=reward_resource_name,
         reward_amount=message.reward_amount, reward_card=reward_card, has_reward=has_reward,
+        reward_booster_id=message.reward_booster_id, reward_booster_name=reward_booster_name,
+        reward_booster_cover_url=reward_booster_cover_url, reward_booster_qty=message.reward_booster_qty,
         created_at=message.created_at, read_at=message.read_at, claimed_at=message.claimed_at,
         claim_error=message.claim_error,
     )

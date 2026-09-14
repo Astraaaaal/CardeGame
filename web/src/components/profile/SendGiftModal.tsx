@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import AddResourceModal from "@/components/trade/AddResourceModal";
+import AddBoosterModal from "@/components/trade/AddBoosterModal";
 import type { Card } from "@/types/card";
 
 function errMsg(e: unknown): string {
@@ -44,7 +45,9 @@ export default function SendGiftModal({ presetUsername, returnTo, initialState, 
     const [body, setBody] = useState(initialState?.body ?? "");
     const [pickedCard, setPickedCard] = useState<{ id: string; preview: Card } | null>(initialState?.pickedCard ?? null);
     const [pickedResource, setPickedResource] = useState<{ id: string; amount: number } | null>(null);
+    const [pickedBooster, setPickedBooster] = useState<{ id: string; name: string; quantity: number } | null>(null);
     const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
+    const [boosterPickerOpen, setBoosterPickerOpen] = useState(false);
     const [err, setErr] = useState("");
 
     const send = useMutation({
@@ -52,6 +55,12 @@ export default function SendGiftModal({ presetUsername, returnTo, initialState, 
             if (pickedCard) {
                 return messagesApi.sendGift({
                     username: username.trim(), subject, body, item_type: "card", user_card_id: pickedCard.id,
+                });
+            }
+            if (pickedBooster) {
+                return messagesApi.sendGift({
+                    username: username.trim(), subject, body, item_type: "booster",
+                    booster_id: pickedBooster.id, amount: pickedBooster.quantity,
                 });
             }
             return messagesApi.sendGift({
@@ -63,7 +72,7 @@ export default function SendGiftModal({ presetUsername, returnTo, initialState, 
         onError: (e) => setErr(errMsg(e)),
     });
 
-    const canSend = !!username.trim() && (!!pickedCard || !!pickedResource);
+    const canSend = !!username.trim() && (!!pickedCard || !!pickedResource || !!pickedBooster);
 
     const chooseCard = () => {
         requestSelection({
@@ -128,13 +137,25 @@ export default function SendGiftModal({ presetUsername, returnTo, initialState, 
                                 Retirer
                             </button>
                         </div>
+                    ) : pickedBooster ? (
+                        <div className="flex items-center gap-3 bg-black/20 border border-white/5 rounded-lg p-3">
+                            <span className="flex-1 text-white text-sm font-bold">
+                                {pickedBooster.name} ×{pickedBooster.quantity}
+                            </span>
+                            <button className="text-white/40 hover:text-red-400 text-xs" onClick={() => setPickedBooster(null)}>
+                                Retirer
+                            </button>
+                        </div>
                     ) : (
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                             <Button variant="secondary" size="sm" className="flex-1" onClick={chooseCard}>
                                 🃏 Choisir une carte
                             </Button>
                             <Button variant="secondary" size="sm" className="flex-1" onClick={() => setResourcePickerOpen(true)}>
                                 + Choisir une ressource
+                            </Button>
+                            <Button variant="secondary" size="sm" className="flex-1" onClick={() => setBoosterPickerOpen(true)}>
+                                📦 Choisir un booster
                             </Button>
                         </div>
                     )}
@@ -152,6 +173,12 @@ export default function SendGiftModal({ presetUsername, returnTo, initialState, 
                     current={{}}
                     onPick={(resourceId, amount) => { setPickedResource({ id: resourceId, amount }); setResourcePickerOpen(false); }}
                     onClose={() => setResourcePickerOpen(false)}
+                />
+            )}
+            {boosterPickerOpen && (
+                <AddBoosterModal
+                    onPick={(boosterId, name, quantity) => { setPickedBooster({ id: boosterId, name, quantity }); setBoosterPickerOpen(false); }}
+                    onClose={() => setBoosterPickerOpen(false)}
                 />
             )}
         </>

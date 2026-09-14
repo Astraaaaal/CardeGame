@@ -77,6 +77,7 @@ async def send_gift(
     msg = await svc.send_gift(
         session, user, body.username, body.subject, body.body,
         body.item_type, body.user_card_id, body.resource_id, body.amount,
+        body.booster_id,
     )
     return await svc.build_out(session, msg)
 

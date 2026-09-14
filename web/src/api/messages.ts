@@ -5,10 +5,11 @@ export interface SendGiftBody {
     username: string;
     subject?: string;
     body?: string;
-    item_type: "card" | "resource";
+    item_type: "card" | "resource" | "booster";
     user_card_id?: string;
     resource_id?: string;
     amount?: number;
+    booster_id?: string;
 }
 
 export const messagesApi = {

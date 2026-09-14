@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { showcaseApi } from "@/api/showcase";
 import { useAuthStore } from "@/stores/authStore";
 import { useCollection } from "@/hooks/useCollection";
+import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import type { Card } from "@/types/card";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import CardImage from "@/components/card/CardImage";
-import CardPickerModal from "@/components/card/CardPickerModal";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -72,33 +72,80 @@ export default function ShowcaseEditor() {
         enabled: !!user,
     });
     const { data: collection } = useCollection({ sort_by: "rarity" });
+    const requestSelection = useCardSelectionStore((s) => s.requestSelection);
+    const consumeResult = useCardSelectionStore((s) => s.consumeResult);
 
     const [avatarId, setAvatarId] = useState<string | null>(null);
     const [avatarImg, setAvatarImg] = useState<string | null>(null);
     const [slots, setSlots] = useState<(string | null)[]>([null, null, null]);
-    const [initialized, setInitialized] = useState(false);
     const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
-    const [slotPicker, setSlotPicker] = useState<number | null>(null);
+    const [pickedPreviews, setPickedPreviews] = useState<Record<string, Card>>({});
     const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
-    useEffect(() => {
-        if (showcase && !initialized) {
-            setAvatarId(showcase.avatar?.character_id ?? null);
-            setAvatarImg(showcase.avatar?.image_url ?? null);
-            setSlots([0, 1, 2].map((i) => showcase.cards[i]?.id ?? null));
-            setInitialized(true);
-        }
-    }, [showcase, initialized]);
+    // Garde d'initialisation en ref (pas en state) : sous StrictMode, React
+    // rejoue les effets d'un même montage avec la closure d'origine, donc un
+    // state comme `initialized` peut encore y paraître `false` alors que le
+    // second effet ci-dessous vient tout juste de le passer à `true` — la ref
+    // est lue en direct (jamais figée dans une closure) et évite l'écrasement.
+    const didInit = useRef(false);
 
-    // Fusionne la collection actuelle + les cartes déjà en vitrine : une carte
-    // choisie il y a longtemps peut ne plus être "représentative" de son groupe
-    // dans /collection (ordre non garanti côté BDD) sans pour autant avoir été recyclée.
+    // Retour depuis la Collection (mode sélection) après avoir choisi une
+    // carte pour un slot de vitrine — restaure le reste de l'état non
+    // enregistré (avatar + autres slots) transporté dans le contexte, sinon
+    // il serait perdu puisque ce composant est démonté pendant la navigation.
+    // Déclaré AVANT l'effet piloté par `showcase` pour avoir la priorité.
+    useEffect(() => {
+        if (didInit.current) return;
+        const result = consumeResult();
+        if (!result || result.context?.purpose !== "showcase-slot") return;
+        didInit.current = true;
+        const slotIndex = Number(result.context.slotIndex ?? "0");
+        const picked = result.selectedCards[0];
+        setAvatarId(result.context.avatarId || null);
+        setAvatarImg(result.context.avatarImg || null);
+        setSlots([0, 1, 2].map((i) => (i === slotIndex ? picked?.id ?? null : result.context?.[`slot${i}`] || null)));
+        if (picked) setPickedPreviews((p) => ({ ...p, [picked.id]: picked.preview }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        if (didInit.current || !showcase) return;
+        didInit.current = true;
+        setAvatarId(showcase.avatar?.character_id ?? null);
+        setAvatarImg(showcase.avatar?.image_url ?? null);
+        setSlots([0, 1, 2].map((i) => showcase.cards[i]?.id ?? null));
+    }, [showcase]);
+
+    // Fusionne la collection actuelle + les cartes déjà en vitrine + une carte
+    // qu'on vient de choisir via la sélection : une carte choisie il y a
+    // longtemps peut ne plus être "représentative" de son groupe dans
+    // /collection (ordre non garanti côté BDD) sans pour autant avoir été recyclée.
     const cardById = useMemo(() => {
         const map = new Map<string, Card>();
         for (const g of collection?.groups ?? []) map.set(g.card.id, g.card);
         for (const c of showcase?.cards ?? []) map.set(c.id, c);
+        for (const c of Object.values(pickedPreviews)) map.set(c.id, c);
         return map;
-    }, [collection, showcase]);
+    }, [collection, showcase, pickedPreviews]);
+
+    const chooseSlot = (slotIndex: number) => {
+        requestSelection({
+            max: 1,
+            title: "Choisis une carte pour la vitrine",
+            excludeIds: slots.filter((id, j) => j !== slotIndex && id) as string[],
+            returnTo: "/profile",
+            context: {
+                purpose: "showcase-slot",
+                slotIndex: String(slotIndex),
+                avatarId: avatarId ?? "",
+                avatarImg: avatarImg ?? "",
+                slot0: slots[0] ?? "",
+                slot1: slots[1] ?? "",
+                slot2: slots[2] ?? "",
+            },
+        });
+        navigate("/collection");
+    };
 
     const save = useMutation({
         mutationFn: () => showcaseApi.update(avatarId, slots),
@@ -137,12 +184,12 @@ export default function ShowcaseEditor() {
                         return (
                             <div key={i} className="space-y-1">
                                 {card ? (
-                                    <button onClick={() => setSlotPicker(i)} className="w-full">
+                                    <button onClick={() => chooseSlot(i)} className="w-full">
                                         <CardImage card={card} size="sm" />
                                     </button>
                                 ) : (
                                     <button
-                                        onClick={() => setSlotPicker(i)}
+                                        onClick={() => chooseSlot(i)}
                                         className="w-full aspect-[5/7] rounded-lg border-2 border-dashed border-white/15
                                                    text-white/30 text-xs flex items-center justify-center hover:border-accent hover:text-accent transition-colors"
                                     >
@@ -186,15 +233,6 @@ export default function ShowcaseEditor() {
                         setAvatarId(characterId);
                         setAvatarImg(imageUrl);
                         setAvatarPickerOpen(false);
-                    }}
-                />
-            )}
-            {slotPicker !== null && (
-                <CardPickerModal
-                    onClose={() => setSlotPicker(null)}
-                    onPick={(cardId) => {
-                        setSlots((s) => s.map((v, j) => (j === slotPicker ? cardId : v)));
-                        setSlotPicker(null);
                     }}
                 />
             )}

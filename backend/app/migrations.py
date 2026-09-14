@@ -93,6 +93,10 @@ _STATEMENTS = [
     # même "empilage" (cf. app/services/achievements.py::list_achievements) —
     # bloquait la chaîne sur first_pack tant qu'il restait non récupéré.
     "UPDATE achievement_defs SET metric = 'packs_opened' WHERE id = 'first_pack' AND metric = 'total_cards'",
+    # Cadeau entre joueurs : un ou plusieurs boosters non ouverts (en plus
+    # des cartes/ressources déjà possibles), cf. app/models/message.py.
+    "ALTER TABLE messages ADD COLUMN IF NOT EXISTS reward_booster_id VARCHAR(30)",
+    "ALTER TABLE messages ADD COLUMN IF NOT EXISTS reward_booster_qty INTEGER",
 ]
 
 # Boosters offerts à certains paliers de niveau (en plus des pièces) —

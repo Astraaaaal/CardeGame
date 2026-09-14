@@ -34,11 +34,15 @@ export default function Profile() {
     const { user, setUser } = useAuthStore();
     const logout = useLogout();
     const qc = useQueryClient();
-    // Si on revient d'une sélection de carte pour un cadeau (cf. SendGiftModal),
-    // rouvre directement l'onglet Messages plutôt que de perdre le contexte.
-    const [tab, setTab] = useState<Tab>(() =>
-        useCardSelectionStore.getState().result?.context?.purpose === "gift" ? "messages" : "stats"
-    );
+    // Si on revient d'une sélection de carte pour un cadeau (cf. SendGiftModal)
+    // ou un slot de vitrine (cf. ShowcaseEditor), rouvre directement l'onglet
+    // concerné plutôt que de perdre le contexte.
+    const [tab, setTab] = useState<Tab>(() => {
+        const purpose = useCardSelectionStore.getState().result?.context?.purpose;
+        if (purpose === "gift") return "messages";
+        if (purpose === "showcase-slot") return "showcase";
+        return "stats";
+    });
 
     const { data: unreadCount } = useQuery({
         queryKey: ["messages-unread-count"],
