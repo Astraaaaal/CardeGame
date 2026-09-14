@@ -3,6 +3,7 @@ import type {
     Friend, FriendRequestItem, FriendRequestsResponse,
     TradeRequestItem, TradeRequestsResponse,
 } from "@/types/social";
+import type { TradeSession } from "@/types/trade";
 
 export const friendsApi = {
     list: () => api.get<Friend[]>("/friends/").then((r) => r.data),
@@ -30,4 +31,6 @@ export const friendsApi = {
         api.post<TradeRequestItem>("/friends/trade-requests", { username }).then((r) => r.data),
     cancelTradeRequest: (requestId: number) =>
         api.delete(`/friends/trade-requests/${requestId}`).then(() => undefined),
+    acceptTradeRequest: (requestId: number) =>
+        api.post<TradeSession>(`/friends/trade-requests/${requestId}/accept`).then((r) => r.data),
 };

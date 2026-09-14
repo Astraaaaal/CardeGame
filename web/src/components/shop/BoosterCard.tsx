@@ -1,6 +1,6 @@
 import type { Booster } from "@/types/booster";
 import Button from "@/components/ui/Button";
-import { resourceIcon } from "@/utils/resources";
+import ResourceIcon from "@/components/ui/ResourceIcon";
 
 interface BoosterCardProps {
     booster: Booster;
@@ -21,8 +21,8 @@ export default function BoosterCard({ booster, onSelect }: BoosterCardProps) {
             <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="text-white font-bold text-lg">{booster.name}</h3>
-                    <span className="text-gold font-bold">
-                        {booster.price} {resourceIcon(booster.resource_id)}
+                    <span className="text-gold font-bold inline-flex items-center gap-1.5">
+                        {booster.price} <ResourceIcon resourceId={booster.resource_id} />
                     </span>
                 </div>
 

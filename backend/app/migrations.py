@@ -68,6 +68,14 @@ _STATEMENTS = [
     # Puissance d'une carte (cf. app/services/power.py) — tirée au hasard à
     # l'obtention, backfillée ci-dessous pour les cartes déjà en base.
     "ALTER TABLE user_cards ADD COLUMN IF NOT EXISTS power INTEGER",
+    # Session d'échange en direct : la FK carte -> user_cards ne doit PAS
+    # bloquer la suppression d'une carte référencée par un item (recyclage
+    # d'une carte qui a un jour fait partie d'un échange, même terminé) —
+    # sans ceci, un simple recyclage peut planter avec une violation de FK.
+    # Rejoué à chaque démarrage (drop puis recreate) : idempotent par construction.
+    "ALTER TABLE trade_session_items DROP CONSTRAINT IF EXISTS trade_session_items_user_card_id_fkey",
+    "ALTER TABLE trade_session_items ADD CONSTRAINT trade_session_items_user_card_id_fkey "
+    "FOREIGN KEY (user_card_id) REFERENCES user_cards(id) ON DELETE SET NULL",
 ]
 
 # Types de personnage initiaux (portés depuis l'ancien TYPE_COLORS du renderer).

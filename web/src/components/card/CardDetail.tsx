@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Card } from "@/types/card";
 import { collectionApi } from "@/api/collection";
 import Badge from "@/components/ui/Badge";
@@ -33,6 +33,19 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
     const [recycleCount, setRecycleCount] = useState(1);
     const [result, setResult] = useState<string | null>(null);
     const [confirmingRecycle, setConfirmingRecycle] = useState(false);
+    const [showPowers, setShowPowers] = useState(false);
+
+    const powersQ = useQuery({
+        queryKey: ["card-powers", card.character_id, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id],
+        queryFn: () => collectionApi.getCardPowers({
+            character_id: card.character_id,
+            rarity_id: card.rarity_id,
+            quality_id: card.quality_id,
+            specialty_id: card.specialty_id,
+            jewelry_id: card.jewelry_id,
+        }),
+        enabled: showPowers && owned > 1,
+    });
 
     const recycle = useMutation({
         mutationFn: () => collectionApi.recycle({
@@ -125,10 +138,41 @@ export default function CardDetail({ card, quantity, onClose }: CardDetailProps)
                                     : "—"}
                             </span>
                         </p>
+                        {card.power != null && (
+                            <p>
+                                Puissance:{" "}
+                                <span className="text-gold font-bold">⚡{card.power}</span>
+                                {card.combined_rarity != null && (
+                                    <span className="text-white/40">
+                                        {" "}(rareté globale : 1 sur {card.combined_rarity.toLocaleString("fr-FR")})
+                                    </span>
+                                )}
+                            </p>
+                        )}
                         {quantity !== undefined && quantity > 1 && (
                             <p>
                                 Exemplaires: <span className="text-gold font-bold">×{quantity}</span>
+                                {" — "}
+                                <button
+                                    className="text-accent hover:underline"
+                                    onClick={() => setShowPowers((v) => !v)}
+                                >
+                                    {showPowers ? "masquer les puissances" : "voir les puissances"}
+                                </button>
                             </p>
+                        )}
+                        {showPowers && quantity !== undefined && quantity > 1 && (
+                            <div className="bg-black/30 rounded-lg px-3 py-2 flex flex-wrap gap-x-3 gap-y-1">
+                                {powersQ.isLoading ? (
+                                    <span className="text-white/40 text-xs">Chargement...</span>
+                                ) : (
+                                    (powersQ.data?.powers ?? []).map((p, i) => (
+                                        <span key={i} className="text-xs text-white/80">
+                                            {p != null ? `⚡${p}` : "—"}
+                                        </span>
+                                    ))
+                                )}
+                            </div>
                         )}
                     </div>
 

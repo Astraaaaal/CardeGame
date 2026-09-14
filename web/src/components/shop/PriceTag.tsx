@@ -1,4 +1,4 @@
-import { resourceIcon } from "@/utils/resources";
+import ResourceIcon from "@/components/ui/ResourceIcon";
 
 interface PriceTagProps {
     basePrice: number;
@@ -18,8 +18,8 @@ export default function PriceTag({ basePrice, quantity, resourceId = "coins" }: 
 
     return (
         <div className="flex items-center gap-2">
-            <span className="text-gold font-bold text-xl">
-                {total.toLocaleString("fr-FR")} {resourceIcon(resourceId)}
+            <span className="text-gold font-bold text-xl inline-flex items-center gap-1.5">
+                {total.toLocaleString("fr-FR")} <ResourceIcon resourceId={resourceId} />
             </span>
             {discount > 0 && (
                 <span className="text-green-400 text-xs font-semibold bg-green-400/10 rounded-full px-2 py-0.5">

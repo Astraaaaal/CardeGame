@@ -8,7 +8,3 @@ export function getResourceBalance(user: Player | null | undefined, resourceId: 
     return user.resources.find((r) => r.id === resourceId)?.amount ?? 0;
 }
 
-/** Icône générique pour une ressource, utilisée quand ce n'est pas des pièces. */
-export function resourceIcon(resourceId: string): string {
-    return resourceId === "coins" ? "🪙" : "✨";
-}

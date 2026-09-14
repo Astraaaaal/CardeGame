@@ -10,6 +10,7 @@ from app.models.character import Character
 from app.models.booster import Booster
 from app.models.reference import Set, Rarity, Quality, Specialty, Jewelry
 from app.schemas.card import CardResponse
+from app.services.power import combined_rarity
 
 
 async def build_card_response(session: AsyncSession, card: UserCard) -> CardResponse:
@@ -43,6 +44,10 @@ async def build_card_response(session: AsyncSession, card: UserCard) -> CardResp
         jewelry_color=jewelry.color if jewelry else [100, 100, 120],
         drop_probability=card.drop_probability,
         power=card.power,
+        combined_rarity=combined_rarity(
+            card.power, card.drop_probability, card.rarity_id,
+            card.quality_id, card.specialty_id, card.jewelry_id,
+        ),
         rendered_url=card.rendered_url,
         obtained_at=card.obtained_at,
         booster_id=card.booster_id,

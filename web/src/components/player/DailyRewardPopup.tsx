@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { playerApi } from "@/api/player";
 import { useAuthStore } from "@/stores/authStore";
 import Button from "@/components/ui/Button";
+import CoinIcon from "@/components/ui/CoinIcon";
 
 export default function DailyRewardPopup() {
     const [show, setShow] = useState(false);
@@ -66,12 +67,12 @@ export default function DailyRewardPopup() {
                         </p>
 
                         <motion.p
-                            className="text-4xl font-bold text-gold my-4"
+                            className="text-4xl font-bold text-gold my-4 flex items-center justify-center gap-2"
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             transition={{ type: "spring", delay: 0.4 }}
                         >
-                            +{reward.reward.toLocaleString("fr-FR")} 🪙
+                            +{reward.reward.toLocaleString("fr-FR")} <CoinIcon className="w-8 h-8" />
                         </motion.p>
 
                         <Button variant="gold" onClick={() => setShow(false)}>

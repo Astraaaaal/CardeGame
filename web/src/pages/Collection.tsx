@@ -27,6 +27,7 @@ const SORT_OPTIONS = [
     { value: "probability", label: "Rareté réelle" },
     { value: "obtained_at", label: "Date d'obtention" },
     { value: "power", label: "Puissance" },
+    { value: "luck", label: "Chance" },
 ];
 
 export default function Collection() {

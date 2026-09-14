@@ -17,8 +17,10 @@ from app.schemas.social import (
     FriendOut, SendFriendRequestBody, FriendRequestOut, FriendRequestsResponse,
     TradeRequestOut, TradeRequestsResponse, SendTradeRequestBody,
 )
+from app.schemas.trade_session import TradeSessionOut
 from app.services.friendship import friendship_between as _friendship_between
 from app.services.trade_requests import create_trade_request as _create_trade_request
+from app.services.trade_session import create_session as _create_trade_session, build_out as _build_trade_session_out
 
 router = APIRouter()
 
@@ -380,6 +382,23 @@ async def create_trade_request(
         id=req.id, user_id=target.id, username=target.username,
         display_name=target.display_name, created_at=req.created_at,
     )
+
+
+@router.post("/trade-requests/{request_id}/accept", response_model=TradeSessionOut)
+async def accept_trade_request(
+    request_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Accepte une demande d'échange reçue : ouvre la session d'échange en direct."""
+    req = await session.get(TradeRequest, request_id)
+    if not req or req.status != "pending" or req.addressee_id != user.id:
+        raise HTTPException(404, "Demande introuvable.")
+
+    trade = await _create_trade_session(session, req.requester_id, req.addressee_id)
+    await session.delete(req)
+    await session.commit()
+    return await _build_trade_session_out(session, trade, user.id)
 
 
 @router.delete("/trade-requests/{request_id}", status_code=204)

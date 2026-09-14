@@ -11,7 +11,7 @@ TierOp = Literal["eq", "gte", "lte"]
 
 class CollectionFilters(BaseModel):
     sort_by: Literal[
-        "rarity", "name", "quality", "specialty", "jewelry", "probability", "obtained_at", "power"
+        "rarity", "name", "quality", "specialty", "jewelry", "probability", "obtained_at", "power", "luck"
     ] = "rarity"
     set_id: Optional[str] = None
     rarity_id: Optional[str] = None

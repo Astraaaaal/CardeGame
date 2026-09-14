@@ -53,6 +53,27 @@ export interface RecycleResponse {
     remaining_quantity: number;
 }
 
+export interface CardPowerBreakdown {
+    powers: (number | null)[];
+}
+
+export interface CardComboParams {
+    character_id: string;
+    rarity_id: string;
+    quality_id: string;
+    specialty_id: string;
+    jewelry_id: string;
+}
+
+export interface CardCopy {
+    id: string;
+    power: number | null;
+}
+
+export interface CardCopiesResponse {
+    copies: CardCopy[];
+}
+
 export const collectionApi = {
     getCollection: async (params?: CollectionParams): Promise<CollectionResponse> => {
         const res = await api.get("/collection/", { params });
@@ -71,6 +92,16 @@ export const collectionApi = {
 
     recycle: async (body: RecycleRequest): Promise<RecycleResponse> => {
         const res = await api.post("/collection/recycle", body);
+        return res.data;
+    },
+
+    getCardPowers: async (params: CardComboParams): Promise<CardPowerBreakdown> => {
+        const res = await api.get("/collection/powers", { params });
+        return res.data;
+    },
+
+    getCardCopies: async (params: CardComboParams): Promise<CardCopiesResponse> => {
+        const res = await api.get("/collection/copies", { params });
         return res.data;
     },
 };

@@ -16,10 +16,11 @@ from app.models.character import Character
 from app.models.booster import Booster
 from app.models.reference import Set, Rarity, Quality, Specialty, Jewelry
 from app.models.economy import Resource, UserResource
-from app.schemas.card import CardResponse, CardGroupResponse
+from app.schemas.card import CardResponse, CardGroupResponse, CardPowerBreakdown, CardCopyOut, CardCopiesResponse
 from app.schemas.collection import CollectionResponse, ProbabilityItem, ProbabilityTableResponse
 from app.schemas.economy import RecycleRequest, RecycleResponse
 from app.services.card_view import build_card_response
+from app.services.power import combined_rarity
 from app.services.tier_order import (
     RARITY_ORDER, QUALITY_ORDER, SPECIALTY_ORDER, JEWELRY_ORDER, rank,
 )
@@ -76,7 +77,7 @@ async def get_probabilities(session: AsyncSession = Depends(get_session)):
 
 @router.get("/", response_model=CollectionResponse)
 async def get_collection(
-    sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability|obtained_at|power)$"),
+    sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability|obtained_at|power|luck)$"),
     set_id: Optional[str] = Query(None),
     rarity_id: Optional[str] = Query(None),
     rarity_op: str = Query("eq", pattern=_OP_PATTERN),
@@ -158,6 +159,10 @@ async def get_collection(
                     jewelry_color=jewelry.color if jewelry else [100, 100, 120],
                     drop_probability=card.drop_probability,
                     power=card.power,
+                    combined_rarity=combined_rarity(
+                        card.power, card.drop_probability, card.rarity_id,
+                        card.quality_id, card.specialty_id, card.jewelry_id,
+                    ),
                     rendered_url=card.rendered_url,
                     obtained_at=card.obtained_at,
                     booster_id=card.booster_id,
@@ -180,9 +185,14 @@ async def get_collection(
             if card.obtained_at > groups[key]["card"].obtained_at:
                 groups[key]["card"].obtained_at = card.obtained_at
             # Idem pour la puissance : on retient le meilleur tirage parmi les
-            # exemplaires possédés de cette combinaison.
+            # exemplaires possédés de cette combinaison (le détail par
+            # exemplaire reste consultable via GET /collection/powers).
             if (card.power or 0) > (groups[key]["card"].power or 0):
                 groups[key]["card"].power = card.power
+                groups[key]["card"].combined_rarity = combined_rarity(
+                    card.power, card.drop_probability, card.rarity_id,
+                    card.quality_id, card.specialty_id, card.jewelry_id,
+                )
 
     # Trier — "profond" : le nom sert toujours de départage à rang égal.
     # Tri Python stable => on trie d'abord par nom (ordre alphabétique fixe),
@@ -220,12 +230,82 @@ async def get_collection(
         # la puissance est un tirage aléatoire propre à chaque exemplaire —
         # deux cartes avec la même combinaison peuvent avoir des puissances différentes.
         group_list.sort(key=lambda g: g["card"].power or 0, reverse=True)
+    elif sort_by == "luck":
+        # "Chance" : combine la rareté de la combinaison ET la rareté du
+        # tirage de puissance en une seule rareté globale ("1 sur X" — cf.
+        # combined_rarity). Un tirage 1/1000 à 980 (X ≈ 47 600) ressort
+        # devant un tirage 1/1100 à 150 (X ≈ 1 270), et une carte 1/5000 à
+        # 80% de son maximum reste devant une commune 1/10 tirée à 100% de
+        # son maximum — contrairement à un simple % normalisé qui effacerait
+        # le poids de la rareté de base.
+        group_list.sort(key=lambda g: g["card"].combined_rarity or 0, reverse=True)
 
     return CollectionResponse(
         total_cards=len(all_cards),
         unique_cards=len(group_list),
         groups=[CardGroupResponse(**g) for g in group_list],
     )
+
+
+@router.get("/powers", response_model=CardPowerBreakdown)
+async def get_card_powers(
+    character_id: str = Query(...),
+    rarity_id: str = Query(...),
+    quality_id: str = Query(...),
+    specialty_id: str = Query(...),
+    jewelry_id: str = Query(...),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Détail de la puissance de chaque exemplaire possédé d'une combinaison —
+    la carte groupée n'affiche que la meilleure des deux, ceci permet de
+    voir la répartition réelle (au clic, côté collection).
+    """
+    rows = (await session.execute(
+        select(UserCard.power).where(
+            UserCard.user_id == user.id,
+            UserCard.character_id == character_id,
+            UserCard.rarity_id == rarity_id,
+            UserCard.quality_id == quality_id,
+            UserCard.specialty_id == specialty_id,
+            UserCard.jewelry_id == jewelry_id,
+        )
+    )).scalars().all()
+    powers = sorted(rows, key=lambda p: (p is None, -(p or 0)))
+    return CardPowerBreakdown(powers=powers)
+
+
+@router.get("/copies", response_model=CardCopiesResponse)
+async def get_card_copies(
+    character_id: str = Query(...),
+    rarity_id: str = Query(...),
+    quality_id: str = Query(...),
+    specialty_id: str = Query(...),
+    jewelry_id: str = Query(...),
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Identifiant + puissance de chaque exemplaire possédé d'une combinaison —
+    sert à choisir un exemplaire précis à apporter dans une session d'échange
+    (contrairement à /powers qui ne sert qu'à l'affichage, sans id).
+    """
+    rows = (await session.execute(
+        select(UserCard.id, UserCard.power).where(
+            UserCard.user_id == user.id,
+            UserCard.character_id == character_id,
+            UserCard.rarity_id == rarity_id,
+            UserCard.quality_id == quality_id,
+            UserCard.specialty_id == specialty_id,
+            UserCard.jewelry_id == jewelry_id,
+        )
+    )).all()
+    copies = sorted(
+        (CardCopyOut(id=r.id, power=r.power) for r in rows),
+        key=lambda c: (c.power is None, -(c.power or 0)),
+    )
+    return CardCopiesResponse(copies=copies)
 
 
 @router.get("/{card_id}", response_model=CardResponse)

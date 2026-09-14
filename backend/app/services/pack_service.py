@@ -17,7 +17,7 @@ from app.models.economy import Resource
 from app.services.card_generator import CardGeneratorService
 from app.services.card_renderer import CardRendererService
 from app.services.wallet import get_balance, apply_delta
-from app.services.power import roll_power
+from app.services.power import roll_power, combined_rarity
 from app.schemas.card import CardResponse
 
 
@@ -123,6 +123,10 @@ class PackService:
                     jewelry_color=jewelry.color if jewelry else [100, 100, 120],
                     drop_probability=card_data["drop_probability"],
                     power=power,
+                    combined_rarity=combined_rarity(
+                        power, card_data["drop_probability"], card_data["rarity_id"],
+                        card_data["quality_id"], card_data["specialty_id"], card_data["jewelry_id"],
+                    ),
                     rendered_url=rendered_url,
                     obtained_at=user_card.obtained_at,
                     booster_id=booster.id,

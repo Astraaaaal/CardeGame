@@ -20,6 +20,7 @@ export interface Card {
     jewelry_color: number[];
     drop_probability: number;
     power: number | null;
+    combined_rarity: number | null;
     rendered_url: string | null;
     obtained_at: string | null;
     booster_id: string | null;

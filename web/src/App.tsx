@@ -11,6 +11,7 @@ import Collection from "@/pages/Collection";
 import Profile from "@/pages/Profile";
 import PlayerShowcase from "@/pages/PlayerShowcase";
 import Leaderboard from "@/pages/Leaderboard";
+import TradeSessionPage from "@/pages/TradeSessionPage";
 import AdminPanel from "@/pages/AdminPanel";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -93,6 +94,14 @@ export default function App() {
                     element={
                         <ProtectedRoute>
                             <Leaderboard />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/trade/:sessionId"
+                    element={
+                        <ProtectedRoute>
+                            <TradeSessionPage />
                         </ProtectedRoute>
                     }
                 />

@@ -12,6 +12,7 @@ import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
 import FriendsPanel from "@/components/social/FriendsPanel";
 import TradeRequestPopup from "@/components/social/TradeRequestPopup";
+import ActiveTradeBanner from "@/components/trade/ActiveTradeBanner";
 import { useLogout } from "@/hooks/useAuth";
 
 export default function MainMenu() {
@@ -84,6 +85,7 @@ export default function MainMenu() {
       </header>
 
       <FriendsPanel open={friendsOpen} onClose={() => setFriendsOpen(false)} />
+      <ActiveTradeBanner />
 
       {/* Content */}
       <main className="flex-1 flex flex-col items-center justify-center gap-6 px-4">

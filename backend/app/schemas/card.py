@@ -29,6 +29,7 @@ class CardResponse(BaseModel):
     jewelry_color: list[int] = [100, 100, 120]
     drop_probability: float = 0.0
     power: Optional[int] = None
+    combined_rarity: Optional[int] = None
     rendered_url: Optional[str] = None
     obtained_at: Optional[datetime] = None
     booster_id: Optional[str] = None
@@ -40,3 +41,20 @@ class CardGroupResponse(BaseModel):
     """Carte groupée avec compteur (pour la collection)."""
     card: CardResponse
     quantity: int = 1
+
+
+class CardPowerBreakdown(BaseModel):
+    """Puissance de chaque exemplaire possédé d'une combinaison — la carte
+    groupée n'affiche que la meilleure, ceci donne le détail au clic."""
+    powers: list[Optional[int]] = []
+
+
+class CardCopyOut(BaseModel):
+    """Un exemplaire précis (id + puissance) d'une combinaison possédée —
+    sert à choisir LEQUEL apporter dans une session d'échange."""
+    id: str
+    power: Optional[int] = None
+
+
+class CardCopiesResponse(BaseModel):
+    copies: list[CardCopyOut] = []

@@ -82,6 +82,15 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
         mutationFn: (id: number) => friendsApi.cancelTradeRequest(id),
         onSuccess: () => qc.invalidateQueries({ queryKey: ["trade-requests"] }),
     });
+    const acceptTrade = useMutation({
+        mutationFn: (id: number) => friendsApi.acceptTradeRequest(id),
+        onSuccess: (session) => {
+            qc.invalidateQueries({ queryKey: ["trade-requests"] });
+            onClose();
+            navigate(`/trade/${session.id}`);
+        },
+        onError: (e) => setTradeErr(errMsg(e)),
+    });
     const toggleCloseFriend = useMutation({
         mutationFn: ({ userId, isClose }: { userId: number; isClose: boolean }) =>
             isClose ? friendsApi.removeCloseFriend(userId) : friendsApi.addCloseFriend(userId),
@@ -281,9 +290,9 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                 {tab === "trades" && (
                                     <>
                                         <p className="text-white/30 text-xs bg-white/5 rounded-lg px-3 py-2">
-                                            Le système d'échange complet arrive bientôt — pour l'instant, propose
-                                            juste l'intention d'échanger. Pas besoin d'être ami : ça dépend des
-                                            paramètres de l'autre joueur (utile pour un échange ponctuel).
+                                            Propose un échange, puis composez votre offre ensemble une fois
+                                            acceptée. Pas besoin d'être ami : ça dépend des paramètres de
+                                            l'autre joueur (utile pour un échange ponctuel).
                                         </p>
                                         <div className="flex gap-2">
                                             <input
@@ -312,14 +321,20 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                             ) : (
                                                 <div className="space-y-2">
                                                     {incomingTrades.map((t) => (
-                                                        <div key={t.id} className="flex items-center justify-between bg-black/20 border border-white/5 rounded-lg px-3 py-2.5">
-                                                            <span className="text-white text-sm">{t.display_name} propose un échange</span>
-                                                            <button
-                                                                className="text-white/40 hover:text-red-400 text-xs shrink-0"
-                                                                onClick={() => cancelTrade.mutate(t.id)}
-                                                            >
-                                                                Fermer
-                                                            </button>
+                                                        <div key={t.id} className="bg-black/20 border border-white/5 rounded-lg px-3 py-2.5">
+                                                            <p className="text-white text-sm mb-2">{t.display_name} propose un échange</p>
+                                                            <div className="flex gap-2">
+                                                                <Button variant="primary" size="sm" className="flex-1"
+                                                                    loading={acceptTrade.isPending && acceptTrade.variables === t.id}
+                                                                    onClick={() => acceptTrade.mutate(t.id)}>
+                                                                    Accepter
+                                                                </Button>
+                                                                <Button variant="secondary" size="sm" className="flex-1"
+                                                                    loading={cancelTrade.isPending && cancelTrade.variables === t.id}
+                                                                    onClick={() => cancelTrade.mutate(t.id)}>
+                                                                    Refuser
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
