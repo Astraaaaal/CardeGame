@@ -5,6 +5,7 @@ export interface ResourceBalance {
 }
 
 export type TradeRequestPolicy = "everyone" | "friends" | "close_friends" | "none";
+export type GiftPolicy = "everyone" | "friends" | "close_friends" | "none";
 
 export interface Player {
     id: number;
@@ -26,6 +27,7 @@ export interface PlayerSettings {
     allow_friend_requests: boolean;
     trade_request_policy: TradeRequestPolicy;
     trade_request_popup_enabled: boolean;
+    gift_policy: GiftPolicy;
 }
 
 export interface DailyReward {

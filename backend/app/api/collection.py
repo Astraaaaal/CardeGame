@@ -77,7 +77,7 @@ async def get_probabilities(session: AsyncSession = Depends(get_session)):
 
 @router.get("/", response_model=CollectionResponse)
 async def get_collection(
-    sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability|obtained_at|power|luck)$"),
+    sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability|obtained_at|power|luck|type)$"),
     set_id: Optional[str] = Query(None),
     rarity_id: Optional[str] = Query(None),
     rarity_op: str = Query("eq", pattern=_OP_PATTERN),
@@ -230,6 +230,8 @@ async def get_collection(
         # la puissance est un tirage aléatoire propre à chaque exemplaire —
         # deux cartes avec la même combinaison peuvent avoir des puissances différentes.
         group_list.sort(key=lambda g: g["card"].power or 0, reverse=True)
+    elif sort_by == "type":
+        group_list.sort(key=lambda g: g["card"].character_type.lower())
     elif sort_by == "luck":
         # "Chance" : combine la rareté de la combinaison ET la rareté du
         # tirage de puissance en une seule rareté globale ("1 sur X" — cf.

@@ -76,6 +76,12 @@ _STATEMENTS = [
     "ALTER TABLE trade_session_items DROP CONSTRAINT IF EXISTS trade_session_items_user_card_id_fkey",
     "ALTER TABLE trade_session_items ADD CONSTRAINT trade_session_items_user_card_id_fkey "
     "FOREIGN KEY (user_card_id) REFERENCES user_cards(id) ON DELETE SET NULL",
+    # Messagerie : politique de réception des cadeaux (même forme que
+    # trade_request_policy), + colonnes de la table messages.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS gift_policy VARCHAR(20) NOT NULL DEFAULT 'friends'",
+    "ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_reward_card_id_fkey",
+    "ALTER TABLE messages ADD CONSTRAINT messages_reward_card_id_fkey "
+    "FOREIGN KEY (reward_card_id) REFERENCES user_cards(id) ON DELETE SET NULL",
 ]
 
 # Types de personnage initiaux (portés depuis l'ancien TYPE_COLORS du renderer).

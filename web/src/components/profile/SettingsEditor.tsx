@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
-import type { PlayerSettings, TradeRequestPolicy } from "@/types/player";
+import type { PlayerSettings, TradeRequestPolicy, GiftPolicy } from "@/types/player";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -77,6 +77,22 @@ export default function SettingsEditor() {
                     className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
                     value={data.trade_request_policy}
                     onChange={(e) => save.mutate({ trade_request_policy: e.target.value as TradeRequestPolicy })}
+                >
+                    {POLICY_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                </select>
+            </div>
+
+            <div className="bg-game-surface rounded-2xl border border-white/10 p-4">
+                <h3 className="text-white font-bold text-sm mb-1">Cadeaux</h3>
+                <p className="text-white/40 text-xs mb-3">
+                    Qui peut t'envoyer un cadeau (carte ou ressource) depuis la messagerie.
+                </p>
+                <select
+                    className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                    value={data.gift_policy}
+                    onChange={(e) => save.mutate({ gift_policy: e.target.value as GiftPolicy })}
                 >
                     {POLICY_OPTIONS.map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>

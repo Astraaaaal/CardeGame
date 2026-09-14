@@ -51,6 +51,8 @@ class User(SQLModel, table=True):
     # "everyone" | "friends" | "close_friends" | "none"
     trade_request_policy: str = Field(default="friends", max_length=20)
     trade_request_popup_enabled: bool = Field(default=True)
+    # Idem pour les cadeaux (carte/ressource envoyés par un autre joueur).
+    gift_policy: str = Field(default="friends", max_length=20)
 
     # Relations
     # foreign_keys explicite : les colonnes showcase_card_*_id ajoutent un

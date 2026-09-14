@@ -183,6 +183,7 @@ async def get_settings(user: User = Depends(get_current_user)):
         allow_friend_requests=user.allow_friend_requests,
         trade_request_policy=user.trade_request_policy,
         trade_request_popup_enabled=user.trade_request_popup_enabled,
+        gift_policy=user.gift_policy,
     )
 
 
@@ -202,6 +203,7 @@ async def update_settings(
         allow_friend_requests=user.allow_friend_requests,
         trade_request_policy=user.trade_request_policy,
         trade_request_popup_enabled=user.trade_request_popup_enabled,
+        gift_policy=user.gift_policy,
     )
 
 

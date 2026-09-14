@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
+import { messagesApi } from "@/api/messages";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/useAuth";
 import Button from "@/components/ui/Button";
@@ -10,6 +11,7 @@ import ResourceDisplay from "@/components/player/ResourceDisplay";
 import ShowcaseEditor from "@/components/profile/ShowcaseEditor";
 import TradeListingsEditor from "@/components/profile/TradeListingsEditor";
 import SettingsEditor from "@/components/profile/SettingsEditor";
+import MessagesInbox from "@/components/profile/MessagesInbox";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -24,7 +26,7 @@ function fmtDate(iso: string | null | undefined): string {
     return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
 
-type Tab = "stats" | "profile" | "showcase" | "settings";
+type Tab = "stats" | "profile" | "showcase" | "messages" | "settings";
 
 export default function Profile() {
     const navigate = useNavigate();
@@ -32,6 +34,13 @@ export default function Profile() {
     const logout = useLogout();
     const qc = useQueryClient();
     const [tab, setTab] = useState<Tab>("stats");
+
+    const { data: unreadCount } = useQuery({
+        queryKey: ["messages-unread-count"],
+        queryFn: messagesApi.unreadCount,
+        staleTime: 20_000,
+        refetchInterval: 30_000,
+    });
 
     const [displayName, setDisplayName] = useState(user?.display_name ?? "");
     const [nameMsg, setNameMsg] = useState<{ text: string; ok: boolean } | null>(null);
@@ -86,21 +95,27 @@ export default function Profile() {
                 <span className="w-14" />
             </header>
 
-            <div className="flex border-b border-white/5">
+            <div className="flex border-b border-white/5 overflow-x-auto no-scrollbar">
                 {([
                     { key: "stats", label: "Statistiques" },
                     { key: "profile", label: "Profil" },
                     { key: "showcase", label: "Vitrine" },
+                    { key: "messages", label: "Messages" },
                     { key: "settings", label: "Paramètres" },
                 ] as const).map((t) => (
                     <button
                         key={t.key}
-                        className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
+                        className={`relative flex-1 py-2.5 text-sm font-semibold transition-colors whitespace-nowrap px-2 ${
                             tab === t.key ? "text-accent border-b-2 border-accent" : "text-white/40 hover:text-white/70"
                         }`}
                         onClick={() => setTab(t.key)}
                     >
                         {t.label}
+                        {t.key === "messages" && !!unreadCount && (
+                            <span className="ml-1.5 inline-flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 align-middle">
+                                {unreadCount}
+                            </span>
+                        )}
                     </button>
                 ))}
             </div>
@@ -212,6 +227,8 @@ export default function Profile() {
                         <TradeListingsEditor />
                     </div>
                 )}
+
+                {tab === "messages" && <MessagesInbox />}
 
                 {tab === "settings" && <SettingsEditor />}
             </main>

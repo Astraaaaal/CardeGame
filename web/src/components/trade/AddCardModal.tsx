@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { collectionApi } from "@/api/collection";
-import type { CardGroup } from "@/types/card";
+import type { Card, CardGroup } from "@/types/card";
 import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CardImage from "@/components/card/CardImage";
 
 interface AddCardModalProps {
     excludeIds: Set<string>;
-    onPick: (cardId: string) => void;
+    onPick: (cardId: string, preview: Card) => void;
     onClose: () => void;
 }
 
@@ -50,18 +50,21 @@ export default function AddCardModal({ excludeIds, onPick, onClose }: AddCardMod
                     </p>
                 ) : (
                     <div className="grid grid-cols-3 gap-3 max-h-[55vh] overflow-y-auto">
-                        {availableCopies.map((c) => (
-                            <button
-                                key={c.id}
-                                className="flex flex-col items-center gap-1"
-                                onClick={() => onPick(c.id)}
-                            >
-                                <CardImage card={{ ...group.card, id: c.id, power: c.power }} size="sm" />
-                                {c.power != null && (
-                                    <span className="text-gold text-xs font-semibold">⚡{c.power}</span>
-                                )}
-                            </button>
-                        ))}
+                        {availableCopies.map((c) => {
+                            const preview = { ...group.card, id: c.id, power: c.power };
+                            return (
+                                <button
+                                    key={c.id}
+                                    className="flex flex-col items-center gap-1"
+                                    onClick={() => onPick(c.id, preview)}
+                                >
+                                    <CardImage card={preview} size="sm" />
+                                    {c.power != null && (
+                                        <span className="text-gold text-xs font-semibold">⚡{c.power}</span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
             </Modal>

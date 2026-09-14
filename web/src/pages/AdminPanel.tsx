@@ -16,6 +16,7 @@ import type {
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import AdminMessagesComposer from "@/components/admin/AdminMessagesComposer";
 
 const inputCls =
     "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
@@ -682,7 +683,7 @@ function ShopOfferForm({
 
 /* ─────────────────────────────── Panneau ────────────────────────────── */
 
-type Tab = "characters" | "boosters" | "sets" | "types" | "resources" | "offers";
+type Tab = "characters" | "boosters" | "sets" | "types" | "resources" | "offers" | "messages";
 
 function Panel() {
     const navigate = useNavigate();
@@ -815,7 +816,7 @@ function Panel() {
             </header>
 
             <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
-                {(["characters", "boosters", "sets", "types", "resources", "offers"] as Tab[]).map((t) => (
+                {(["characters", "boosters", "sets", "types", "resources", "offers", "messages"] as Tab[]).map((t) => (
                     <button
                         key={t}
                         className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${tab === t ? "bg-accent text-white" : "bg-white/10 text-white/50 hover:bg-white/20"
@@ -825,39 +826,46 @@ function Panel() {
                         {{
                             characters: "Personnages", boosters: "Boosters", sets: "Sets",
                             types: "Types", resources: "Ressources", offers: "Offres shop",
+                            messages: "Messagerie",
                         }[t]}
                     </button>
                 ))}
             </div>
 
-            <div className="px-4 pb-2">
-                <input
-                    type="search"
-                    className={inputCls}
-                    placeholder="Rechercher par nom ou id..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                />
-            </div>
+            {tab !== "messages" && (
+                <div className="px-4 pb-2">
+                    <input
+                        type="search"
+                        className={inputCls}
+                        placeholder="Rechercher par nom ou id..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+            )}
 
             <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-2">
-                <Button
-                    variant="secondary"
-                    size="sm"
-                    className="w-full mb-2"
-                    onClick={() =>
-                        setEditing(
-                            tab === "sets" ? { kind: "set", data: null }
-                                : tab === "boosters" ? { kind: "booster", data: null }
-                                    : tab === "types" ? { kind: "type", data: null }
-                                        : tab === "resources" ? { kind: "resource", data: null }
-                                            : tab === "offers" ? { kind: "offer" }
-                                                : { kind: "character", data: null }
-                        )
-                    }
-                >
-                    ＋ Nouveau
-                </Button>
+                {tab !== "messages" && (
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        className="w-full mb-2"
+                        onClick={() =>
+                            setEditing(
+                                tab === "sets" ? { kind: "set", data: null }
+                                    : tab === "boosters" ? { kind: "booster", data: null }
+                                        : tab === "types" ? { kind: "type", data: null }
+                                            : tab === "resources" ? { kind: "resource", data: null }
+                                                : tab === "offers" ? { kind: "offer" }
+                                                    : { kind: "character", data: null }
+                            )
+                        }
+                    >
+                        ＋ Nouveau
+                    </Button>
+                )}
+
+                {tab === "messages" && <AdminMessagesComposer resources={resources} />}
 
                 {tab === "sets" &&
                     (setsQ.isLoading ? <p className="text-white/40 text-sm">…</p> :

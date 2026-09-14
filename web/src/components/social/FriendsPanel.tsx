@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendsApi } from "@/api/friends";
 import Button from "@/components/ui/Button";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import SendGiftModal from "@/components/profile/SendGiftModal";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -30,6 +31,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
     const [tradeUsername, setTradeUsername] = useState("");
     const [tradeErr, setTradeErr] = useState("");
     const [toRemove, setToRemove] = useState<{ id: number; name: string } | null>(null);
+    const [giftTarget, setGiftTarget] = useState<string | null>(null);
 
     const friendsQ = useQuery({
         queryKey: ["friends"], queryFn: friendsApi.list,
@@ -216,14 +218,22 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                                                     </button>
                                                                 </div>
                                                             </div>
-                                                            <Button
-                                                                variant="secondary" size="sm" className="w-full"
-                                                                disabled={!!pendingTrade}
-                                                                loading={proposeTrade.isPending && proposeTrade.variables === f.user_id}
-                                                                onClick={() => proposeTrade.mutate(f.user_id)}
-                                                            >
-                                                                {pendingTrade ? "Échange en attente..." : "Proposer un échange"}
-                                                            </Button>
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    variant="secondary" size="sm" className="flex-1"
+                                                                    disabled={!!pendingTrade}
+                                                                    loading={proposeTrade.isPending && proposeTrade.variables === f.user_id}
+                                                                    onClick={() => proposeTrade.mutate(f.user_id)}
+                                                                >
+                                                                    {pendingTrade ? "Échange en attente..." : "Proposer un échange"}
+                                                                </Button>
+                                                                <Button
+                                                                    variant="secondary" size="sm"
+                                                                    onClick={() => setGiftTarget(f.username)}
+                                                                >
+                                                                    🎁
+                                                                </Button>
+                                                            </div>
                                                         </div>
                                                     );
                                                 })}
@@ -379,6 +389,10 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                 onConfirm={() => toRemove && removeFriend.mutate(toRemove.id)}
                 onCancel={() => setToRemove(null)}
             />
+
+            {giftTarget && (
+                <SendGiftModal presetUsername={giftTarget} onClose={() => setGiftTarget(null)} />
+            )}
         </>
     );
 }

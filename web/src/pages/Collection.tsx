@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCollection } from "@/hooks/useCollection";
 import type { CollectionParams } from "@/api/collection";
@@ -21,6 +21,7 @@ function countActiveFilters(f: CollectionParams): number {
 const SORT_OPTIONS = [
     { value: "rarity", label: "Rareté" },
     { value: "name", label: "Nom" },
+    { value: "type", label: "Type" },
     { value: "quality", label: "Qualité" },
     { value: "specialty", label: "Spécialité" },
     { value: "jewelry", label: "Bijou" },
@@ -37,6 +38,8 @@ export default function Collection() {
     const [search, setSearch] = useState("");
     const [filterModalOpen, setFilterModalOpen] = useState(false);
     const [probModalOpen, setProbModalOpen] = useState(false);
+    const [showScrollTop, setShowScrollTop] = useState(false);
+    const scrollRef = useRef<HTMLElement>(null);
 
     const patchFilters = (patch: Partial<CollectionParams>) =>
         setFilters((f) => ({ ...f, ...patch }));
@@ -62,7 +65,7 @@ export default function Collection() {
     }, [data, search, reversed]);
 
     return (
-        <div className="min-h-screen bg-game-bg flex flex-col">
+        <div className="min-h-screen bg-game-bg flex flex-col relative">
             {/* Header */}
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button
@@ -138,7 +141,11 @@ export default function Collection() {
             </div>
 
             {/* Cards */}
-            <main className="flex-1 overflow-y-auto py-4">
+            <main
+                ref={scrollRef}
+                className="flex-1 overflow-y-auto py-4"
+                onScroll={(e) => setShowScrollTop(e.currentTarget.scrollTop > 400)}
+            >
                 {isLoading ? (
                     <LoadingSpinner text="Chargement de la collection..." />
                 ) : groups.length > 0 ? (
@@ -164,6 +171,17 @@ export default function Collection() {
                     </div>
                 )}
             </main>
+
+            {showScrollTop && (
+                <button
+                    className="absolute bottom-6 right-4 z-30 w-11 h-11 rounded-full bg-accent text-white
+                     shadow-lg flex items-center justify-center text-xl hover:bg-accent/80 transition-colors"
+                    title="Remonter en haut"
+                    onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
+                >
+                    ↑
+                </button>
+            )}
 
             <FilterModal
                 open={filterModalOpen}

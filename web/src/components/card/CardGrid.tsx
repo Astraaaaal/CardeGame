@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { AnimatePresence } from "framer-motion";
 import type { CardGroup } from "@/types/card";
 import CardImage from "./CardImage";
 import CardDetail from "./CardDetail";
@@ -34,15 +33,12 @@ export default function CardGrid({ groups }: CardGridProps) {
                 ))}
             </div>
 
-            <AnimatePresence>
-                {selected && (
-                    <CardDetail
-                        card={selected.card}
-                        quantity={selected.quantity}
-                        onClose={() => setSelectedId(null)}
-                    />
-                )}
-            </AnimatePresence>
+            <CardDetail
+                open={!!selected}
+                card={selected?.card ?? null}
+                quantity={selected?.quantity}
+                onClose={() => setSelectedId(null)}
+            />
         </>
     );
 }

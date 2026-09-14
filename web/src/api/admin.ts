@@ -104,3 +104,23 @@ export const adminApi = {
     clearDailyFeature: (isoDate: string) =>
         http.delete(`/daily-feature/${isoDate}`).then(() => undefined),
 };
+
+// Route sœur de /api/admin/content, hors de son préfixe — client dédié.
+const httpMessages = axios.create({ baseURL: `${API_URL}/api/admin/messages` });
+httpMessages.interceptors.request.use((config) => {
+    config.headers.set("X-Admin-Key", adminKey.get());
+    return config;
+});
+
+export interface SendAdminMessageBody {
+    usernames?: string[] | null;
+    subject: string;
+    body?: string;
+    reward_resource_id?: string | null;
+    reward_amount?: number | null;
+}
+
+export const adminMessagesApi = {
+    send: (b: SendAdminMessageBody) =>
+        httpMessages.post<{ sent_count: number }>("/", b).then((r) => r.data),
+};

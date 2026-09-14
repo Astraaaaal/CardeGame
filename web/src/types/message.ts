@@ -1,0 +1,20 @@
+import type { Card } from "@/types/card";
+
+export type MessageSenderType = "admin" | "player";
+
+export interface AppMessage {
+    id: number;
+    sender_type: MessageSenderType;
+    sender_display_name: string;
+    subject: string;
+    body: string;
+    reward_resource_id: string | null;
+    reward_resource_name: string | null;
+    reward_amount: number | null;
+    reward_card: Card | null;
+    has_reward: boolean;
+    created_at: string;
+    read_at: string | null;
+    claimed_at: string | null;
+    claim_error: string | null;
+}

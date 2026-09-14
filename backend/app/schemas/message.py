@@ -1,0 +1,47 @@
+"""
+Schemas — messagerie (messages admin + cadeaux entre joueurs).
+"""
+
+from datetime import datetime
+from pydantic import BaseModel, Field
+from app.schemas.card import CardResponse
+
+
+class MessageOut(BaseModel):
+    id: int
+    sender_type: str  # "admin" | "player"
+    sender_display_name: str  # "Administration" ou le pseudo de l'expéditeur
+    subject: str
+    body: str
+    reward_resource_id: str | None = None
+    reward_resource_name: str | None = None
+    reward_amount: int | None = None
+    reward_card: CardResponse | None = None
+    has_reward: bool
+    created_at: datetime
+    read_at: datetime | None = None
+    claimed_at: datetime | None = None
+    claim_error: str | None = None
+
+
+class SendGiftBody(BaseModel):
+    username: str = Field(min_length=1, max_length=20)
+    subject: str = Field(default="Cadeau", max_length=100)
+    body: str = Field(default="", max_length=2000)
+    item_type: str = Field(pattern="^(card|resource)$")
+    user_card_id: str | None = None
+    resource_id: str | None = None
+    amount: int | None = None
+
+
+class SendAdminMessageBody(BaseModel):
+    # Vide/absent = envoi à TOUS les joueurs.
+    usernames: list[str] | None = None
+    subject: str = Field(min_length=1, max_length=100)
+    body: str = Field(default="", max_length=2000)
+    reward_resource_id: str | None = None
+    reward_amount: int | None = None
+
+
+class SendAdminMessageResponse(BaseModel):
+    sent_count: int
