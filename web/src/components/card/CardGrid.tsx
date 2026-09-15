@@ -59,13 +59,6 @@ export default function CardGrid({
                                     {g.quantity}
                                 </span>
                             )}
-                            {isSingleSelected && (
-                                <span className="absolute -top-1 -left-1 bg-accent text-white
-                             text-xs font-bold rounded-full w-5 h-5
-                             flex items-center justify-center">
-                                    ✓
-                                </span>
-                            )}
                         </div>
                     );
                 })}

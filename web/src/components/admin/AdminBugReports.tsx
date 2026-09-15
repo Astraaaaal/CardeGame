@@ -39,7 +39,7 @@ export default function AdminBugReports() {
                 >
                     <div className="flex items-center justify-between gap-2">
                         <p className="text-white text-sm font-semibold truncate">{r.subject}</p>
-                        {r.resolved_at && <span className="text-green-400 text-[10px] shrink-0">✓ Résolu</span>}
+                        {r.resolved_at && <span className="text-green-400 text-[10px] shrink-0">Résolu</span>}
                     </div>
                     <p className="text-white/40 text-xs">
                         {r.username} · {fmt(r.created_at)} {r.page_context && `· ${r.page_context}`}

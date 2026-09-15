@@ -42,14 +42,12 @@ export default function CardReveal({ card, onNext }: CardRevealProps) {
                             exit={{ rotateY: 90 }}
                             transition={{ duration: 0.25 }}
                         >
-                            {card.booster_cover_url ? (
+                            {card.booster_cover_url && (
                                 <img
                                     src={`/boosters/${card.booster_cover_url}`}
                                     alt=""
                                     className="w-full h-full object-cover"
                                 />
-                            ) : (
-                                <span className="text-6xl">🃏</span>
                             )}
                         </motion.div>
                     ) : (

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
 import { friendsApi } from "@/api/friends";
+import { progressionApi } from "@/api/progression";
 import { useAuthStore } from "@/stores/authStore";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import Button from "@/components/ui/Button";
@@ -14,12 +15,10 @@ import DailyRewardPopup from "@/components/player/DailyRewardPopup";
 import FriendsPanel from "@/components/social/FriendsPanel";
 import TradeRequestPopup from "@/components/social/TradeRequestPopup";
 import ActiveTradeBanner from "@/components/trade/ActiveTradeBanner";
-import { useLogout } from "@/hooks/useAuth";
 
 export default function MainMenu() {
   const navigate = useNavigate();
   const { user, setUser } = useAuthStore();
-  const logout = useLogout();
   // Rouvre automatiquement le panneau Amis au retour d'une sélection de
   // carte pour un cadeau (cf. FriendsPanel / MessagesInbox), quel que soit
   // l'onglet d'origine — FriendsPanel se replace lui-même sur le bon onglet.
@@ -40,15 +39,21 @@ export default function MainMenu() {
   });
   const pendingCount = friendRequests?.incoming.length ?? 0;
 
+  const { data: levelStatus } = useQuery({
+    queryKey: ["level-status"],
+    queryFn: progressionApi.getLevel,
+    staleTime: 30_000,
+  });
+
   useEffect(() => {
     if (player) setUser(player);
   }, [player, setUser]);
 
   const menuItems = [
-    { label: "Boutique", icon: "🛍️", path: "/shop", color: "bg-accent" },
-    { label: "Ma Collection", icon: "📚", path: "/collection", color: "bg-purple-600" },
-    { label: "Classement", icon: "🏆", path: "/leaderboard", color: "bg-purple-600" },
-    { label: "Progression", icon: "⭐", path: "/progression", color: "bg-purple-600" },
+    { label: "Boutique", path: "/shop" },
+    { label: "Ma Collection", path: "/collection" },
+    { label: "Classement", path: "/leaderboard" },
+    { label: "Progression", path: "/progression" },
   ];
 
   return (
@@ -56,50 +61,31 @@ export default function MainMenu() {
       <DailyRewardPopup />
       <TradeRequestPopup />
 
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
-        <div>
+      <div className="px-4 pt-4 max-w-sm mx-auto w-full space-y-2">
+        <div className="bg-game-surface/50 border border-white/5 rounded-2xl px-4 py-3 flex items-center justify-between">
           <button
-            className="text-white font-bold text-lg hover:text-accent transition-colors"
+            className="text-white font-bold text-lg hover:text-accent transition-colors text-left"
             onClick={() => navigate("/profile")}
             title="Vitrine et statistiques"
           >
             {user?.display_name || "Joueur"}
           </button>
-          <div className="flex items-center gap-2 mt-0.5">
-            <CoinDisplay coins={user?.coins ?? 0} />
-            <ResourceDisplay amount={user?.resources?.[0]?.amount ?? 0} label={user?.resources?.[0]?.name} />
-            <StreakBadge streak={user?.login_streak ?? 0} />
-          </div>
+          <StreakBadge streak={user?.login_streak ?? 0} />
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            className="relative text-white/70 hover:text-white text-xl"
-            onClick={() => setFriendsOpen(true)}
-            title="Amis"
-          >
-            👥
-            {pendingCount > 0 && (
-              <span className="absolute -top-1 -right-1.5 inline-flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4">
-                {pendingCount}
-              </span>
-            )}
-          </button>
-          <button
-            className="text-white/70 hover:text-white text-xl"
-            onClick={() => navigate("/settings")}
-            title="Réglages"
-          >
-            ⚙️
-          </button>
-          <button
-            className="text-white/40 hover:text-white text-sm transition-colors"
-            onClick={() => { logout(); navigate("/login"); }}
-          >
-            Déconnexion
-          </button>
+
+        <div className="flex items-center gap-2">
+          <CoinDisplay coins={user?.coins ?? 0} />
+          <ResourceDisplay amount={user?.resources?.[0]?.amount ?? 0} label={user?.resources?.[0]?.name} />
         </div>
-      </header>
+
+        <button
+          className="w-full bg-game-surface/50 border border-white/5 rounded-2xl px-4 py-3 flex items-center justify-center gap-2 hover:border-accent/40 transition-colors"
+          onClick={() => navigate("/progression")}
+        >
+          <span className="text-white/40 text-xs uppercase tracking-wide">Niveau</span>
+          <span className="text-accent font-extrabold text-lg">{levelStatus?.current_level ?? "—"}</span>
+        </button>
+      </div>
 
       <FriendsPanel open={friendsOpen} onClose={() => setFriendsOpen(false)} />
       <ActiveTradeBanner />
@@ -125,27 +111,37 @@ export default function MainMenu() {
               <Button
                 variant="secondary"
                 size="lg"
-                className="w-full flex items-center gap-3 justify-start"
+                className="w-full justify-start"
                 onClick={() => navigate(item.path)}
               >
-                <span className="text-2xl">{item.icon}</span>
-                <span>{item.label}</span>
+                {item.label}
               </Button>
             </motion.div>
           ))}
         </div>
-
-        {/* Stats */}
-        <motion.div
-          className="text-white/30 text-xs text-center mt-8 space-y-1"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          <p>Packs ouverts : {user?.packs_opened ?? 0}</p>
-          <p>Cartes collectées : {user?.total_cards ?? 0}</p>
-        </motion.div>
       </main>
+
+      <footer className="flex items-center justify-between px-4 py-4">
+        <button
+          className="text-white/70 hover:text-white text-xl"
+          onClick={() => navigate("/settings")}
+          title="Réglages"
+        >
+          ⚙️
+        </button>
+        <button
+          className="relative text-white/70 hover:text-white text-xl"
+          onClick={() => setFriendsOpen(true)}
+          title="Amis"
+        >
+          👥
+          {pendingCount > 0 && (
+            <span className="absolute -top-1 -right-1.5 inline-flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4">
+              {pendingCount}
+            </span>
+          )}
+        </button>
+      </footer>
     </div>
   );
 }

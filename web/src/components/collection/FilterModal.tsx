@@ -46,7 +46,7 @@ export default function FilterModal({ open, onClose, filters, onChange, onReset 
     };
 
     return (
-        <Modal open={open} onClose={onClose} title="🔎 Filtres avancés">
+        <Modal open={open} onClose={onClose} title="Filtres avancés">
             <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
                 <div>
                     <label className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-1.5 block">

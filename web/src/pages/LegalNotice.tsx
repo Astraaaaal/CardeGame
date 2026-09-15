@@ -18,9 +18,9 @@ export default function LegalNotice() {
         <div className="min-h-screen bg-game-bg flex flex-col">
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate(-1)}>
-                    ← Retour
+                    Retour
                 </button>
-                <h1 className="text-white font-bold">⚖️ Mentions légales</h1>
+                <h1 className="text-white font-bold">Mentions légales</h1>
                 <span className="w-14" />
             </header>
 

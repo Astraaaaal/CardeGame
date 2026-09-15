@@ -53,7 +53,7 @@ function LevelTab() {
                 <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Niveau</p>
                 <p className="text-5xl font-extrabold text-accent mb-3">{data.current_level}</p>
                 <p className="text-white/60 text-sm mb-2">
-                    Puissance totale : <span className="text-gold font-bold">⚡{data.total_power.toLocaleString("fr-FR")}</span>
+                    Puissance totale : <span className="text-gold font-bold">{data.total_power.toLocaleString("fr-FR")}</span>
                 </p>
                 {data.next_level_power_required != null ? (
                     <>
@@ -65,12 +65,12 @@ function LevelTab() {
                 ) : (
                     <p className="text-white/30 text-xs">Niveau maximum atteint !</p>
                 )}
-                <p className="text-accent text-xs mt-3">🏆 Voir la route des niveaux →</p>
+                <p className="text-accent text-xs mt-3">Voir la route des niveaux</p>
             </button>
 
             {data.has_unclaimed && (
                 <div className="bg-gold/10 border border-gold/30 rounded-2xl p-4">
-                    <p className="text-white font-semibold text-sm mb-2">🎉 Récompense(s) de niveau à récupérer</p>
+                    <p className="text-white font-semibold text-sm mb-2">Récompense(s) de niveau à récupérer</p>
                     <div className="space-y-1.5 mb-3">
                         {data.pending_rewards.map((r) => (
                             <div key={r.level} className="flex items-center gap-2 text-sm text-white/80">
@@ -81,7 +81,7 @@ function LevelTab() {
                                         {r.reward_amount.toLocaleString("fr-FR")}
                                     </span>
                                 )}
-                                {r.reward_booster_id && <span>🎁 {r.reward_booster_name}</span>}
+                                {r.reward_booster_id && <span>{r.reward_booster_name}</span>}
                             </div>
                         ))}
                     </div>
@@ -122,7 +122,7 @@ function AchievementRow({ achievement }: { achievement: Achievement }) {
             <div className="flex items-start justify-between gap-2 mb-1.5">
                 <div className="min-w-0">
                     <p className={`text-sm font-semibold ${unlocked ? "text-white" : "text-white/40"}`}>
-                        {unlocked ? "🏆" : "🔒"} {achievement.name}
+                        {achievement.name}
                     </p>
                     <p className="text-white/40 text-xs mt-0.5">{achievement.description}</p>
                 </div>
@@ -133,7 +133,7 @@ function AchievementRow({ achievement }: { achievement: Achievement }) {
                                 <ResourceIcon resourceId={achievement.reward_resource_id ?? "coins"} className="w-3.5 h-3.5" />
                                 {achievement.reward_amount.toLocaleString("fr-FR")}
                             </>
-                        ) : "🎁 booster"}
+                        ) : "booster"}
                     </div>
                 )}
             </div>
@@ -150,7 +150,7 @@ function AchievementRow({ achievement }: { achievement: Achievement }) {
                     Récupérer
                 </Button>
             )}
-            {claimed && <p className="text-green-400 text-xs mt-1">✓ Récupéré</p>}
+            {claimed && <p className="text-green-400 text-xs mt-1">Récupéré</p>}
             {err && <p className="text-red-400 text-xs mt-1">{err}</p>}
         </div>
     );
@@ -235,7 +235,7 @@ function QuestsTab() {
                                 Récupérer
                             </Button>
                         )}
-                        {q.claimed_at && <p className="text-green-400 text-xs mt-1.5">✓ Récupéré</p>}
+                        {q.claimed_at && <p className="text-green-400 text-xs mt-1.5">Récupéré</p>}
                     </div>
                 ))}
             </div>
@@ -261,9 +261,9 @@ export default function Progression() {
         <div className="min-h-screen bg-game-bg flex flex-col">
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
-                    ← Retour
+                    Retour
                 </button>
-                <h1 className="text-white font-bold">⭐ Progression</h1>
+                <h1 className="text-white font-bold">Progression</h1>
                 <span className="w-14" />
             </header>
 

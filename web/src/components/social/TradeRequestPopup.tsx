@@ -45,8 +45,6 @@ export default function TradeRequestPopup() {
                         animate={{ scale: 1, rotate: 0 }}
                         exit={{ scale: 0.5, opacity: 0 }}
                     >
-                        <div className="text-5xl mb-4">🔄</div>
-
                         <h2 className="text-xl font-bold text-white mb-3">
                             {requests.length === 1 ? "Nouvelle demande d'échange !" : "Nouvelles demandes d'échange !"}
                         </h2>

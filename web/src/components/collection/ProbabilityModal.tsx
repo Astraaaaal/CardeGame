@@ -25,9 +25,9 @@ export default function ProbabilityModal({ open, onClose }: { open: boolean; onC
     const { data, isLoading } = useProbabilities(open);
 
     return (
-        <Modal open={open} onClose={onClose} title="📊 Table des probabilités">
+        <Modal open={open} onClose={onClose} title="Table des probabilités">
             <div className="bg-black/20 border border-white/5 rounded-lg p-3 mb-4">
-                <p className="text-gold text-xs font-semibold uppercase tracking-wide mb-1.5">⚡ Puissance</p>
+                <p className="text-gold text-xs font-semibold uppercase tracking-wide mb-1.5">Puissance</p>
                 <p className="text-white/60 text-xs leading-relaxed">
                     Chaque carte reçoit une puissance tirée au hasard entre 1 et un maximum qui dépend
                     de sa rareté de tirage : plus une combinaison est rare, plus ce maximum est élevé

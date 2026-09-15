@@ -143,9 +143,9 @@ export default function TradeSessionPage() {
         <div className="min-h-screen bg-game-bg flex flex-col pb-8">
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-white/60 hover:text-white text-sm" onClick={() => navigate("/")}>
-                    ← Retour
+                    Retour
                 </button>
-                <h2 className="text-white font-bold">🔄 Échange avec {trade.other_display_name}</h2>
+                <h2 className="text-white font-bold">Échange avec {trade.other_display_name}</h2>
                 <span className={`w-2 h-2 rounded-full ${trade.other_online ? "bg-green-400" : "bg-white/20"}`} />
             </header>
 
@@ -165,7 +165,7 @@ export default function TradeSessionPage() {
 
                 {trade.status === "completed" && (
                     <div className="bg-green-500/10 border border-green-500/30 rounded-lg px-3 py-3 text-center">
-                        <p className="text-green-400 font-bold">🎉 Échange terminé !</p>
+                        <p className="text-green-400 font-bold">Échange terminé !</p>
                     </div>
                 )}
                 {trade.status === "cancelled" && (
@@ -184,7 +184,7 @@ export default function TradeSessionPage() {
                     <div className="flex items-center justify-between mb-2">
                         <h3 className="text-white/70 text-xs font-semibold uppercase tracking-wide">Ton offre</h3>
                         {trade.my_ready && (
-                            <span className="text-green-400 text-xs font-semibold">✓ Prêt</span>
+                            <span className="text-green-400 text-xs font-semibold">Prêt</span>
                         )}
                     </div>
                     <div className="grid grid-cols-3 gap-2">
@@ -238,7 +238,7 @@ export default function TradeSessionPage() {
                             Offre de {trade.other_display_name}
                         </h3>
                         {trade.other_ready && (
-                            <span className="text-green-400 text-xs font-semibold">✓ Prêt</span>
+                            <span className="text-green-400 text-xs font-semibold">Prêt</span>
                         )}
                     </div>
                     <div className="grid grid-cols-3 gap-2">

@@ -73,7 +73,7 @@ export default function ShowcaseEditor() {
     });
     const { data: collection } = useCollection({ sort_by: "rarity" });
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
-    const consumeResult = useCardSelectionStore((s) => s.consumeResult);
+    const consumeResultIfPurpose = useCardSelectionStore((s) => s.consumeResultIfPurpose);
 
     const [avatarId, setAvatarId] = useState<string | null>(null);
     const [avatarImg, setAvatarImg] = useState<string | null>(null);
@@ -96,13 +96,13 @@ export default function ShowcaseEditor() {
     // Déclaré AVANT l'effet piloté par `showcase` pour avoir la priorité.
     useEffect(() => {
         if (didInit.current) return;
-        const result = consumeResult();
-        if (!result || result.context?.purpose !== "showcase-slot") return;
+        const result = consumeResultIfPurpose(["showcase-slot"]);
+        if (!result) return;
         didInit.current = true;
-        const slotIndex = Number(result.context.slotIndex ?? "0");
+        const slotIndex = Number(result.context?.slotIndex ?? "0");
         const picked = result.selectedCards[0];
-        setAvatarId(result.context.avatarId || null);
-        setAvatarImg(result.context.avatarImg || null);
+        setAvatarId(result.context?.avatarId || null);
+        setAvatarImg(result.context?.avatarImg || null);
         setSlots([0, 1, 2].map((i) => (i === slotIndex ? picked?.id ?? null : result.context?.[`slot${i}`] || null)));
         if (picked) setPickedPreviews((p) => ({ ...p, [picked.id]: picked.preview }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -222,7 +222,7 @@ export default function ShowcaseEditor() {
                     variant="secondary"
                     onClick={() => user && navigate(`/players/${user.id}`)}
                 >
-                    👁️ Voir comme un autre joueur
+                    Voir comme un autre joueur
                 </Button>
             </div>
 

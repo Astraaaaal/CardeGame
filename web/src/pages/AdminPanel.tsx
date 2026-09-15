@@ -331,7 +331,7 @@ function CharacterForm({
                 </div>
                 {f.sets.length === 0 && (
                     <p className="text-white/30 text-xs">
-                        Aucun set → le personnage n'apparaîtra dans aucun pack.
+                        Aucun set : le personnage n'apparaîtra dans aucun pack.
                     </p>
                 )}
                 <div className="space-y-2">
@@ -806,7 +806,7 @@ function Panel() {
         <div className="min-h-screen bg-game-bg flex flex-col">
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
-                    ← Jeu
+                    Jeu
                 </button>
                 <h1 className="text-white font-bold">Contenu</h1>
                 <button
@@ -886,7 +886,7 @@ function Panel() {
                     (boostersQ.isLoading ? <p className="text-white/40 text-sm">…</p> :
                         filteredBoosters.map((b) => (
                             <Row key={b.id}
-                                title={`${b.active ? "" : "🚫 "}${b.name}  ·  ${b.id}`}
+                                title={`${b.active ? "" : "[inactif] "}${b.name}  ·  ${b.id}`}
                                 subtitle={`sets ${b.set_ids.join(", ")} — ${b.cards_count} cartes — ${b.price} ${b.resource_name}`
                                     + `${b.guaranteed_rare ? " — rare garantie" : ""}`
                                     + `${!b.visible_in_shop ? " — masqué de la boutique classique" : ""}`}
@@ -966,7 +966,7 @@ function Panel() {
                             <div key={o.id} className="flex items-center justify-between bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2 gap-2">
                                 <div className="flex-1 min-w-0">
                                     <p className={`text-sm font-semibold truncate ${o.active ? "text-white" : "text-white/30 line-through"}`}>
-                                        {o.featured_today && "⭐ "}{o.name}  ·  {o.id}
+                                        {o.featured_today && "[mis en avant] "}{o.name}  ·  {o.id}
                                     </p>
                                     <p className="text-white/40 text-xs truncate">
                                         {o.kind} — {o.price} {o.resource_name}

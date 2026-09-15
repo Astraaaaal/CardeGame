@@ -35,7 +35,7 @@ export default function SupportPanel() {
     return (
         <div className="space-y-4">
             <div className="bg-game-surface rounded-2xl border border-white/10 p-4">
-                <h3 className="text-white font-bold text-sm mb-1">🐛 Signaler un bug</h3>
+                <h3 className="text-white font-bold text-sm mb-1">Signaler un bug</h3>
                 <p className="text-white/40 text-xs mb-3">
                     Décris le problème rencontré (ce que tu faisais, ce qui s'est passé, ce que tu
                     attendais) — le signalement sera consulté par l'équipe.

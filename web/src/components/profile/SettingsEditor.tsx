@@ -127,6 +127,12 @@ export default function SettingsEditor() {
                 <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>
             )}
 
+            <div className="bg-game-surface rounded-2xl border border-white/10 p-4">
+                <Button variant="secondary" size="sm" className="w-full" onClick={() => { logout(); navigate("/login"); }}>
+                    Déconnexion
+                </Button>
+            </div>
+
             <div className="bg-game-surface rounded-2xl border border-red-500/30 p-4">
                 <h3 className="text-white font-bold text-sm mb-1">Zone dangereuse</h3>
                 <p className="text-white/40 text-xs mb-3">

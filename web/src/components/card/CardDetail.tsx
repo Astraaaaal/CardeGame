@@ -177,7 +177,7 @@ export default function CardDetail({ open, card, quantity, onClose }: CardDetail
                                 {displayCard.power != null && (
                                     <p>
                                         Puissance:{" "}
-                                        <span className="text-gold font-bold">⚡{displayCard.power}</span>
+                                        <span className="text-gold font-bold">{displayCard.power}</span>
                                         {displayCard.combined_rarity != null && (
                                             <span className="text-white/40">
                                                 {" "}(rareté globale : 1 sur {displayCard.combined_rarity.toLocaleString("fr-FR")})

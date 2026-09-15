@@ -74,7 +74,7 @@ function BoostersTab() {
             {!!inventory?.length && (
                 <div className="max-w-sm mx-auto mb-5 space-y-2">
                     <h3 className="text-white/50 text-xs font-semibold uppercase tracking-wide">
-                        🎁 Boosters reçus — à ouvrir
+                        Boosters reçus — à ouvrir
                     </h3>
                     {inventory.map((o) => (
                         <div key={o.booster_id} className="flex items-center justify-between bg-gold/10 border border-gold/30 rounded-xl px-4 py-3">
@@ -232,7 +232,6 @@ function ResourcesTab() {
                             <div key={o.id} className={`bg-game-surface rounded-2xl p-4 border ${o.featured_today ? "border-gold/60" : "border-white/10"}`}>
                                 <div className="flex items-center justify-between mb-1">
                                     <h3 className="text-white font-bold">
-                                        {o.featured_today && <span className="text-gold">⭐ </span>}
                                         {o.name}
                                     </h3>
                                     <span className="text-purple-300 font-bold text-sm">
@@ -290,9 +289,9 @@ export default function Shop() {
         <div className="min-h-screen bg-game-bg flex flex-col">
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
-                    ← Retour
+                    Retour
                 </button>
-                <h1 className="text-white font-bold">🛍️ Boutique</h1>
+                <h1 className="text-white font-bold">Boutique</h1>
                 <CoinDisplay coins={user?.coins ?? 0} />
             </header>
 

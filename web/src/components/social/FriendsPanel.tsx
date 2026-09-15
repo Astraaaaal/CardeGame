@@ -45,7 +45,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
     const [giftOrigin, setGiftOrigin] = useState<"friend" | "inbox">("friend");
     const [giftPresetUsername, setGiftPresetUsername] = useState<string | undefined>(undefined);
     const [giftInitialState, setGiftInitialState] = useState<SendGiftInitialState | undefined>(undefined);
-    const consumeCardSelection = useCardSelectionStore((s) => s.consumeResult);
+    const consumeCardSelection = useCardSelectionStore((s) => s.consumeResultIfPurpose);
 
     const [groupPickerFor, setGroupPickerFor] = useState<number | null>(null);
     const [creatingGroup, setCreatingGroup] = useState(false);
@@ -57,18 +57,18 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
     // carte pour un cadeau (ligne d'ami OU messagerie) — rouvre le compositeur
     // avec tout ce qui était tapé, sur le bon onglet.
     useEffect(() => {
-        const result = consumeCardSelection();
-        if (!result || result.context?.purpose !== "gift") return;
+        const result = consumeCardSelection(["gift"]);
+        if (!result) return;
         const card = result.selectedCards[0];
-        const isFriendOrigin = result.context.origin !== "inbox";
+        const isFriendOrigin = result.context?.origin !== "inbox";
         setGiftOrigin(isFriendOrigin ? "friend" : "inbox");
         setGiftInitialState({
-            username: result.context.username ?? "",
-            subject: result.context.subject ?? "Cadeau",
-            body: result.context.body ?? "",
+            username: result.context?.username ?? "",
+            subject: result.context?.subject ?? "Cadeau",
+            body: result.context?.body ?? "",
             pickedCard: card ? { id: card.id, preview: card.preview } : null,
         });
-        setGiftPresetUsername(isFriendOrigin ? (result.context.username || undefined) : undefined);
+        setGiftPresetUsername(isFriendOrigin ? (result.context?.username || undefined) : undefined);
         setGiftOpen(true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -289,7 +289,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                             transition={{ type: "tween", duration: 0.25 }}
                         >
                             <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-                                <h2 className="text-white font-bold">👥 Amis</h2>
+                                <h2 className="text-white font-bold">Amis</h2>
                                 <button className="text-white/40 hover:text-white text-xl leading-none" onClick={onClose}>
                                     ×
                                 </button>
@@ -393,7 +393,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                                     </div>
                                                 </CollapsibleSection>
 
-                                                <CollapsibleSection title="★ Amis proches" badge={closeFriends.length}>
+                                                <CollapsibleSection title="Amis proches" badge={closeFriends.length}>
                                                     {closeFriends.length === 0 ? (
                                                         <p className="text-white/30 text-sm">Aucun ami proche pour l'instant.</p>
                                                     ) : closeFriends.map(renderFriendRow)}

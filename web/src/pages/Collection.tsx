@@ -116,10 +116,10 @@ export default function Collection() {
                     className="text-accent text-sm font-semibold"
                     onClick={() => inSelectionMode ? cancelAndLeave() : navigate("/")}
                 >
-                    {inSelectionMode ? "× Annuler" : "← Retour"}
+                    {inSelectionMode ? "× Annuler" : "Retour"}
                 </button>
                 <h1 className="text-white font-bold">
-                    {inSelectionMode ? selectionRequest!.title : "📚 Collection"}
+                    {inSelectionMode ? selectionRequest!.title : "Collection"}
                 </h1>
                 <div className="flex items-center gap-3">
                     {!inSelectionMode && (
@@ -178,7 +178,7 @@ export default function Collection() {
                         ${activeFilterCount > 0 ? "bg-accent text-white" : "bg-white/10 text-white/50 hover:bg-white/20"}`}
                     onClick={() => setFilterModalOpen(true)}
                 >
-                    🔎 Filtres{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                    Filtres{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
                 </button>
                 <button
                     className="shrink-0 w-8 h-8 rounded-full bg-white/10 text-white/70
@@ -210,7 +210,6 @@ export default function Collection() {
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center h-64 text-white/30">
-                        <span className="text-4xl mb-3">{search ? "🔍" : "📭"}</span>
                         <p>
                             {search
                                 ? "Aucun personnage ne correspond"
@@ -221,7 +220,7 @@ export default function Collection() {
                                 className="text-accent text-sm mt-2 hover:underline"
                                 onClick={() => navigate("/shop")}
                             >
-                                Ouvrir des packs →
+                                Ouvrir des packs
                             </button>
                         )}
                     </div>

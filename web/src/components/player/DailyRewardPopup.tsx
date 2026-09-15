@@ -50,14 +50,6 @@ export default function DailyRewardPopup() {
                         animate={{ scale: 1, rotate: 0 }}
                         exit={{ scale: 0.5, opacity: 0 }}
                     >
-                        <motion.div
-                            className="text-6xl mb-4"
-                            animate={{ rotate: [0, -10, 10, -10, 0] }}
-                            transition={{ duration: 0.5, delay: 0.3 }}
-                        >
-                            🎁
-                        </motion.div>
-
                         <h2 className="text-2xl font-bold text-gold mb-2">
                             Récompense quotidienne !
                         </h2>

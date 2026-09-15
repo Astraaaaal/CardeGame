@@ -26,9 +26,9 @@ export default function ActiveTradeBanner() {
                     onClick={() => navigate(`/trade/${data.id}`)}
                 >
                     <span className="text-white text-sm">
-                        🔄 Échange en cours avec <span className="font-semibold">{data.other_display_name}</span>
+                        Échange en cours avec <span className="font-semibold">{data.other_display_name}</span>
                     </span>
-                    <span className="text-accent text-xs font-semibold shrink-0">Reprendre →</span>
+                    <span className="text-accent text-xs font-semibold shrink-0">Reprendre</span>
                 </motion.button>
             )}
         </AnimatePresence>

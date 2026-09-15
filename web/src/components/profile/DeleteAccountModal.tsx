@@ -36,7 +36,7 @@ export default function DeleteAccountModal({ onClose, onDeleted }: DeleteAccount
                     possibilité de récupération.
                 </p>
                 <p className="text-gold text-sm font-semibold bg-gold/10 border border-gold/30 rounded-lg px-3 py-2">
-                    ⚠️ Confirme en saisissant ton mot de passe.
+                    Confirme en saisissant ton mot de passe.
                 </p>
                 <input
                     type="password"

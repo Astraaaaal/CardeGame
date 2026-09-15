@@ -18,18 +18,20 @@ export default function Profile() {
     const navigate = useNavigate();
     const { user } = useAuthStore();
     // Si on revient d'une sélection de carte pour un slot de vitrine (cf.
-    // ShowcaseEditor), rouvre directement cet onglet plutôt que de perdre le contexte.
-    const [tab, setTab] = useState<Tab>(() =>
-        useCardSelectionStore.getState().result?.context?.purpose === "showcase-slot" ? "showcase" : "stats"
-    );
+    // ShowcaseEditor) ou un slot "à échanger" (cf. TradeListingsEditor),
+    // rouvre directement cet onglet plutôt que de perdre le contexte.
+    const [tab, setTab] = useState<Tab>(() => {
+        const purpose = useCardSelectionStore.getState().result?.context?.purpose;
+        return purpose === "showcase-slot" || purpose === "trade-listing-slot" ? "showcase" : "stats";
+    });
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col">
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
-                    ← Retour
+                    Retour
                 </button>
-                <h1 className="text-white font-bold">👤 Profil</h1>
+                <h1 className="text-white font-bold">Profil</h1>
                 <span className="w-14" />
             </header>
 

@@ -38,6 +38,17 @@ interface CardSelectionState {
     resolveSelection: (cards: SelectedCard[]) => void;
     cancelSelection: () => void;
     consumeResult: () => CardSelectionResult | null;
+    /**
+     * Variante sûre pour plusieurs consommateurs potentiels montés en même
+     * temps (ex: ShowcaseEditor + TradeListingsEditor, tous deux sur l'onglet
+     * Vitrine) : ne consomme (et ne vide donc le store) QUE si le résultat en
+     * attente correspond à l'un des `purposes` donnés — sinon le laisse
+     * intact pour l'autre composant susceptible de le consommer, lui.
+     * `consumeResult()` seul est destructif même en cas de non-correspondance
+     * (il vide le store dès l'appel), d'où la course si deux composants
+     * l'appellent chacun sans vérifier avant de consommer.
+     */
+    consumeResultIfPurpose: (purposes: string[]) => CardSelectionResult | null;
 }
 
 export const useCardSelectionStore = create<CardSelectionState>()((set, get) => ({
@@ -56,6 +67,13 @@ export const useCardSelectionStore = create<CardSelectionState>()((set, get) => 
     consumeResult: () => {
         const result = get().result;
         if (result) set({ result: null });
+        return result;
+    },
+
+    consumeResultIfPurpose: (purposes) => {
+        const result = get().result;
+        if (!result || !result.context?.purpose || !purposes.includes(result.context.purpose)) return null;
+        set({ result: null });
         return result;
     },
 }));

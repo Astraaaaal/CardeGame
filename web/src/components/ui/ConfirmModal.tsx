@@ -23,7 +23,7 @@ export default function ConfirmModal({
             <p className="text-white/70 text-sm mb-2">{message}</p>
             {warning && (
                 <p className="text-gold text-sm font-semibold mb-4 bg-gold/10 border border-gold/30 rounded-lg px-3 py-2">
-                    ⚠️ {warning}
+                    {warning}
                 </p>
             )}
             <div className="flex gap-2 mt-2">

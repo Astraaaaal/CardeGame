@@ -51,7 +51,7 @@ export default function PlayerShowcase() {
         <div className="min-h-screen bg-game-bg flex flex-col">
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate(-1)}>
-                    ← Retour
+                    Retour
                 </button>
                 <h1 className="text-white font-bold">Profil du joueur</h1>
                 <span className="w-14" />
@@ -64,7 +64,7 @@ export default function PlayerShowcase() {
                     <div className="space-y-6">
                         {isSelf && (
                             <p className="text-center text-gold text-xs bg-gold/10 border border-gold/30 rounded-lg px-3 py-2">
-                                👁️ Aperçu — c'est ce que les autres joueurs voient de ton profil.
+                                Aperçu — c'est ce que les autres joueurs voient de ton profil.
                             </p>
                         )}
 

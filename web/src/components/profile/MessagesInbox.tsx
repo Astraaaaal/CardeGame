@@ -60,10 +60,10 @@ function MessageRow({ message }: { message: AppMessage }) {
                 <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-semibold truncate">{message.subject}</p>
                     <p className="text-white/40 text-xs">
-                        {message.sender_type === "admin" ? "📢" : "🎁"} {message.sender_display_name} · {fmt(message.created_at)}
+                        {message.sender_display_name} · {fmt(message.created_at)}
                     </p>
                 </div>
-                {unclaimedReward && <span className="text-gold text-xs font-bold shrink-0">🎁</span>}
+                {unclaimedReward && <span className="text-gold text-xs font-bold shrink-0">Cadeau</span>}
                 <span className="text-white/30 text-xs shrink-0">{open ? "▲" : "▼"}</span>
             </button>
 
@@ -115,7 +115,7 @@ function MessageRow({ message }: { message: AppMessage }) {
                         )}
                         {message.claimed_at && message.has_reward && (
                             <span className="flex-1 text-center text-green-400 text-xs font-semibold py-1.5">
-                                ✓ Récupéré
+                                Récupéré
                             </span>
                         )}
                         {!unclaimedReward && (
@@ -147,7 +147,7 @@ export default function MessagesInbox({ onSendGift }: MessagesInboxProps) {
     return (
         <div className="space-y-3">
             <Button variant="primary" size="sm" className="w-full" onClick={onSendGift}>
-                🎁 Envoyer un cadeau
+                Envoyer un cadeau
             </Button>
 
             {isLoading ? (

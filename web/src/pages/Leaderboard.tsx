@@ -7,8 +7,6 @@ import { useAuthStore } from "@/stores/authStore";
 import type { LeaderboardEntry } from "@/types/leaderboard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 
-const RANK_MEDALS: Record<number, string> = { 1: "🥇", 2: "🥈", 3: "🥉" };
-
 function EntryRow({ entry, isSelf }: { entry: LeaderboardEntry; isSelf: boolean }) {
     return (
         <div
@@ -18,7 +16,7 @@ function EntryRow({ entry, isSelf }: { entry: LeaderboardEntry; isSelf: boolean 
         >
             <div className="flex items-center gap-3 min-w-0">
                 <span className="text-white/50 font-bold text-sm w-6 text-center shrink-0">
-                    {RANK_MEDALS[entry.rank] ?? entry.rank}
+                    {entry.rank}
                 </span>
                 <span className={`text-sm font-semibold truncate ${isSelf ? "text-accent" : "text-white"}`}>
                     {entry.display_name}
@@ -80,9 +78,9 @@ export default function Leaderboard() {
         <div className="min-h-screen bg-game-bg flex flex-col">
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
-                    ← Retour
+                    Retour
                 </button>
-                <h1 className="text-white font-bold">🏆 Classement</h1>
+                <h1 className="text-white font-bold">Classement</h1>
                 <span className="w-14" />
             </header>
 

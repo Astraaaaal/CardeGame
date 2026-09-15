@@ -69,7 +69,7 @@ export default function PackOpening() {
           animate={{ opacity: 1, scale: 1 }}
         >
           <h2 className="text-2xl font-bold text-white mb-6">
-            🎉 {allCards.length} cartes obtenues !
+            {allCards.length} cartes obtenues !
           </h2>
 
           <div className="grid grid-cols-3 gap-3 mb-6">

@@ -152,13 +152,13 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
                     ) : (
                         <div className="flex gap-2 flex-wrap">
                             <Button variant="secondary" size="sm" className="flex-1" onClick={chooseCard}>
-                                🃏 Choisir une carte
+                                Choisir une carte
                             </Button>
                             <Button variant="secondary" size="sm" className="flex-1" onClick={() => setResourcePickerOpen(true)}>
                                 + Choisir une ressource
                             </Button>
                             <Button variant="secondary" size="sm" className="flex-1" onClick={() => setBoosterPickerOpen(true)}>
-                                📦 Choisir un booster
+                                Choisir un booster
                             </Button>
                         </div>
                     )}

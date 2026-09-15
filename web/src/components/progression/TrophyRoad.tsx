@@ -15,7 +15,7 @@ export default function TrophyRoad({ open, onClose }: TrophyRoadProps) {
     });
 
     return (
-        <Modal open={open} onClose={onClose} title="🏆 Route des niveaux">
+        <Modal open={open} onClose={onClose} title="Route des niveaux">
             {isLoading || !data ? (
                 <LoadingSpinner text="Chargement..." />
             ) : (
@@ -32,7 +32,7 @@ export default function TrophyRoad({ open, onClose }: TrophyRoadProps) {
                                                 : state === "reached" ? "bg-gold border-gold text-game-bg animate-pulse"
                                                     : "bg-black/40 border-white/15 text-white/30"}`}
                                     >
-                                        {state === "claimed" ? "✓" : state === "locked" ? "🔒" : t.level}
+                                        {t.level}
                                     </div>
                                     <div
                                         className={`ml-3 rounded-xl border px-3 py-2 flex items-center justify-between gap-2
@@ -55,7 +55,7 @@ export default function TrophyRoad({ open, onClose }: TrophyRoadProps) {
                                             )}
                                             {t.reward_booster_id && (
                                                 <span className={state === "locked" ? "text-white/30" : "text-white/70"}>
-                                                    🎁 booster
+                                                    booster
                                                 </span>
                                             )}
                                         </div>

@@ -55,11 +55,6 @@ export default function CopyPickerModal({ group, excludeIds, selectedIds, onTogg
                             >
                                 <div className="relative w-full">
                                     <CardImage card={preview} size="sm" />
-                                    {isSelected && (
-                                        <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-accent text-white text-xs flex items-center justify-center">
-                                            ✓
-                                        </span>
-                                    )}
                                 </div>
                                 {c.power != null && (
                                     <span className="text-gold text-xs font-semibold">⚡{c.power}</span>
