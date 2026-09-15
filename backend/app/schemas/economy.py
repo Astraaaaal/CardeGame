@@ -117,6 +117,7 @@ class ResourceIn(BaseModel):
 class ResourcePatch(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=50)
     description: str | None = None
+    starting_amount: int | None = Field(default=None, ge=0)
 
 
 class DailyFeatureIn(BaseModel):

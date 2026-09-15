@@ -379,7 +379,8 @@ async def delete_type(type_id: str, session: AsyncSession = Depends(get_session)
 async def list_resources(session: AsyncSession = Depends(get_session)):
     rows = (await session.execute(select(Resource).order_by(Resource.name))).scalars().all()
     return [
-        {"id": r.id, "name": r.name, "description": r.description, "protected": r.protected}
+        {"id": r.id, "name": r.name, "description": r.description, "protected": r.protected,
+         "starting_amount": r.starting_amount}
         for r in rows
     ]
 
@@ -391,7 +392,8 @@ async def create_resource(body: ResourceIn, session: AsyncSession = Depends(get_
     r = Resource(id=body.id, name=body.name, description=body.description)
     session.add(r)
     await session.commit()
-    return {"id": r.id, "name": r.name, "description": r.description, "protected": r.protected}
+    return {"id": r.id, "name": r.name, "description": r.description, "protected": r.protected,
+            "starting_amount": r.starting_amount}
 
 
 @router.patch("/resources/{resource_id}")
@@ -403,7 +405,8 @@ async def update_resource(resource_id: str, body: ResourcePatch, session: AsyncS
     for k, v in data.items():
         setattr(r, k, v)
     await session.commit()
-    return {"id": r.id, "name": r.name, "description": r.description, "protected": r.protected}
+    return {"id": r.id, "name": r.name, "description": r.description, "protected": r.protected,
+            "starting_amount": r.starting_amount}
 
 
 @router.delete("/resources/{resource_id}", status_code=204)

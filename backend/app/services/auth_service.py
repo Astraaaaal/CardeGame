@@ -9,6 +9,8 @@ from fastapi import HTTPException, status
 
 from app.models.user import User
 from app.models.token import RefreshToken
+from app.models.economy import Resource, UserResource
+from app.services.wallet import COINS_ID
 from app.core.security import (
     hash_password,
     verify_password,
@@ -37,14 +39,23 @@ class AuthService:
                 detail="Ce pseudo est déjà pris.",
             )
 
+        resources = (await session.execute(select(Resource))).scalars().all()
+        coins_start = next((r.starting_amount for r in resources if r.id == COINS_ID), 500)
+
         user = User(
             username=username_lower,
             display_name=username.strip(),
             password_hash=hash_password(password),
-            coins=500,
+            coins=coins_start,
             created_at=datetime.utcnow(),
         )
         session.add(user)
+        await session.flush()  # pour obtenir user.id
+
+        for r in resources:
+            if r.id != COINS_ID and r.starting_amount > 0:
+                session.add(UserResource(user_id=user.id, resource_id=r.id, amount=r.starting_amount))
+
         await session.commit()
         await session.refresh(user)
         return user

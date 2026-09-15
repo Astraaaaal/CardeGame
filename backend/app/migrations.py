@@ -105,6 +105,9 @@ _STATEMENTS = [
     # de niveau ci-dessus) — l'admin ne pouvait en configurer que pour les
     # achievements jusqu'ici (colonne manquante pour les niveaux/quêtes).
     "ALTER TABLE quest_defs ADD COLUMN IF NOT EXISTS reward_booster_id VARCHAR(30)",
+    # Solde de départ par ressource à la création d'un compte — remplace le
+    # 500 pièces codé en dur dans auth_service.py, éditable depuis l'admin.
+    "ALTER TABLE resources ADD COLUMN IF NOT EXISTS starting_amount INTEGER NOT NULL DEFAULT 0",
 ]
 
 # Boosters offerts à certains paliers de niveau (en plus des pièces) —
@@ -268,6 +271,15 @@ async def apply_patches(conn: AsyncConnection) -> None:
             await conn.execute(force_protected, {"id": res_id})
         except Exception as exc:  # noqa: BLE001
             logger.warning("protected %r: %s", res_id, exc)
+
+    # Solde de départ historique des pièces (500) — ne stomp pas un réglage
+    # déjà fait par un admin, même logique que les autres colonnes seedées.
+    try:
+        await conn.execute(text(
+            "UPDATE resources SET starting_amount = 500 WHERE id = 'coins' AND starting_amount = 0"
+        ))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("starting_amount coins: %s", exc)
 
     insert_tier = text(
         "INSERT INTO level_tiers (level, power_required, reward_resource_id, reward_amount) "

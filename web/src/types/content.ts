@@ -33,6 +33,7 @@ export interface AdminResource {
     name: string;
     description: string;
     protected: boolean;
+    starting_amount: number;
 }
 
 export interface AdminShopOffer {

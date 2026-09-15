@@ -17,6 +17,10 @@ class Resource(SQLModel, table=True):
     # Ressource système (ex: "coins") : non supprimable/non éditable depuis
     # l'admin, existe par défaut pour chaque joueur via User.coins.
     protected: bool = Field(default=False)
+    # Solde accordé à la création d'un compte (cf. app/services/auth_service.py).
+    # Pour "coins", crédité directement sur User.coins ; pour les autres,
+    # une ligne UserResource n'est créée que si > 0.
+    starting_amount: int = Field(default=0)
 
 
 class UserResource(SQLModel, table=True):

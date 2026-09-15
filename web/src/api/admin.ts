@@ -89,7 +89,7 @@ export const adminApi = {
     listResources: () => http.get<AdminResource[]>("/resources").then((r) => r.data),
     createResource: (b: AdminResource) =>
         http.post<AdminResource>("/resources", b).then((r) => r.data),
-    updateResource: (id: string, b: Partial<Pick<AdminResource, "name" | "description">>) =>
+    updateResource: (id: string, b: Partial<Pick<AdminResource, "name" | "description" | "starting_amount">>) =>
         http.patch<AdminResource>(`/resources/${id}`, b).then((r) => r.data),
     deleteResource: (id: string) => http.delete(`/resources/${id}`).then(() => undefined),
 

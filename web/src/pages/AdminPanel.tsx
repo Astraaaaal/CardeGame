@@ -432,7 +432,7 @@ function ResourceForm({
 }: { initial: AdminResource | null; onSaved: () => void; onClose: () => void }) {
     const isNew = !initial;
     const [f, setF] = useState<AdminResource>(
-        initial ?? { id: "", name: "", description: "", protected: false }
+        initial ?? { id: "", name: "", description: "", protected: false, starting_amount: 0 }
     );
     const [err, setErr] = useState("");
     const m = useMutation({
@@ -785,6 +785,51 @@ function TuningSection() {
     );
 }
 
+/* ──────────────────────  Ressources de départ (création de compte)  ──────────────────────── */
+
+function StartingResourcesSection() {
+    const qc = useQueryClient();
+    const { data, isLoading } = useQuery({ queryKey: ["admin", "resources"], queryFn: adminApi.listResources });
+    const [drafts, setDrafts] = useState<Record<string, number>>({});
+    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+    const save = useMutation({
+        mutationFn: (r: AdminResource) => adminApi.updateResource(r.id, { starting_amount: r.starting_amount }),
+        onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "resources"] }); setMsg({ text: "Enregistré.", ok: true }); },
+        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
+    });
+
+    if (isLoading || !data) return <p className="text-white/40 text-sm">…</p>;
+
+    return (
+        <div>
+            <h4 className="text-white/50 text-xs font-semibold uppercase mb-1.5">Ressources de départ (nouveau compte)</h4>
+            {msg && <p className={`text-xs mb-1 ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
+            <div className="space-y-2">
+                {data.map((r) => {
+                    const value = drafts[r.id] ?? r.starting_amount;
+                    return (
+                        <div key={r.id} className="bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
+                            <span className="text-white text-sm font-semibold flex-1 min-w-[80px] truncate">{r.name}</span>
+                            <input
+                                type="number" className={`${inputCls} w-28`} value={value}
+                                onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: Number(e.target.value) }))}
+                            />
+                            <Button
+                                variant="secondary" size="sm"
+                                loading={save.isPending && save.variables?.id === r.id}
+                                onClick={() => save.mutate({ ...r, starting_amount: value })}
+                            >
+                                OK
+                            </Button>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 /* ─────────────────────────────── Panneau ────────────────────────────── */
 
 type Tab ="characters" | "boosters" | "sets" | "types" | "resources" | "offers" | "messages" | "progression" | "settings" | "bugReports";
@@ -977,6 +1022,7 @@ function Panel() {
                 {tab === "settings" && (
                     <div className="space-y-6">
                         <GameConfigSection />
+                        <StartingResourcesSection />
                         <TuningSection />
                     </div>
                 )}
