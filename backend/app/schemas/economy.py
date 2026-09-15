@@ -63,6 +63,7 @@ class ShopOfferResponse(BaseModel):
     reroll_quality: bool = False
     reroll_specialty: bool = False
     reroll_jewelry: bool = False
+    reroll_power: bool = False
     reroll_mode: str | None = None
 
 
@@ -105,6 +106,37 @@ class ShopOfferIn(BaseModel):
     reroll_quality: bool = False
     reroll_specialty: bool = False
     reroll_jewelry: bool = False
+    reroll_power: bool = False
+    reroll_mode: str | None = Field(default=None, pattern=r"^(random|guaranteed_min)$")
+
+
+class ShopOfferPatch(BaseModel):
+    """Édition d'une offre existante — mêmes champs que ShopOfferIn, tous
+    optionnels (id et kind exclus : on ne change pas la nature d'une offre,
+    on la supprime et en recrée une autre si besoin)."""
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = None
+    active: bool | None = None
+    resource_id: str | None = None
+    price: int | None = Field(default=None, ge=0)
+    purchase_limit_per_day: int | None = Field(default=None, ge=1)
+    is_daily_pool: bool | None = None
+
+    booster_id: str | None = None
+    force_min_rarity_id: str | None = None
+    rarity_weight_multiplier: float | None = Field(default=None, gt=0, le=100)
+
+    character_id: str | None = None
+    rarity_id: str | None = None
+    quality_id: str | None = None
+    specialty_id: str | None = None
+    jewelry_id: str | None = None
+
+    reroll_rarity: bool | None = None
+    reroll_quality: bool | None = None
+    reroll_specialty: bool | None = None
+    reroll_jewelry: bool | None = None
+    reroll_power: bool | None = None
     reroll_mode: str | None = Field(default=None, pattern=r"^(random|guaranteed_min)$")
 
 

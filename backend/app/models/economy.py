@@ -77,6 +77,10 @@ class ShopOffer(SQLModel, table=True):
     reroll_quality: bool = Field(default=False)
     reroll_specialty: bool = Field(default=False)
     reroll_jewelry: bool = Field(default=False)
+    # Puissance : peut être retirée seule (même combinaison, nouveau tirage
+    # dans sa plage) ou en plus d'un autre axe (qui rerolle de toute façon la
+    # puissance puisque la plage change avec la combinaison).
+    reroll_power: bool = Field(default=False)
     reroll_mode: Optional[str] = Field(default=None, max_length=20)  # random | guaranteed_min
 
 

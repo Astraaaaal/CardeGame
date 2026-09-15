@@ -481,8 +481,9 @@ const OFFER_KINDS: { value: AdminShopOffer["kind"]; label: string }[] = [
 ];
 
 function ShopOfferForm({
-    resources, boosters, characters, tuning, onSaved, onClose,
+    initial, resources, boosters, characters, tuning, onSaved, onClose,
 }: {
+    initial: AdminShopOffer | null;
     resources: AdminResource[];
     boosters: AdminBooster[];
     characters: AdminCharacter[];
@@ -490,14 +491,17 @@ function ShopOfferForm({
     onSaved: () => void;
     onClose: () => void;
 }) {
-    const [f, setF] = useState<Partial<AdminShopOffer>>({
-        id: "", name: "", description: "", kind: "booster",
-        resource_id: resources[0]?.id ?? "", price: 10,
-        booster_id: boosters[0]?.id,
-    });
+    const isNew = !initial;
+    const [f, setF] = useState<Partial<AdminShopOffer>>(
+        initial ?? {
+            id: "", name: "", description: "", kind: "booster",
+            resource_id: resources[0]?.id ?? "", price: 10,
+            booster_id: boosters[0]?.id,
+        }
+    );
     const [err, setErr] = useState("");
     const m = useMutation({
-        mutationFn: () => adminApi.createShopOffer(f),
+        mutationFn: () => isNew ? adminApi.createShopOffer(f) : adminApi.updateShopOffer(f.id!, f),
         onSuccess: onSaved,
         onError: (e) => setErr(errMsg(e)),
     });
@@ -511,7 +515,7 @@ function ShopOfferForm({
         <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
             <div>
                 <label className={labelCls}>Identifiant</label>
-                <input className={inputCls} value={f.id} placeholder="ex: offre_pack_a1"
+                <input className={inputCls} value={f.id} disabled={!isNew} placeholder="ex: offre_pack_a1"
                     onChange={(e) => setF({ ...f, id: e.target.value })} />
             </div>
             <div>
@@ -627,6 +631,7 @@ function ShopOfferForm({
                         {([
                             ["reroll_rarity", "Rareté"], ["reroll_quality", "Qualité"],
                             ["reroll_specialty", "Spécialité"], ["reroll_jewelry", "Jewelry"],
+                            ["reroll_power", "Puissance"],
                         ] as const).map(([key, label]) => (
                             <label key={key} className="flex items-center gap-1.5 text-sm text-white/80">
                                 <input type="checkbox" checked={!!f[key]}
@@ -670,7 +675,7 @@ function ShopOfferForm({
             {err && <p className="text-red-400 text-xs">{err}</p>}
             <div className="flex gap-2 pt-1">
                 <Button variant="primary" className="flex-1" loading={m.isPending} onClick={() => m.mutate()}>
-                    Créer
+                    {isNew ? "Créer" : "Enregistrer"}
                 </Button>
                 <Button variant="secondary" onClick={onClose}>Annuler</Button>
             </div>
@@ -845,7 +850,7 @@ function Panel() {
         | { kind: "character"; data: AdminCharacter | null }
         | { kind: "type"; data: AdminType | null }
         | { kind: "resource"; data: AdminResource | null }
-        | { kind: "offer" }
+        | { kind: "offer"; data: AdminShopOffer | null }
         | null
     >(null);
     const [toDelete, setToDelete] = useState<{ kind: Tab; id: string; label: string } | null>(null);
@@ -1008,7 +1013,7 @@ function Panel() {
                                     : tab === "boosters" ? { kind: "booster", data: null }
                                         : tab === "types" ? { kind: "type", data: null }
                                             : tab === "resources" ? { kind: "resource", data: null }
-                                                : tab === "offers" ? { kind: "offer" }
+                                                : tab === "offers" ? { kind: "offer", data: null }
                                                     : { kind: "character", data: null }
                             )
                         }
@@ -1121,7 +1126,11 @@ function Panel() {
                     (offersQ.isLoading ? <p className="text-white/40 text-sm">…</p> :
                         filteredOffers.map((o) => (
                             <div key={o.id} className="flex items-center justify-between bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2 gap-2">
-                                <div className="flex-1 min-w-0">
+                                <button
+                                    className="flex-1 min-w-0 text-left"
+                                    onClick={() => setEditing({ kind: "offer", data: o })}
+                                    title="Modifier cette offre"
+                                >
                                     <p className={`text-sm font-semibold truncate ${o.active ? "text-white" : "text-white/30 line-through"}`}>
                                         {o.featured_today && "[mis en avant] "}{o.name}  ·  {o.id}
                                     </p>
@@ -1134,9 +1143,10 @@ function Panel() {
                                         {o.kind === "reroll" ? ` — ${[
                                             o.reroll_rarity && "rareté", o.reroll_quality && "qualité",
                                             o.reroll_specialty && "spécialité", o.reroll_jewelry && "jewelry",
+                                            o.reroll_power && "puissance",
                                         ].filter(Boolean).join("+")} (${o.reroll_mode === "guaranteed_min" ? "garanti" : "aléatoire"})` : ""}
                                     </p>
-                                </div>
+                                </button>
                                 <button
                                     className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/60 hover:bg-white/20 shrink-0"
                                     onClick={() => toggleOffer.mutate(o)}
@@ -1159,7 +1169,7 @@ function Panel() {
                         : editing?.kind === "booster" ? "Booster"
                             : editing?.kind === "type" ? "Type"
                                 : editing?.kind === "resource" ? "Ressource"
-                                    : editing?.kind === "offer" ? "Nouvelle offre"
+                                    : editing?.kind === "offer" ? (editing.data ? "Modifier l'offre" : "Nouvelle offre")
                                         : "Personnage"
                 }
             >
@@ -1180,6 +1190,7 @@ function Panel() {
                 )}
                 {editing?.kind === "offer" && (
                     <ShopOfferForm
+                        initial={editing.data}
                         resources={resources}
                         boosters={boostersQ.data ?? []}
                         characters={charsQ.data ?? []}

@@ -97,8 +97,10 @@ export const adminApi = {
     listShopOffers: () => http.get<AdminShopOffer[]>("/shop-offers").then((r) => r.data),
     createShopOffer: (b: Partial<AdminShopOffer>) =>
         http.post<AdminShopOffer>("/shop-offers", b).then((r) => r.data),
+    updateShopOffer: (id: string, b: Partial<AdminShopOffer>) =>
+        http.patch<AdminShopOffer>(`/shop-offers/${id}`, b).then((r) => r.data),
     setShopOfferActive: (id: string, active: boolean) =>
-        http.patch<AdminShopOffer>(`/shop-offers/${id}`, null, { params: { active } }).then((r) => r.data),
+        http.patch<AdminShopOffer>(`/shop-offers/${id}`, { active }).then((r) => r.data),
     deleteShopOffer: (id: string) => http.delete(`/shop-offers/${id}`).then(() => undefined),
 
     // ── Booster du jour ──

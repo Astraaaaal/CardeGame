@@ -63,6 +63,7 @@ async def _offer_response(
         jewelry_id=o.jewelry_id, jewelry_name=await name_of(Jewelry, o.jewelry_id),
         reroll_rarity=o.reroll_rarity, reroll_quality=o.reroll_quality,
         reroll_specialty=o.reroll_specialty, reroll_jewelry=o.reroll_jewelry,
+        reroll_power=o.reroll_power,
         reroll_mode=o.reroll_mode,
     )
 
@@ -229,7 +230,7 @@ async def buy_offer(
                 ("specialty", offer.reroll_specialty), ("jewelry", offer.reroll_jewelry),
             ] if on
         ]
-        if not axes:
+        if not axes and not offer.reroll_power:
             raise HTTPException(status_code=500, detail="Offre de reroll mal configurée (aucun axe).")
 
         field_map = {"rarity": "rarity_id", "quality": "quality_id",
@@ -248,11 +249,15 @@ async def buy_offer(
             picked = random.choices(pool, weights=weights, k=1)[0]
             setattr(card, field_map[axis], picked.id)
 
-        card.drop_probability = await _recompute_probability(session, card)
-        card.power = roll_power(
-            card.drop_probability, card.rarity_id, card.quality_id,
-            card.specialty_id, card.jewelry_id,
-        )
+        if axes or offer.reroll_power:
+            # Le retirage d'un autre axe change déjà la plage de puissance
+            # (nouvelle combinaison -> nouvelle probabilité) ; reroll_power
+            # seul retire juste un nouveau tirage dans la MÊME plage.
+            card.drop_probability = await _recompute_probability(session, card)
+            card.power = roll_power(
+                card.drop_probability, card.rarity_id, card.quality_id,
+                card.specialty_id, card.jewelry_id,
+            )
         session.add(card)
         cards_out = [await build_card_response(session, card)]
 

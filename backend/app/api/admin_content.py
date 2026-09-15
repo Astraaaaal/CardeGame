@@ -24,7 +24,7 @@ from app.schemas.content import (
     CharacterIn, CharacterPatch, CharacterOut, CharacterSetLink,
     TypeIn, TypePatch, TypeOut,
 )
-from app.schemas.economy import ResourceIn, ResourcePatch, ShopOfferIn, DailyFeatureIn, DailyFeatureOut
+from app.schemas.economy import ResourceIn, ResourcePatch, ShopOfferIn, ShopOfferPatch, DailyFeatureIn, DailyFeatureOut
 from app.schemas.progression_admin import LevelTierPatch, AchievementDefPatch, QuestDefPatch
 from app.schemas.game_config import GameConfigPatch
 from app.schemas.reference_admin import TuningPatch
@@ -465,7 +465,7 @@ async def create_shop_offer(body: ShopOfferIn, session: AsyncSession = Depends(g
                  "pour une offre de type 'specific_card'.",
         )
     if body.kind == "reroll":
-        if not any([body.reroll_rarity, body.reroll_quality, body.reroll_specialty, body.reroll_jewelry]):
+        if not any([body.reroll_rarity, body.reroll_quality, body.reroll_specialty, body.reroll_jewelry, body.reroll_power]):
             raise HTTPException(400, "Choisis au moins un axe à retirer pour une offre de type 'reroll'.")
         if not body.reroll_mode:
             raise HTTPException(400, "Choisis un mode de reroll (aléatoire ou garanti égal/mieux).")
@@ -482,14 +482,25 @@ async def create_shop_offer(body: ShopOfferIn, session: AsyncSession = Depends(g
 
 @router.patch("/shop-offers/{offer_id}")
 async def update_shop_offer(
-    offer_id: str, active: bool, session: AsyncSession = Depends(get_session)
+    offer_id: str, body: ShopOfferPatch, session: AsyncSession = Depends(get_session)
 ):
-    """Active/désactive une offre (retrait rapide du shop sans la supprimer)."""
     from app.api.shop import _offer_response
     o = await session.get(ShopOffer, offer_id)
     if not o:
         raise HTTPException(404, "Offre introuvable.")
-    o.active = active
+
+    data = body.model_dump(exclude_unset=True)
+    kind = data.get("kind", o.kind)
+    if kind == "reroll":
+        axes = ["reroll_rarity", "reroll_quality", "reroll_specialty", "reroll_jewelry", "reroll_power"]
+        merged = {a: data.get(a, getattr(o, a)) for a in axes}
+        if not any(merged.values()):
+            raise HTTPException(400, "Choisis au moins un axe à retirer pour une offre de type 'reroll'.")
+        if not data.get("reroll_mode", o.reroll_mode):
+            raise HTTPException(400, "Choisis un mode de reroll (aléatoire ou garanti égal/mieux).")
+
+    for k, v in data.items():
+        setattr(o, k, v)
     await session.commit()
     return await _offer_response(session, o)
 

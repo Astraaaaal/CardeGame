@@ -108,6 +108,8 @@ _STATEMENTS = [
     # Solde de départ par ressource à la création d'un compte — remplace le
     # 500 pièces codé en dur dans auth_service.py, éditable depuis l'admin.
     "ALTER TABLE resources ADD COLUMN IF NOT EXISTS starting_amount INTEGER NOT NULL DEFAULT 0",
+    # Reroll : la puissance peut être retirée seule (ou en plus d'un autre axe).
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS reroll_power BOOLEAN NOT NULL DEFAULT FALSE",
 ]
 
 # Boosters offerts à certains paliers de niveau (en plus des pièces) —

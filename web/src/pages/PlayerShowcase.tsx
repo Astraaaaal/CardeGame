@@ -4,10 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { showcaseApi } from "@/api/showcase";
 import { useAuthStore } from "@/stores/authStore";
 import CardImage from "@/components/card/CardImage";
+import CardDetail from "@/components/card/CardDetail";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Button from "@/components/ui/Button";
 import BottomNav from "@/components/layout/BottomNav";
 import { errMsg } from "@/utils/errors";
+import type { Card } from "@/types/card";
 
 export default function PlayerShowcase() {
     const navigate = useNavigate();
@@ -17,6 +19,7 @@ export default function PlayerShowcase() {
     const id = Number(userId);
     const isSelf = user?.id === id;
     const [msg, setMsg] = useState<{ slot: number; text: string; ok: boolean } | null>(null);
+    const [detailCard, setDetailCard] = useState<Card | null>(null);
 
     const { data, isLoading } = useQuery({
         queryKey: ["showcase", id],
@@ -89,7 +92,7 @@ export default function PlayerShowcase() {
                             ) : (
                                 <div className="grid grid-cols-3 gap-2">
                                     {data.cards.map((c) => (
-                                        <CardImage key={c.id} card={c} size="sm" />
+                                        <CardImage key={c.id} card={c} size="sm" onClick={() => setDetailCard(c)} />
                                     ))}
                                 </div>
                             )}
@@ -107,7 +110,7 @@ export default function PlayerShowcase() {
                                 <div className="grid grid-cols-3 gap-2">
                                     {data.trade_listings.map((listing) => (
                                         <div key={listing.slot} className="space-y-1">
-                                            <CardImage card={listing.card} size="sm" />
+                                            <CardImage card={listing.card} size="sm" onClick={() => setDetailCard(listing.card)} />
                                             <p className="text-center text-xs font-semibold text-gold">
                                                 {listing.price} {listing.resource_name}
                                             </p>
@@ -146,6 +149,13 @@ export default function PlayerShowcase() {
                     </div>
                 )}
             </main>
+
+            <CardDetail
+                open={!!detailCard}
+                card={detailCard}
+                readOnly={!isSelf}
+                onClose={() => setDetailCard(null)}
+            />
 
             <BottomNav />
         </div>

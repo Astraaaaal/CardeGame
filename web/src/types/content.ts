@@ -67,6 +67,7 @@ export interface AdminShopOffer {
     reroll_quality: boolean;
     reroll_specialty: boolean;
     reroll_jewelry: boolean;
+    reroll_power: boolean;
     reroll_mode: "random" | "guaranteed_min" | null;
 }
 

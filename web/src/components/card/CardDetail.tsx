@@ -14,6 +14,10 @@ interface CardDetailProps {
     card: Card | null;
     quantity?: number;
     onClose: () => void;
+    /** Vue d'une carte qui n'appartient pas au joueur courant (vitrine d'un
+     * autre profil) : cache les actions de gestion (recyclage), qui ne
+     * s'appliqueraient de toute façon qu'à ses propres cartes. */
+    readOnly?: boolean;
 }
 
 function rarityColorToCSS(color: number[]): string {
@@ -30,7 +34,7 @@ function rarityColorToCSS(color: number[]): string {
  * dernière carte affichée (`lastCard`) pour que l'animation de fermeture
  * ait encore un contenu à afficher pendant qu'elle s'estompe.
  */
-export default function CardDetail({ open, card, quantity, onClose }: CardDetailProps) {
+export default function CardDetail({ open, card, quantity, onClose, readOnly }: CardDetailProps) {
     const qc = useQueryClient();
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [result, setResult] = useState<string | null>(null);
@@ -59,7 +63,7 @@ export default function CardDetail({ open, card, quantity, onClose }: CardDetail
             specialty_id: displayCard!.specialty_id,
             jewelry_id: displayCard!.jewelry_id,
         }),
-        enabled: owned > 1 && !!displayCard,
+        enabled: owned > 1 && !!displayCard && !readOnly,
     });
 
     const recycleIds = owned > 1 ? Array.from(selectedIds) : (displayCard ? [displayCard.id] : []);
@@ -186,50 +190,52 @@ export default function CardDetail({ open, card, quantity, onClose }: CardDetail
                             </div>
 
                             {/* Recyclage */}
-                            <div className="mt-3 pt-3 border-t border-white/10">
-                                <p className="text-white/60 text-xs mb-2">
-                                    Recycler contre de la poussière (irréversible)
-                                </p>
+                            {!readOnly && (
+                                <div className="mt-3 pt-3 border-t border-white/10">
+                                    <p className="text-white/60 text-xs mb-2">
+                                        Recycler contre de la poussière (irréversible)
+                                    </p>
 
-                                {owned > 1 && (
-                                    <div className="mb-2">
-                                        <p className="text-white/40 text-[11px] mb-1.5">
-                                            Coche le ou les exemplaires à recycler :
-                                        </p>
-                                        {copiesQ.isLoading ? (
-                                            <p className="text-white/40 text-xs">Chargement...</p>
-                                        ) : (
-                                            <div className="bg-black/30 rounded-lg px-3 py-2 space-y-1.5 max-h-32 overflow-y-auto">
-                                                {(copiesQ.data?.copies ?? []).map((c) => (
-                                                    <label key={c.id} className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedIds.has(c.id)}
-                                                            onChange={() => toggleCopy(c.id)}
-                                                        />
-                                                        {c.power != null ? `⚡${c.power}` : "—"}
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        )}
+                                    {owned > 1 && (
+                                        <div className="mb-2">
+                                            <p className="text-white/40 text-[11px] mb-1.5">
+                                                Coche le ou les exemplaires à recycler :
+                                            </p>
+                                            {copiesQ.isLoading ? (
+                                                <p className="text-white/40 text-xs">Chargement...</p>
+                                            ) : (
+                                                <div className="bg-black/30 rounded-lg px-3 py-2 space-y-1.5 max-h-32 overflow-y-auto">
+                                                    {(copiesQ.data?.copies ?? []).map((c) => (
+                                                        <label key={c.id} className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedIds.has(c.id)}
+                                                                onChange={() => toggleCopy(c.id)}
+                                                            />
+                                                            {c.power != null ? `⚡${c.power}` : "—"}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            className="flex-1"
+                                            disabled={recycleCount === 0}
+                                            onClick={() => { setResult(null); setConfirmingRecycle(true); }}
+                                        >
+                                            Recycler {recycleCount > 1 ? `×${recycleCount}` : ""}
+                                        </Button>
                                     </div>
-                                )}
-
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        className="flex-1"
-                                        disabled={recycleCount === 0}
-                                        onClick={() => { setResult(null); setConfirmingRecycle(true); }}
-                                    >
-                                        Recycler {recycleCount > 1 ? `×${recycleCount}` : ""}
-                                    </Button>
+                                    {result && (
+                                        <p className="text-xs mt-2 text-purple-300">{result}</p>
+                                    )}
                                 </div>
-                                {result && (
-                                    <p className="text-xs mt-2 text-purple-300">{result}</p>
-                                )}
-                            </div>
+                            )}
                         </div>
 
                         <button
