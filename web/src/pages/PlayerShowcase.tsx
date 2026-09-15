@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { showcaseApi } from "@/api/showcase";
+import { friendsApi } from "@/api/friends";
 import { useAuthStore } from "@/stores/authStore";
 import CardImage from "@/components/card/CardImage";
 import CardDetail from "@/components/card/CardDetail";
@@ -20,6 +21,7 @@ export default function PlayerShowcase() {
     const isSelf = user?.id === id;
     const [msg, setMsg] = useState<{ slot: number; text: string; ok: boolean } | null>(null);
     const [detailCard, setDetailCard] = useState<Card | null>(null);
+    const [friendMsg, setFriendMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
     const { data, isLoading } = useQuery({
         queryKey: ["showcase", id],
@@ -42,6 +44,12 @@ export default function PlayerShowcase() {
         mutationFn: (slot: number) => showcaseApi.proposeTradeListing(id, slot),
         onSuccess: (_res, slot) => setMsg({ slot, text: "Demande d'échange envoyée.", ok: true }),
         onError: (e, slot) => setMsg({ slot, text: errMsg(e), ok: false }),
+    });
+
+    const addFriend = useMutation({
+        mutationFn: (username: string) => friendsApi.send(username),
+        onSuccess: () => setFriendMsg({ text: "Demande d'ami envoyée.", ok: true }),
+        onError: (e) => setFriendMsg({ text: errMsg(e), ok: false }),
     });
 
     return (
@@ -79,6 +87,23 @@ export default function PlayerShowcase() {
                             </div>
                             <h2 className="text-white font-bold text-lg">{data.display_name}</h2>
                             <p className="text-white/40 text-xs">@{data.username}</p>
+                            {!isSelf && (
+                                <>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        loading={addFriend.isPending}
+                                        onClick={() => addFriend.mutate(data.username)}
+                                    >
+                                        + Ajouter en ami
+                                    </Button>
+                                    {friendMsg && (
+                                        <p className={`text-xs ${friendMsg.ok ? "text-green-400" : "text-red-400"}`}>
+                                            {friendMsg.text}
+                                        </p>
+                                    )}
+                                </>
+                            )}
                         </div>
 
                         <div>

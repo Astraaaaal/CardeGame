@@ -192,23 +192,24 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
     const renderFriendRow = (f: Friend) => {
         const pendingTrade = outgoingTradeTo(f.user_id);
         return (
-            <div key={f.user_id} className="bg-black/20 border border-white/5 rounded-lg px-3 py-2.5">
+            <div
+                key={f.user_id}
+                className="bg-black/20 border border-white/5 rounded-lg px-3 py-2.5 cursor-pointer hover:border-white/20 transition-colors"
+                onClick={() => { onClose(); navigate(`/players/${f.user_id}`); }}
+            >
                 <div className="flex items-center justify-between mb-1.5">
-                    <button
-                        className="flex items-center gap-2 min-w-0 hover:underline"
-                        onClick={() => { onClose(); navigate(`/players/${f.user_id}`); }}
-                    >
+                    <div className="flex items-center gap-2 min-w-0">
                         <span
                             className={`w-2 h-2 rounded-full shrink-0 ${f.online ? "bg-green-400" : "bg-white/20"}`}
                             title={f.online ? "En ligne" : "Hors ligne"}
                         />
                         <span className="text-white text-sm font-semibold truncate">{f.display_name}</span>
-                    </button>
+                    </div>
                     <div className="flex items-center gap-2 shrink-0">
                         <button
                             className="text-sm text-white/20 hover:text-white/50"
                             title="Classer dans un groupe"
-                            onClick={() => setGroupPickerFor(groupPickerFor === f.user_id ? null : f.user_id)}
+                            onClick={(e) => { e.stopPropagation(); setGroupPickerFor(groupPickerFor === f.user_id ? null : f.user_id); }}
                         >
                             🏷️
                         </button>
@@ -216,19 +217,19 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                             className={`text-sm ${f.close_friend ? "text-gold" : "text-white/20 hover:text-white/50"}`}
                             title={f.close_friend ? "Ami proche — clique pour retirer" : "Marquer comme ami proche"}
                             disabled={toggleCloseFriend.isPending}
-                            onClick={() => toggleCloseFriend.mutate({ userId: f.user_id, isClose: f.close_friend })}
+                            onClick={(e) => { e.stopPropagation(); toggleCloseFriend.mutate({ userId: f.user_id, isClose: f.close_friend }); }}
                         >
                             {f.close_friend ? "★" : "☆"}
                         </button>
                         <button
                             className="text-red-400/70 hover:text-red-400 text-xs"
-                            onClick={() => setToRemove({ id: f.user_id, name: f.display_name })}
+                            onClick={(e) => { e.stopPropagation(); setToRemove({ id: f.user_id, name: f.display_name }); }}
                         >
                             Retirer
                         </button>
                     </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                     <Button
                         variant="secondary" size="sm" className="flex-1"
                         disabled={!!pendingTrade}
@@ -242,7 +243,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                     </Button>
                 </div>
                 {groupPickerFor === f.user_id && (
-                    <div className="mt-2 pt-2 border-t border-white/5 space-y-1">
+                    <div className="mt-2 pt-2 border-t border-white/5 space-y-1" onClick={(e) => e.stopPropagation()}>
                         {groups.length === 0 ? (
                             <p className="text-white/30 text-xs">Aucun groupe — crée-en un plus bas.</p>
                         ) : groups.map((g) => (

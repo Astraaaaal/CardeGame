@@ -684,67 +684,61 @@ function ShopOfferForm({
 }
 
 /* ────────────────────────  Réglages globaux du jeu  ───────────────────── */
+/* Un seul brouillon partagé pour les 3 sous-sections (récompense quotidienne,
+ * ressources de départ, poids de tirage/recyclage) et un seul bouton
+ * "Enregistrer tout" en bas — plutôt qu'une validation par ligne, trop
+ * fastidieuse dès qu'on ajuste plusieurs valeurs d'un coup. */
 
-function GameConfigSection() {
+function SettingsPanel() {
     const qc = useQueryClient();
-    const { data, isLoading } = useQuery({ queryKey: ["admin", "game-config"], queryFn: adminApi.getGameConfig });
-    const [draft, setDraft] = useState<GameConfig | null>(null);
+    const gameConfigQ = useQuery({ queryKey: ["admin", "game-config"], queryFn: adminApi.getGameConfig });
+    const resourcesQ = useQuery({ queryKey: ["admin", "resources"], queryFn: adminApi.listResources });
+    const tuningQ = useQuery({ queryKey: ["admin", "tuning"], queryFn: adminApi.tuning });
+
+    const [gameConfigDraft, setGameConfigDraft] = useState<Partial<GameConfig>>({});
+    const [resourceDrafts, setResourceDrafts] = useState<Record<string, number>>({});
+    const [tuningDrafts, setTuningDrafts] = useState<Record<string, Partial<Pick<TuningEntry, "weight" | "recycle_value">>>>({});
     const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
-    const config = draft ?? data;
+    const dirtyCount = Object.keys(gameConfigDraft).length + Object.keys(resourceDrafts).length + Object.keys(tuningDrafts).length;
 
-    const save = useMutation({
-        mutationFn: (b: GameConfig) => adminApi.updateGameConfig(b),
-        onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "game-config"] }); setMsg({ text: "Enregistré.", ok: true }); },
+    const saveAll = useMutation({
+        mutationFn: async () => {
+            const calls: Promise<unknown>[] = [];
+            if (Object.keys(gameConfigDraft).length > 0) calls.push(adminApi.updateGameConfig(gameConfigDraft));
+            for (const [id, starting_amount] of Object.entries(resourceDrafts)) {
+                calls.push(adminApi.updateResource(id, { starting_amount }));
+            }
+            for (const [key, patch] of Object.entries(tuningDrafts)) {
+                const [table, id] = key.split("::") as [TuningTable, string];
+                calls.push(adminApi.updateTuning(table, id, patch));
+            }
+            await Promise.all(calls);
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["admin", "game-config"] });
+            qc.invalidateQueries({ queryKey: ["admin", "resources"] });
+            qc.invalidateQueries({ queryKey: ["admin", "tuning"] });
+            setGameConfigDraft({});
+            setResourceDrafts({});
+            setTuningDrafts({});
+            setMsg({ text: "Tout est enregistré.", ok: true });
+        },
         onError: (e) => setMsg({ text: errMsg(e), ok: false }),
     });
 
-    if (isLoading || !config) return <p className="text-white/40 text-sm">…</p>;
+    if (gameConfigQ.isLoading || resourcesQ.isLoading || tuningQ.isLoading) return <p className="text-white/40 text-sm">…</p>;
+    if (!gameConfigQ.data || !resourcesQ.data || !tuningQ.data) return null;
 
-    return (
-        <div className="bg-game-surface/60 border border-white/5 rounded-lg px-3 py-3 space-y-3 max-w-sm">
-            {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
-            <div>
-                <label className={labelCls}>Récompense quotidienne de base (pièces)</label>
-                <input
-                    type="number" className={inputCls} value={config.daily_base_reward}
-                    onChange={(e) => setDraft({ ...config, daily_base_reward: Number(e.target.value) })}
-                />
-            </div>
-            <div>
-                <label className={labelCls}>Bonus par jour de série (pièces)</label>
-                <input
-                    type="number" className={inputCls} value={config.daily_streak_bonus}
-                    onChange={(e) => setDraft({ ...config, daily_streak_bonus: Number(e.target.value) })}
-                />
-            </div>
-            <Button variant="secondary" size="sm" loading={save.isPending} onClick={() => save.mutate(config)}>
-                OK
-            </Button>
-        </div>
-    );
-}
+    const config = { ...gameConfigQ.data, ...gameConfigDraft };
 
-/* ──────────────────  Poids de tirage & recyclage (rareté/qualité/...)  ────────────────── */
-
-function TuningTableRows({ table, label, entries }: { table: TuningTable; label: string; entries: TuningEntry[] }) {
-    const qc = useQueryClient();
-    const [drafts, setDrafts] = useState<Record<string, Partial<TuningEntry>>>({});
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-
-    const save = useMutation({
-        mutationFn: (e: TuningEntry) => adminApi.updateTuning(table, e.id, { weight: e.weight, recycle_value: e.recycle_value }),
-        onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "tuning"] }); setMsg({ text: "Enregistré.", ok: true }); },
-        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
-    });
-
-    return (
-        <div>
+    const tuningRows = (table: TuningTable, label: string, entries: TuningEntry[]) => (
+        <div key={table}>
             <h4 className="text-white/50 text-xs font-semibold uppercase mb-1.5">{label}</h4>
-            {msg && <p className={`text-xs mb-1 ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
             <div className="space-y-2">
                 {entries.map((entry) => {
-                    const draft = { ...entry, ...drafts[entry.id] };
+                    const key = `${table}::${entry.id}`;
+                    const draft = { ...entry, ...tuningDrafts[key] };
                     return (
                         <div key={entry.id} className="bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
                             <span className="text-white text-sm font-semibold w-24 shrink-0 truncate">{entry.name}</span>
@@ -752,84 +746,77 @@ function TuningTableRows({ table, label, entries }: { table: TuningTable; label:
                                 <label className="block text-white/40 text-[10px]">Poids (tirage)</label>
                                 <input
                                     type="number" step="0.1" className={inputCls} value={draft.weight ?? 0}
-                                    onChange={(e) => setDrafts((d) => ({ ...d, [entry.id]: { ...draft, weight: Number(e.target.value) } }))}
+                                    onChange={(e) => setTuningDrafts((d) => ({ ...d, [key]: { ...d[key], weight: Number(e.target.value) } }))}
                                 />
                             </div>
                             <div className="flex-1 min-w-[90px]">
                                 <label className="block text-white/40 text-[10px]">Poussière (recyclage)</label>
                                 <input
                                     type="number" className={inputCls} value={draft.recycle_value ?? 0}
-                                    onChange={(e) => setDrafts((d) => ({ ...d, [entry.id]: { ...draft, recycle_value: Number(e.target.value) } }))}
+                                    onChange={(e) => setTuningDrafts((d) => ({ ...d, [key]: { ...d[key], recycle_value: Number(e.target.value) } }))}
                                 />
                             </div>
-                            <Button
-                                variant="secondary" size="sm"
-                                loading={save.isPending && save.variables?.id === entry.id}
-                                onClick={() => save.mutate(draft as TuningEntry)}
-                            >
-                                OK
-                            </Button>
                         </div>
                     );
                 })}
             </div>
         </div>
     );
-}
-
-function TuningSection() {
-    const { data, isLoading } = useQuery({ queryKey: ["admin", "tuning"], queryFn: adminApi.tuning });
-    if (isLoading || !data) return <p className="text-white/40 text-sm">…</p>;
-    return (
-        <div className="space-y-4">
-            <TuningTableRows table="rarities" label="Raretés" entries={data.rarities} />
-            <TuningTableRows table="qualities" label="Qualités" entries={data.qualities} />
-            <TuningTableRows table="specialties" label="Spécialités" entries={data.specialties} />
-            <TuningTableRows table="jewelries" label="Bijoux" entries={data.jewelries} />
-        </div>
-    );
-}
-
-/* ──────────────────────  Ressources de départ (création de compte)  ──────────────────────── */
-
-function StartingResourcesSection() {
-    const qc = useQueryClient();
-    const { data, isLoading } = useQuery({ queryKey: ["admin", "resources"], queryFn: adminApi.listResources });
-    const [drafts, setDrafts] = useState<Record<string, number>>({});
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-
-    const save = useMutation({
-        mutationFn: (r: AdminResource) => adminApi.updateResource(r.id, { starting_amount: r.starting_amount }),
-        onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "resources"] }); setMsg({ text: "Enregistré.", ok: true }); },
-        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
-    });
-
-    if (isLoading || !data) return <p className="text-white/40 text-sm">…</p>;
 
     return (
-        <div>
-            <h4 className="text-white/50 text-xs font-semibold uppercase mb-1.5">Ressources de départ (nouveau compte)</h4>
-            {msg && <p className={`text-xs mb-1 ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
-            <div className="space-y-2">
-                {data.map((r) => {
-                    const value = drafts[r.id] ?? r.starting_amount;
-                    return (
-                        <div key={r.id} className="bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
-                            <span className="text-white text-sm font-semibold flex-1 min-w-[80px] truncate">{r.name}</span>
-                            <input
-                                type="number" className={`${inputCls} w-28`} value={value}
-                                onChange={(e) => setDrafts((d) => ({ ...d, [r.id]: Number(e.target.value) }))}
-                            />
-                            <Button
-                                variant="secondary" size="sm"
-                                loading={save.isPending && save.variables?.id === r.id}
-                                onClick={() => save.mutate({ ...r, starting_amount: value })}
-                            >
-                                OK
-                            </Button>
-                        </div>
-                    );
-                })}
+        <div className="space-y-6 pb-2">
+            <div className="bg-game-surface/60 border border-white/5 rounded-lg px-3 py-3 space-y-3 max-w-sm">
+                <div>
+                    <label className={labelCls}>Récompense quotidienne de base (pièces)</label>
+                    <input
+                        type="number" className={inputCls} value={config.daily_base_reward}
+                        onChange={(e) => setGameConfigDraft((d) => ({ ...d, daily_base_reward: Number(e.target.value) }))}
+                    />
+                </div>
+                <div>
+                    <label className={labelCls}>Bonus par jour de série (pièces)</label>
+                    <input
+                        type="number" className={inputCls} value={config.daily_streak_bonus}
+                        onChange={(e) => setGameConfigDraft((d) => ({ ...d, daily_streak_bonus: Number(e.target.value) }))}
+                    />
+                </div>
+            </div>
+
+            <div>
+                <h4 className="text-white/50 text-xs font-semibold uppercase mb-1.5">Ressources de départ (nouveau compte)</h4>
+                <div className="space-y-2">
+                    {resourcesQ.data.map((r) => {
+                        const value = resourceDrafts[r.id] ?? r.starting_amount;
+                        return (
+                            <div key={r.id} className="bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
+                                <span className="text-white text-sm font-semibold flex-1 min-w-[80px] truncate">{r.name}</span>
+                                <input
+                                    type="number" className={`${inputCls} w-28`} value={value}
+                                    onChange={(e) => setResourceDrafts((d) => ({ ...d, [r.id]: Number(e.target.value) }))}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            <div className="space-y-4">
+                {tuningRows("rarities", "Raretés", tuningQ.data.rarities)}
+                {tuningRows("qualities", "Qualités", tuningQ.data.qualities)}
+                {tuningRows("specialties", "Spécialités", tuningQ.data.specialties)}
+                {tuningRows("jewelries", "Bijoux", tuningQ.data.jewelries)}
+            </div>
+
+            <div className="sticky bottom-0 bg-game-bg/95 backdrop-blur border-t border-white/10 pt-3 -mx-4 px-4 pb-2">
+                {msg && <p className={`text-xs mb-2 ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
+                <Button
+                    variant="primary" className="w-full"
+                    disabled={dirtyCount === 0}
+                    loading={saveAll.isPending}
+                    onClick={() => saveAll.mutate()}
+                >
+                    {dirtyCount > 0 ? `Enregistrer tout (${dirtyCount})` : "Enregistrer tout"}
+                </Button>
             </div>
         </div>
     );
@@ -1024,13 +1011,7 @@ function Panel() {
 
                 {tab === "messages" && <AdminMessagesComposer resources={resources} />}
                 {tab === "progression" && <AdminProgressionEditor resources={resources} boosters={boostersQ.data ?? []} />}
-                {tab === "settings" && (
-                    <div className="space-y-6">
-                        <GameConfigSection />
-                        <StartingResourcesSection />
-                        <TuningSection />
-                    </div>
-                )}
+                {tab === "settings" && <SettingsPanel />}
                 {tab === "bugReports" && <AdminBugReports />}
 
                 {tab === "sets" &&

@@ -9,11 +9,13 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import BottomNav from "@/components/layout/BottomNav";
 
 function EntryRow({ entry, isSelf }: { entry: LeaderboardEntry; isSelf: boolean }) {
+    const navigate = useNavigate();
     return (
-        <div
-            className={`flex items-center justify-between px-4 py-3 rounded-xl border ${
-                isSelf ? "bg-accent/10 border-accent/40" : "bg-game-surface border-white/10"
+        <button
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-colors ${
+                isSelf ? "bg-accent/10 border-accent/40" : "bg-game-surface border-white/10 hover:border-white/30"
             }`}
+            onClick={() => navigate(`/players/${entry.user_id}`)}
         >
             <div className="flex items-center gap-3 min-w-0">
                 <span className="text-white/50 font-bold text-sm w-6 text-center shrink-0">
@@ -26,7 +28,7 @@ function EntryRow({ entry, isSelf }: { entry: LeaderboardEntry; isSelf: boolean 
             <span className="text-gold font-bold text-sm shrink-0">
                 ⚡ {entry.total_power.toLocaleString("fr-FR")}
             </span>
-        </div>
+        </button>
     );
 }
 

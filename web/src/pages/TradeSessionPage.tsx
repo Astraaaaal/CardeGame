@@ -4,10 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { tradeSessionsApi } from "@/api/tradeSessions";
 import type { TradeSessionItem } from "@/types/trade";
+import type { Card } from "@/types/card";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CardImage from "@/components/card/CardImage";
+import CardDetail from "@/components/card/CardDetail";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import AddResourceModal from "@/components/trade/AddResourceModal";
 import { errMsg } from "@/utils/errors";
@@ -16,7 +18,7 @@ const MAX_ITEMS_PER_SIDE = 12;
 
 const ACTIVE = new Set(["negotiating", "confirming"]);
 
-function ItemChip({ item, onRemove }: { item: TradeSessionItem; onRemove?: () => void }) {
+function ItemChip({ item, onRemove, onOpenDetail }: { item: TradeSessionItem; onRemove?: () => void; onOpenDetail?: (card: Card) => void }) {
     if (item.item_type === "card" && item.card) {
         return (
             <div className="relative">
@@ -28,7 +30,7 @@ function ItemChip({ item, onRemove }: { item: TradeSessionItem; onRemove?: () =>
                         ×
                     </button>
                 )}
-                <CardImage card={item.card} size="sm" />
+                <CardImage card={item.card} size="sm" onClick={onOpenDetail ? () => onOpenDetail(item.card!) : undefined} />
             </div>
         );
     }
@@ -63,6 +65,7 @@ export default function TradeSessionPage() {
     const qc = useQueryClient();
     const [addResourceOpen, setAddResourceOpen] = useState(false);
     const [err, setErr] = useState("");
+    const [detailCard, setDetailCard] = useState<Card | null>(null);
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
     const consumeResult = useCardSelectionStore((s) => s.consumeResult);
 
@@ -185,6 +188,7 @@ export default function TradeSessionPage() {
                             <ItemChip
                                 key={item.id}
                                 item={item}
+                                onOpenDetail={setDetailCard}
                                 onRemove={
                                     trade.status === "negotiating"
                                         ? () => removeItem.mutate(item.id)
@@ -235,7 +239,7 @@ export default function TradeSessionPage() {
                         )}
                     </div>
                     <div className="grid grid-cols-3 gap-2">
-                        {trade.other_items.map((item) => <ItemChip key={item.id} item={item} />)}
+                        {trade.other_items.map((item) => <ItemChip key={item.id} item={item} onOpenDetail={setDetailCard} />)}
                     </div>
                     {trade.other_items.length === 0 && (
                         <p className="text-white/30 text-sm">Rien proposé pour l'instant.</p>
@@ -299,6 +303,13 @@ export default function TradeSessionPage() {
                     onClose={() => setAddResourceOpen(false)}
                 />
             )}
+
+            <CardDetail
+                open={!!detailCard}
+                card={detailCard}
+                readOnly
+                onClose={() => setDetailCard(null)}
+            />
         </div>
     );
 }
