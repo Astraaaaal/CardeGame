@@ -5,6 +5,7 @@ import { playerApi } from "@/api/player";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/useAuth";
 import Button from "@/components/ui/Button";
+import PasswordInput from "@/components/ui/PasswordInput";
 import { errMsg } from "@/utils/errors";
 
 /** Nom affiché + changement de mot de passe. */
@@ -94,8 +95,7 @@ export default function AccountEditor() {
                         value={currentPwd}
                         onChange={(e) => { setCurrentPwd(e.target.value); setPwdMsg(null); }}
                     />
-                    <input
-                        type="password"
+                    <PasswordInput
                         className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
                         placeholder="Nouveau mot de passe"
                         value={newPwd}

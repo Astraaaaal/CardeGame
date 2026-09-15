@@ -17,6 +17,8 @@ export interface TradeListing {
     mode: TradeListingMode;
 }
 
+export type FriendshipStatus = "self" | "friends" | "pending" | "none";
+
 export interface Showcase {
     user_id: number;
     username: string;
@@ -24,6 +26,7 @@ export interface Showcase {
     avatar: AvatarInfo | null;
     cards: Card[];
     trade_listings: TradeListing[];
+    friendship_status: FriendshipStatus;
 }
 
 export interface TradeListingSlotIn {

@@ -29,6 +29,10 @@ class ShowcaseResponse(BaseModel):
     avatar: AvatarInfo | None = None
     cards: list[CardResponse] = []  # 0 à 3, emplacements vides omis
     trade_listings: list[TradeListingOut] = []  # 0 à 3, emplacements vides omis
+    # "self" | "friends" | "pending" | "none" — relation entre le visiteur et
+    # ce joueur (cf. app/services/showcase_view.py), pour piloter le bouton
+    # "Ajouter en ami" côté vitrine publique.
+    friendship_status: str = "self"
 
 
 class UpdateShowcaseRequest(BaseModel):

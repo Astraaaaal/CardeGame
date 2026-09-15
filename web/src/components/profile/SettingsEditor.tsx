@@ -18,12 +18,13 @@ const POLICY_OPTIONS: { value: TradeRequestPolicy; label: string }[] = [
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
     return (
         <button
-            className={`w-11 h-6 rounded-full transition-colors relative shrink-0 ${checked ? "bg-accent" : "bg-white/15"}`}
+            type="button"
+            className={`w-11 h-6 p-0 rounded-full transition-colors relative shrink-0 ${checked ? "bg-accent" : "bg-white/15"}`}
             onClick={() => onChange(!checked)}
         >
             <span
-                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                    checked ? "translate-x-5" : "translate-x-0.5"
+                className={`absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                    checked ? "translate-x-5" : "translate-x-0"
                 }`}
             />
         </button>

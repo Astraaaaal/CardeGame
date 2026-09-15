@@ -25,14 +25,14 @@ router = APIRouter()
 @router.get("/{user_id}/showcase", response_model=ShowcaseResponse)
 async def get_player_showcase(
     user_id: int,
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Vitrine publique d'un joueur (avatar, cartes mises en avant, cartes à échanger)."""
     target = await session.get(User, user_id)
     if not target:
         raise HTTPException(404, "Joueur introuvable.")
-    return await build_showcase_response(session, target)
+    return await build_showcase_response(session, target, viewer_id=user.id)
 
 
 @router.post(
@@ -82,7 +82,7 @@ async def buy_trade_listing(
     await session.delete(listing)
     await session.commit()
 
-    return await build_showcase_response(session, seller)
+    return await build_showcase_response(session, seller, viewer_id=buyer.id)
 
 
 @router.post(

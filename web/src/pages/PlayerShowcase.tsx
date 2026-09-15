@@ -48,7 +48,10 @@ export default function PlayerShowcase() {
 
     const addFriend = useMutation({
         mutationFn: (username: string) => friendsApi.send(username),
-        onSuccess: () => setFriendMsg({ text: "Demande d'ami envoyée.", ok: true }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["showcase", id] });
+            setFriendMsg({ text: "Demande d'ami envoyée.", ok: true });
+        },
         onError: (e) => setFriendMsg({ text: errMsg(e), ok: false }),
     });
 
@@ -87,7 +90,7 @@ export default function PlayerShowcase() {
                             </div>
                             <h2 className="text-white font-bold text-lg">{data.display_name}</h2>
                             <p className="text-white/40 text-xs">@{data.username}</p>
-                            {!isSelf && (
+                            {!isSelf && data.friendship_status === "none" && (
                                 <>
                                     <Button
                                         variant="secondary"
@@ -103,6 +106,9 @@ export default function PlayerShowcase() {
                                         </p>
                                     )}
                                 </>
+                            )}
+                            {!isSelf && data.friendship_status === "pending" && (
+                                <p className="text-white/40 text-xs">Réponse en attente</p>
                             )}
                         </div>
 

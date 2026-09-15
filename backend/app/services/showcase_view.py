@@ -4,18 +4,18 @@ réutilisé par la route publique (voir un joueur) et la route d'édition (moi).
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, or_, and_
 
 from app.models.user import User
 from app.models.card import UserCard
 from app.models.character import Character
 from app.models.economy import Resource
-from app.models.social import TradeListing
+from app.models.social import TradeListing, FriendRequest
 from app.schemas.showcase import ShowcaseResponse, AvatarInfo, TradeListingOut
 from app.services.card_view import build_card_response
 
 
-async def build_showcase_response(session: AsyncSession, target: User) -> ShowcaseResponse:
+async def build_showcase_response(session: AsyncSession, target: User, viewer_id: int | None = None) -> ShowcaseResponse:
     avatar = None
     if target.avatar_character_id:
         char = await session.get(Character, target.avatar_character_id)
@@ -51,7 +51,25 @@ async def build_showcase_response(session: AsyncSession, target: User) -> Showca
             mode=listing.mode,
         ))
 
+    friendship_status = "self"
+    if viewer_id is not None and viewer_id != target.id:
+        rel = (await session.execute(
+            select(FriendRequest).where(
+                or_(
+                    and_(FriendRequest.requester_id == viewer_id, FriendRequest.addressee_id == target.id),
+                    and_(FriendRequest.requester_id == target.id, FriendRequest.addressee_id == viewer_id),
+                )
+            )
+        )).scalar_one_or_none()
+        if rel and rel.status == "accepted":
+            friendship_status = "friends"
+        elif rel and rel.status == "pending":
+            friendship_status = "pending"
+        else:
+            friendship_status = "none"
+
     return ShowcaseResponse(
         user_id=target.id, username=target.username, display_name=target.display_name,
         avatar=avatar, cards=cards, trade_listings=trade_listings,
+        friendship_status=friendship_status,
     )

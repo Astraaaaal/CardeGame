@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
+import PasswordInput from "@/components/ui/PasswordInput";
 import { useLogin, useRegister } from "@/hooks/useAuth";
 
 export default function LoginPage() {
@@ -88,8 +89,7 @@ export default function LoginPage() {
                         <label className="block text-white/70 text-sm mb-1">
                             Mot de passe
                         </label>
-                        <input
-                            type="password"
+                        <PasswordInput
                             className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5
                          text-white placeholder-white/30 focus:border-accent focus:outline-none
                          transition-colors"
