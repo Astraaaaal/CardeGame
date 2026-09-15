@@ -8,6 +8,7 @@ export default function LoginPage() {
     const [isRegister, setIsRegister] = useState(false);
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [inviteCode, setInviteCode] = useState("");
     const [error, setError] = useState("");
     const navigate = useNavigate();
 
@@ -25,7 +26,7 @@ export default function LoginPage() {
 
         try {
             if (isRegister) {
-                await registerMutation.mutateAsync({ username, password });
+                await registerMutation.mutateAsync({ username, password, invite_code: inviteCode });
                 // Auto-login après inscription
                 await loginMutation.mutateAsync({ username, password });
             } else {
@@ -53,8 +54,9 @@ export default function LoginPage() {
             >
                 {/* Logo / Titre */}
                 <div className="text-center mb-8">
-                    <h1 className="text-4xl font-extrabold text-white mb-2">
+                    <h1 className="text-4xl font-extrabold text-white mb-2 inline-flex items-baseline gap-2">
                         Carde<span className="text-accent">Game</span>
+                        <span className="text-xs font-bold tracking-wide text-white/40">BÊTA</span>
                     </h1>
                     <p className="text-white/50 text-sm">
                         {isRegister ? "Créer un compte" : "Connexion"}
@@ -97,6 +99,24 @@ export default function LoginPage() {
                             autoComplete={isRegister ? "new-password" : "current-password"}
                         />
                     </div>
+
+                    {isRegister && (
+                        <div>
+                            <label className="block text-white/70 text-sm mb-1">
+                                Code d'invitation
+                            </label>
+                            <input
+                                type="text"
+                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5
+                         text-white placeholder-white/30 focus:border-accent focus:outline-none
+                         transition-colors"
+                                placeholder="Reçu de la personne qui t'invite"
+                                value={inviteCode}
+                                onChange={(e) => setInviteCode(e.target.value)}
+                                autoComplete="off"
+                            />
+                        </div>
+                    )}
 
                     {error && (
                         <motion.p

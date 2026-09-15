@@ -6,10 +6,14 @@ manquantes — pas les colonnes ajoutées sur une table déjà existante).
 Chaque étape doit pouvoir être rejouée sans risque à chaque démarrage.
 """
 
+import logging
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.services.power import roll_power
+
+logger = logging.getLogger(__name__)
 
 _STATEMENTS = [
     # Provenance d'une carte : quel booster l'a produite.
@@ -97,6 +101,10 @@ _STATEMENTS = [
     # des cartes/ressources déjà possibles), cf. app/models/message.py.
     "ALTER TABLE messages ADD COLUMN IF NOT EXISTS reward_booster_id VARCHAR(30)",
     "ALTER TABLE messages ADD COLUMN IF NOT EXISTS reward_booster_qty INTEGER",
+    # Une quête peut AUSSI donner un booster (même mécanique que les paliers
+    # de niveau ci-dessus) — l'admin ne pouvait en configurer que pour les
+    # achievements jusqu'ici (colonne manquante pour les niveaux/quêtes).
+    "ALTER TABLE quest_defs ADD COLUMN IF NOT EXISTS reward_booster_id VARCHAR(30)",
 ]
 
 # Boosters offerts à certains paliers de niveau (en plus des pièces) —
@@ -227,7 +235,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
         try:
             await conn.execute(text(sql))
         except Exception as exc:  # noqa: BLE001 - patch best-effort, ne bloque pas le démarrage
-            print(f"[migrations] avertissement sur {sql[:60]!r}...: {exc}")
+            logger.warning("sur %r...: %s", sql[:60], exc)
 
     insert_type = text(
         "INSERT INTO character_types (id, name, color_r, color_g, color_b) "
@@ -237,7 +245,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
         try:
             await conn.execute(insert_type, {"id": type_id, "name": name, "r": r, "g": g, "b": b})
         except Exception as exc:  # noqa: BLE001
-            print(f"[migrations] avertissement seed type {type_id!r}: {exc}")
+            logger.warning("seed type %r: %s", type_id, exc)
 
     insert_resource = text(
         "INSERT INTO resources (id, name, description, protected) "
@@ -250,7 +258,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
                 "protected": res_id in _PROTECTED_RESOURCES,
             })
         except Exception as exc:  # noqa: BLE001
-            print(f"[migrations] avertissement seed resource {res_id!r}: {exc}")
+            logger.warning("seed resource %r: %s", res_id, exc)
 
     # Au cas où "coins" existait déjà avant l'ajout de la colonne `protected`
     # (déploiement antérieur) : force le flag, ne dépend pas de l'ordre d'insertion.
@@ -259,7 +267,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
         try:
             await conn.execute(force_protected, {"id": res_id})
         except Exception as exc:  # noqa: BLE001
-            print(f"[migrations] avertissement protected {res_id!r}: {exc}")
+            logger.warning("protected %r: %s", res_id, exc)
 
     insert_tier = text(
         "INSERT INTO level_tiers (level, power_required, reward_resource_id, reward_amount) "
@@ -272,7 +280,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
                 "reward_resource_id": "coins" if reward_amount else None, "reward_amount": reward_amount,
             })
         except Exception as exc:  # noqa: BLE001
-            print(f"[migrations] avertissement seed level tier {level!r}: {exc}")
+            logger.warning("seed level tier %r: %s", level, exc)
 
     # Ne renseigne le booster-bonus que si la colonne est encore vide (ne
     # stomp pas un réglage déjà fait par un admin), même logique que recycle_value.
@@ -284,7 +292,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
         try:
             await conn.execute(set_level_booster, {"level": level, "booster_id": booster_id})
         except Exception as exc:  # noqa: BLE001
-            print(f"[migrations] avertissement level booster reward {level!r}: {exc}")
+            logger.warning("level booster reward %r: %s", level, exc)
 
     insert_achievement = text(
         "INSERT INTO achievement_defs "
@@ -303,7 +311,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
                 "reward_booster_id": reward_booster_id,
             })
         except Exception as exc:  # noqa: BLE001
-            print(f"[migrations] avertissement seed achievement {a_id!r}: {exc}")
+            logger.warning("seed achievement %r: %s", a_id, exc)
 
     insert_quest = text(
         "INSERT INTO quest_defs (id, name, description, period, metric, threshold, "
@@ -320,7 +328,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
                 "reward_resource_id": reward_resource_id, "reward_amount": reward_amount,
             })
         except Exception as exc:  # noqa: BLE001
-            print(f"[migrations] avertissement seed quest {q_id!r}: {exc}")
+            logger.warning("seed quest %r: %s", q_id, exc)
 
     for table, values in _RECYCLE_DEFAULTS.items():
         update = text(
@@ -330,7 +338,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
             try:
                 await conn.execute(update, {"id": row_id, "v": value})
             except Exception as exc:  # noqa: BLE001
-                print(f"[migrations] avertissement recycle_value {table}.{row_id}: {exc}")
+                logger.warning("recycle_value %s.%s: %s", table, row_id, exc)
 
     # Backfill de la puissance (colonne ajoutée après coup) pour les cartes
     # déjà en base — chacune reçoit un tirage rétroactif, une seule fois.
@@ -348,6 +356,6 @@ async def apply_patches(conn: AsyncConnection) -> None:
                 )
                 if power is not None:
                     await conn.execute(update_power, {"id": row.id, "power": power})
-            print(f"[migrations] puissance calculée pour {len(rows)} carte(s) existante(s).")
+            logger.info("Puissance calculée pour %d carte(s) existante(s).", len(rows))
     except Exception as exc:  # noqa: BLE001
-        print(f"[migrations] avertissement backfill power: {exc}")
+        logger.warning("backfill power: %s", exc)

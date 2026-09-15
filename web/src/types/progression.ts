@@ -55,6 +55,7 @@ export interface Quest {
     progress: number;
     reward_resource_id: string | null;
     reward_amount: number | null;
+    reward_booster_id: string | null;
     completed: boolean;
     claimed_at: string | null;
 }

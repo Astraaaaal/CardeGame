@@ -61,5 +61,6 @@ class QuestOut(BaseModel):
     progress: int
     reward_resource_id: str | None = None
     reward_amount: int | None = None
+    reward_booster_id: str | None = None
     completed: bool
     claimed_at: datetime | None = None

@@ -29,6 +29,9 @@ class QuestDef(SQLModel, table=True):
 
     reward_resource_id: Optional[str] = Field(default=None, foreign_key="resources.id", max_length=30)
     reward_amount: Optional[int] = Field(default=None)
+    # Un booster non ouvert, en plus ou à la place d'une récompense en
+    # ressource (crédité à l'inventaire, cf. app/models/booster_inventory.py).
+    reward_booster_id: Optional[str] = Field(default=None, foreign_key="boosters.id", max_length=30)
 
     active: bool = Field(default=True)
 

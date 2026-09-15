@@ -13,27 +13,32 @@ for _stream in (_sys.stdout, _sys.stderr):
         pass
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import settings
+from app.core.logging_config import setup_logging, logger
+from app.core.ratelimit import check_global_rate_limit, client_ip
 from app.database import init_db
 from app.api import auth, player, players, boosters, collection, admin, admin_content, types, shop, friends, leaderboard, trades, messages, progression, support
+
+setup_logging()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown events."""
-    print("[CardeGame API] Initialisation de la base de données...")
+    logger.info("Initialisation de la base de données...")
     try:
         await init_db()
-        print("[CardeGame API] Prêt !")
-    except Exception as exc:  # BDD injoignable (réseau qui filtre Postgres, Neon suspendu…)
-        print(f"[CardeGame API] [!] BDD injoignable au démarrage : {exc!r}")
-        print("[CardeGame API] [!] L'API démarre quand même ; les routes BDD "
-              "échoueront tant que la connexion n'est pas rétablie (réseau / Neon).")
+        logger.info("Prêt !")
+    except Exception:  # BDD injoignable (réseau qui filtre Postgres, Neon suspendu…)
+        logger.exception("BDD injoignable au démarrage.")
+        logger.warning("L'API démarre quand même ; les routes BDD échoueront "
+                        "tant que la connexion n'est pas rétablie (réseau / Neon).")
     yield
-    print("[CardeGame API] Arrêt.")
+    logger.info("Arrêt.")
 
 
 app = FastAPI(
@@ -51,6 +56,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Limite globale de requêtes (filet de sécurité en plus des limites par
+# route, cf. app/core/ratelimit.py) — couvre toute l'API, protège contre un
+# client qui boucle en erreur ou un pic de trafic sur cette instance unique.
+@app.middleware("http")
+async def global_rate_limit_middleware(request: Request, call_next):
+    if request.url.path != "/api/health" and not check_global_rate_limit(client_ip(request)):
+        return JSONResponse(status_code=429, content={"detail": "Trop de requêtes. Réessaie dans un instant."})
+    return await call_next(request)
+
 
 # ── Routes ──
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
@@ -70,6 +85,12 @@ app.include_router(messages.admin_router, prefix="/api/admin/messages", tags=["A
 app.include_router(progression.router, prefix="/api/progression", tags=["Progression"])
 app.include_router(support.router, prefix="/api/support", tags=["Support"])
 app.include_router(support.admin_router, prefix="/api/admin/bug-reports", tags=["Admin — Support"])
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Erreur non gérée sur %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Erreur interne du serveur."})
 
 
 @app.get("/api/health")

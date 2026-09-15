@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi, type AdminLevelTier, type AdminAchievementDef, type AdminQuestDef } from "@/api/admin";
-import type { AdminResource } from "@/types/content";
+import type { AdminResource, AdminBooster } from "@/types/content";
 import Button from "@/components/ui/Button";
 
 const inputCls =
@@ -25,7 +25,16 @@ function ResourceSelect({ value, resources, onChange }: { value: string | null; 
     );
 }
 
-function LevelTiersSection({ resources }: { resources: AdminResource[] }) {
+function BoosterSelect({ value, boosters, onChange }: { value: string | null; boosters: AdminBooster[]; onChange: (v: string) => void }) {
+    return (
+        <select className={inputCls} value={value ?? ""} onChange={(e) => onChange(e.target.value)}>
+            <option value="">Aucun booster</option>
+            {boosters.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+    );
+}
+
+function LevelTiersSection({ resources, boosters }: { resources: AdminResource[]; boosters: AdminBooster[] }) {
     const qc = useQueryClient();
     const { data, isLoading } = useQuery({ queryKey: ["admin", "level-tiers"], queryFn: adminApi.listLevelTiers });
     const [drafts, setDrafts] = useState<Record<number, Partial<AdminLevelTier>>>({});
@@ -34,6 +43,7 @@ function LevelTiersSection({ resources }: { resources: AdminResource[] }) {
     const save = useMutation({
         mutationFn: (t: AdminLevelTier) => adminApi.updateLevelTier(t.level, {
             power_required: t.power_required, reward_resource_id: t.reward_resource_id || null, reward_amount: t.reward_amount,
+            reward_booster_id: t.reward_booster_id || null,
         }),
         onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "level-tiers"] }); setMsg({ text: "Enregistré.", ok: true }); },
         onError: (e) => setMsg({ text: errMsg(e), ok: false }),
@@ -62,6 +72,11 @@ function LevelTiersSection({ resources }: { resources: AdminResource[] }) {
                             type="number" className={`${inputCls} w-24`} placeholder="Qté" value={draft.reward_amount ?? ""}
                             onChange={(e) => setDrafts((d) => ({ ...d, [t.level]: { ...draft, reward_amount: e.target.value ? Number(e.target.value) : null } }))}
                         />
+                        <BoosterSelect
+                            value={draft.reward_booster_id}
+                            boosters={boosters}
+                            onChange={(v) => setDrafts((d) => ({ ...d, [t.level]: { ...draft, reward_booster_id: v } }))}
+                        />
                         <Button variant="secondary" size="sm" loading={save.isPending && save.variables?.level === t.level} onClick={() => save.mutate(draft as AdminLevelTier)}>
                             OK
                         </Button>
@@ -72,7 +87,7 @@ function LevelTiersSection({ resources }: { resources: AdminResource[] }) {
     );
 }
 
-function AchievementsSection({ resources }: { resources: AdminResource[] }) {
+function AchievementsSection({ resources, boosters }: { resources: AdminResource[]; boosters: AdminBooster[] }) {
     const qc = useQueryClient();
     const { data, isLoading } = useQuery({ queryKey: ["admin", "achievement-defs"], queryFn: adminApi.listAchievementDefs });
     const [drafts, setDrafts] = useState<Record<string, Partial<AdminAchievementDef>>>({});
@@ -80,7 +95,8 @@ function AchievementsSection({ resources }: { resources: AdminResource[] }) {
 
     const save = useMutation({
         mutationFn: (a: AdminAchievementDef) => adminApi.updateAchievementDef(a.id, {
-            threshold: a.threshold, reward_resource_id: a.reward_resource_id || null, reward_amount: a.reward_amount, active: a.active,
+            threshold: a.threshold, reward_resource_id: a.reward_resource_id || null, reward_amount: a.reward_amount,
+            reward_booster_id: a.reward_booster_id || null, active: a.active,
         }),
         onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "achievement-defs"] }); setMsg({ text: "Enregistré.", ok: true }); },
         onError: (e) => setMsg({ text: errMsg(e), ok: false }),
@@ -120,6 +136,11 @@ function AchievementsSection({ resources }: { resources: AdminResource[] }) {
                                             type="number" className={`${inputCls} w-24`} placeholder="Qté" value={draft.reward_amount ?? ""}
                                             onChange={(e) => setDrafts((d) => ({ ...d, [a.id]: { ...draft, reward_amount: e.target.value ? Number(e.target.value) : null } }))}
                                         />
+                                        <BoosterSelect
+                                            value={draft.reward_booster_id}
+                                            boosters={boosters}
+                                            onChange={(v) => setDrafts((d) => ({ ...d, [a.id]: { ...draft, reward_booster_id: v } }))}
+                                        />
                                         <Button variant="secondary" size="sm" loading={save.isPending && save.variables?.id === a.id} onClick={() => save.mutate(draft as AdminAchievementDef)}>
                                             OK
                                         </Button>
@@ -134,7 +155,7 @@ function AchievementsSection({ resources }: { resources: AdminResource[] }) {
     );
 }
 
-function QuestsSection({ resources }: { resources: AdminResource[] }) {
+function QuestsSection({ resources, boosters }: { resources: AdminResource[]; boosters: AdminBooster[] }) {
     const qc = useQueryClient();
     const { data, isLoading } = useQuery({ queryKey: ["admin", "quest-defs"], queryFn: adminApi.listQuestDefs });
     const [drafts, setDrafts] = useState<Record<string, Partial<AdminQuestDef>>>({});
@@ -142,7 +163,8 @@ function QuestsSection({ resources }: { resources: AdminResource[] }) {
 
     const save = useMutation({
         mutationFn: (q: AdminQuestDef) => adminApi.updateQuestDef(q.id, {
-            threshold: q.threshold, reward_resource_id: q.reward_resource_id || null, reward_amount: q.reward_amount, active: q.active,
+            threshold: q.threshold, reward_resource_id: q.reward_resource_id || null, reward_amount: q.reward_amount,
+            reward_booster_id: q.reward_booster_id || null, active: q.active,
         }),
         onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "quest-defs"] }); setMsg({ text: "Enregistré.", ok: true }); },
         onError: (e) => setMsg({ text: errMsg(e), ok: false }),
@@ -173,6 +195,11 @@ function QuestsSection({ resources }: { resources: AdminResource[] }) {
                                 type="number" className={`${inputCls} w-24`} placeholder="Qté" value={draft.reward_amount ?? ""}
                                 onChange={(e) => setDrafts((d) => ({ ...d, [q.id]: { ...draft, reward_amount: e.target.value ? Number(e.target.value) : null } }))}
                             />
+                            <BoosterSelect
+                                value={draft.reward_booster_id}
+                                boosters={boosters}
+                                onChange={(v) => setDrafts((d) => ({ ...d, [q.id]: { ...draft, reward_booster_id: v } }))}
+                            />
                             <Button variant="secondary" size="sm" loading={save.isPending && save.variables?.id === q.id} onClick={() => save.mutate(draft as AdminQuestDef)}>
                                 OK
                             </Button>
@@ -186,7 +213,7 @@ function QuestsSection({ resources }: { resources: AdminResource[] }) {
 
 type Section = "levels" | "achievements" | "quests";
 
-export default function AdminProgressionEditor({ resources }: { resources: AdminResource[] }) {
+export default function AdminProgressionEditor({ resources, boosters }: { resources: AdminResource[]; boosters: AdminBooster[] }) {
     const [section, setSection] = useState<Section>("levels");
 
     return (
@@ -206,9 +233,9 @@ export default function AdminProgressionEditor({ resources }: { resources: Admin
                     </button>
                 ))}
             </div>
-            {section === "levels" && <LevelTiersSection resources={resources} />}
-            {section === "achievements" && <AchievementsSection resources={resources} />}
-            {section === "quests" && <QuestsSection resources={resources} />}
+            {section === "levels" && <LevelTiersSection resources={resources} boosters={boosters} />}
+            {section === "achievements" && <AchievementsSection resources={resources} boosters={boosters} />}
+            {section === "quests" && <QuestsSection resources={resources} boosters={boosters} />}
         </div>
     );
 }

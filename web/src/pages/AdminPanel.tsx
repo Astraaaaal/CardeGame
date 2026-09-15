@@ -868,7 +868,7 @@ function Panel() {
                 )}
 
                 {tab === "messages" && <AdminMessagesComposer resources={resources} />}
-                {tab === "progression" && <AdminProgressionEditor resources={resources} />}
+                {tab === "progression" && <AdminProgressionEditor resources={resources} boosters={boostersQ.data ?? []} />}
                 {tab === "bugReports" && <AdminBugReports />}
 
                 {tab === "sets" &&

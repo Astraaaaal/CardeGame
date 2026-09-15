@@ -1,0 +1,6 @@
+# Dépendances de développement uniquement (tests) — pas installées en prod
+# (Dockerfile n'installe que requirements.txt).
+-r requirements.txt
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+aiosqlite>=0.20.0

@@ -4,6 +4,7 @@ Lit les fichiers assets/data/*.json et les insère dans la BDD.
 """
 
 import json
+import logging
 import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -14,6 +15,8 @@ from app.models.booster import Booster
 from app.models.user import User
 from app.models.card import UserCard
 from app.core.security import hash_password
+
+logger = logging.getLogger(__name__)
 
 # Données de référence : copie EMBARQUÉE dans le backend (app/seed/data/), pour que
 # `/api/admin/seed` marche dans l'image Docker (dockerContext = ./backend).
@@ -28,7 +31,7 @@ def _load_json(filename: str, key: str) -> list:
     """Charge un fichier JSON et retourne la liste sous la clé donnée."""
     filepath = os.path.join(DATA_DIR, filename)
     if not os.path.exists(filepath):
-        print(f"[Seed] ATTENTION: {filepath} introuvable!")
+        logger.warning("%s introuvable !", filepath)
         return []
     with open(filepath, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -51,10 +54,10 @@ async def seed_reference_data(session: AsyncSession):
     # Vérifier si déjà seedé
     result = await session.execute(select(Set))
     if result.scalars().first():
-        print("[Seed] Données déjà présentes, skip.")
+        logger.info("Données déjà présentes, skip.")
         return
 
-    print(f"[Seed] Chargement depuis {DATA_DIR}")
+    logger.info("Chargement depuis %s", DATA_DIR)
 
     # ── Sets ──
     for s in _load_json("sets.json", "sets"):
@@ -63,7 +66,7 @@ async def seed_reference_data(session: AsyncSession):
             name=s["name"],
             description=s.get("description", ""),
         ))
-    print("[Seed] Sets insérés")
+    logger.info("Sets insérés")
 
     # ── Rarities ──
     for r in _load_json("rarities.json", "rarities"):
@@ -76,7 +79,7 @@ async def seed_reference_data(session: AsyncSession):
             color_r=color[0], color_g=color[1], color_b=color[2],
             label_color_r=label[0], label_color_g=label[1], label_color_b=label[2],
         ))
-    print("[Seed] Rarities insérées")
+    logger.info("Rarities insérées")
 
     # ── Qualities ──
     for q in _load_json("qualities.json", "qualities"):
@@ -87,7 +90,7 @@ async def seed_reference_data(session: AsyncSession):
             filter_type=q.get("filter", "none"),
             description=q.get("description", ""),
         ))
-    print("[Seed] Qualities insérées")
+    logger.info("Qualities insérées")
 
     # ── Specialties ──
     for s in _load_json("specialties.json", "specialties"):
@@ -99,7 +102,7 @@ async def seed_reference_data(session: AsyncSession):
             effect=s.get("effect", "none"),
             description=s.get("description", ""),
         ))
-    print("[Seed] Specialties insérées")
+    logger.info("Specialties insérées")
 
     # ── Jewelries ──
     for j in _load_json("jewelries.json", "jewelries"):
@@ -111,7 +114,7 @@ async def seed_reference_data(session: AsyncSession):
             color_r=color[0], color_g=color[1], color_b=color[2],
             description=j.get("description", ""),
         ))
-    print("[Seed] Jewelries insérées")
+    logger.info("Jewelries insérées")
 
     # Flush pour que les FK soient disponibles
     await session.flush()
@@ -132,7 +135,7 @@ async def seed_reference_data(session: AsyncSession):
                 set_id=set_id,
                 weight=weight,
             ))
-    print("[Seed] Characters insérés")
+    logger.info("Characters insérés")
 
     # ── Boosters ──
     for b in _load_json("boosters.json", "boosters"):
@@ -145,10 +148,10 @@ async def seed_reference_data(session: AsyncSession):
             guaranteed_rare=b.get("guaranteed_rare", False),
             description=b.get("description", ""),
         ))
-    print("[Seed] Boosters insérés")
+    logger.info("Boosters insérés")
 
     await session.commit()
-    print("[Seed] Toutes les données de référence insérées avec succès !")
+    logger.info("Toutes les données de référence insérées avec succès !")
 
 
 async def migrate_player_saves(session: AsyncSession) -> int:
@@ -161,7 +164,7 @@ async def migrate_player_saves(session: AsyncSession) -> int:
     accounts = _load_json_raw(accounts_file)
 
     if not accounts:
-        print("[Migration] Aucun compte à migrer.")
+        logger.info("Aucun compte à migrer.")
         return 0
 
     count = 0
@@ -171,7 +174,7 @@ async def migrate_player_saves(session: AsyncSession) -> int:
             select(User).where(User.username == username)
         )
         if result.scalar_one_or_none():
-            print(f"[Migration] {username} déjà migré, skip.")
+            logger.info("%s déjà migré, skip.", username)
             continue
 
         # Créer le user avec un mot de passe temporaire
@@ -210,9 +213,8 @@ async def migrate_player_saves(session: AsyncSession) -> int:
                 ))
 
         count += 1
-        print(f"[Migration] {username} migré ({user.coins} coins, "
-              f"{user.total_cards} cartes)")
+        logger.info("%s migré (%d coins, %d cartes)", username, user.coins, user.total_cards)
 
     await session.commit()
-    print(f"[Migration] {count} joueur(s) migré(s) au total !")
+    logger.info("%d joueur(s) migré(s) au total !", count)
     return count

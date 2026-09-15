@@ -197,10 +197,14 @@ function QuestsTab() {
                                 <p className="text-white text-sm font-semibold">{q.name}</p>
                                 <p className="text-white/40 text-xs mt-0.5">{q.description}</p>
                             </div>
-                            {q.reward_amount && (
+                            {(q.reward_amount || q.reward_booster_id) && (
                                 <div className="flex items-center gap-1 text-xs text-white/50 shrink-0">
-                                    <ResourceIcon resourceId={q.reward_resource_id ?? "coins"} className="w-3.5 h-3.5" />
-                                    {q.reward_amount.toLocaleString("fr-FR")}
+                                    {q.reward_amount ? (
+                                        <>
+                                            <ResourceIcon resourceId={q.reward_resource_id ?? "coins"} className="w-3.5 h-3.5" />
+                                            {q.reward_amount.toLocaleString("fr-FR")}
+                                        </>
+                                    ) : "booster"}
                                 </div>
                             )}
                         </div>

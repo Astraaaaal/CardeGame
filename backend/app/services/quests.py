@@ -14,6 +14,7 @@ from app.models.user import User
 from app.models.quest import QuestDef, UserQuest, DAILY_QUEST_COUNT, WEEKLY_QUEST_COUNT
 from app.services.quest_progress import daily_key, weekly_key, get_count
 from app.services.wallet import apply_delta
+from app.services import booster_inventory
 
 _COUNT_BY_PERIOD = {"daily": DAILY_QUEST_COUNT, "weekly": WEEKLY_QUEST_COUNT}
 
@@ -58,6 +59,7 @@ async def list_quests(session: AsyncSession, user_id: int) -> list[dict]:
                 "id": uq.id, "quest_def_id": qdef.id, "name": qdef.name, "description": qdef.description,
                 "period": period, "threshold": qdef.threshold, "progress": min(progress, qdef.threshold),
                 "reward_resource_id": qdef.reward_resource_id, "reward_amount": qdef.reward_amount,
+                "reward_booster_id": qdef.reward_booster_id,
                 "completed": progress >= qdef.threshold, "claimed_at": uq.claimed_at,
             })
     return out
@@ -80,6 +82,8 @@ async def claim_quest(session: AsyncSession, user: User, user_quest_id: int) -> 
 
     if qdef.reward_resource_id and qdef.reward_amount:
         await apply_delta(session, user, qdef.reward_resource_id, qdef.reward_amount)
+    if qdef.reward_booster_id:
+        await booster_inventory.grant(session, user.id, qdef.reward_booster_id, 1)
 
     uq.claimed_at = datetime.utcnow()
     session.add(uq)

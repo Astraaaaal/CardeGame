@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # ── Admin (protège /api/admin/*) ──
     ADMIN_KEY: str = ""  # vide = routes admin refusées
 
+    # ── Bêta (protège /api/auth/register) ──
+    BETA_INVITE_CODE: str = ""  # vide = inscription libre (pas de gate)
+
     # ── Cloudinary (vide = rendu des cartes côté client) ──
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""

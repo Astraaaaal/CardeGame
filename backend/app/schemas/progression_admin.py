@@ -11,6 +11,7 @@ class LevelTierPatch(BaseModel):
     power_required: int | None = None
     reward_resource_id: str | None = None
     reward_amount: int | None = None
+    reward_booster_id: str | None = None
 
 
 class AchievementDefPatch(BaseModel):
@@ -25,4 +26,5 @@ class QuestDefPatch(BaseModel):
     threshold: int | None = None
     reward_resource_id: str | None = None
     reward_amount: int | None = None
+    reward_booster_id: str | None = None
     active: bool | None = None

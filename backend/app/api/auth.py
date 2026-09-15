@@ -2,9 +2,10 @@
 Routes d'authentification — Register, Login, Refresh, Logout.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_session
 from app.core.ratelimit import rate_limit
 from app.schemas.auth import (
@@ -30,6 +31,8 @@ async def register(
     session: AsyncSession = Depends(get_session),
 ):
     """Inscription d'un nouveau joueur."""
+    if settings.BETA_INVITE_CODE and request.invite_code.strip() != settings.BETA_INVITE_CODE:
+        raise HTTPException(status_code=403, detail="Code d'invitation invalide.")
     user = await auth_service.register(
         session, request.username, request.password
     )

@@ -575,7 +575,8 @@ async def list_level_tiers(session: AsyncSession = Depends(get_session)):
     rows = (await session.execute(select(LevelTier).order_by(LevelTier.level))).scalars().all()
     return [
         {"level": t.level, "power_required": t.power_required,
-         "reward_resource_id": t.reward_resource_id, "reward_amount": t.reward_amount}
+         "reward_resource_id": t.reward_resource_id, "reward_amount": t.reward_amount,
+         "reward_booster_id": t.reward_booster_id}
         for t in rows
     ]
 
@@ -589,7 +590,8 @@ async def update_level_tier(level: int, body: LevelTierPatch, session: AsyncSess
         setattr(t, k, v)
     await session.commit()
     return {"level": t.level, "power_required": t.power_required,
-            "reward_resource_id": t.reward_resource_id, "reward_amount": t.reward_amount}
+            "reward_resource_id": t.reward_resource_id, "reward_amount": t.reward_amount,
+            "reward_booster_id": t.reward_booster_id}
 
 
 @router.get("/achievements")
@@ -624,7 +626,8 @@ async def list_quest_defs(session: AsyncSession = Depends(get_session)):
     return [
         {"id": q.id, "name": q.name, "description": q.description, "period": q.period,
          "metric": q.metric, "threshold": q.threshold,
-         "reward_resource_id": q.reward_resource_id, "reward_amount": q.reward_amount, "active": q.active}
+         "reward_resource_id": q.reward_resource_id, "reward_amount": q.reward_amount,
+         "reward_booster_id": q.reward_booster_id, "active": q.active}
         for q in rows
     ]
 
@@ -639,4 +642,5 @@ async def update_quest_def(quest_id: str, body: QuestDefPatch, session: AsyncSes
     await session.commit()
     return {"id": q.id, "name": q.name, "description": q.description, "period": q.period,
             "metric": q.metric, "threshold": q.threshold,
-            "reward_resource_id": q.reward_resource_id, "reward_amount": q.reward_amount, "active": q.active}
+            "reward_resource_id": q.reward_resource_id, "reward_amount": q.reward_amount,
+            "reward_booster_id": q.reward_booster_id, "active": q.active}

@@ -6,6 +6,7 @@ export interface LoginRequest {
 export interface RegisterRequest {
     username: string;
     password: string;
+    invite_code?: string;
 }
 
 export interface TokenResponse {

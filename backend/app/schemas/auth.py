@@ -8,6 +8,8 @@ from pydantic import BaseModel, Field
 class RegisterRequest(BaseModel):
     username: str = Field(min_length=3, max_length=20, pattern=r"^[a-zA-Z0-9]+$")
     password: str = Field(min_length=4, max_length=100)
+    # Requis uniquement si settings.BETA_INVITE_CODE est configuré (cf. app/api/auth.py).
+    invite_code: str = Field(default="", max_length=50)
 
 
 class LoginRequest(BaseModel):

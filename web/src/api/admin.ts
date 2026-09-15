@@ -112,7 +112,7 @@ export const adminApi = {
     updateAchievementDef: (id: string, b: Partial<Pick<AdminAchievementDef, "threshold" | "reward_resource_id" | "reward_amount" | "reward_booster_id" | "active">>) =>
         http.patch<AdminAchievementDef>(`/achievements/${id}`, b).then((r) => r.data),
     listQuestDefs: () => http.get<AdminQuestDef[]>("/quest-defs").then((r) => r.data),
-    updateQuestDef: (id: string, b: Partial<Pick<AdminQuestDef, "threshold" | "reward_resource_id" | "reward_amount" | "active">>) =>
+    updateQuestDef: (id: string, b: Partial<Pick<AdminQuestDef, "threshold" | "reward_resource_id" | "reward_amount" | "reward_booster_id" | "active">>) =>
         http.patch<AdminQuestDef>(`/quest-defs/${id}`, b).then((r) => r.data),
 };
 
@@ -121,6 +121,7 @@ export interface AdminLevelTier {
     power_required: number;
     reward_resource_id: string | null;
     reward_amount: number | null;
+    reward_booster_id: string | null;
 }
 
 export interface AdminAchievementDef {
@@ -146,6 +147,7 @@ export interface AdminQuestDef {
     threshold: number;
     reward_resource_id: string | null;
     reward_amount: number | null;
+    reward_booster_id: string | null;
     active: boolean;
 }
 
