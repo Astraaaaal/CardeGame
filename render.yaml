@@ -21,6 +21,8 @@ services:
         generateValue: true
       - key: ADMIN_KEY
         generateValue: true    # protège /api/admin/* (en-tête X-Admin-Key)
+      - key: BETA_INVITE_CODE
+        sync: false            # optionnel — vide = inscription libre, cf. docs/DEPLOY.md
       - key: ENVIRONMENT
         value: production
       - key: CORS_ORIGINS

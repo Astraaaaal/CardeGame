@@ -26,6 +26,7 @@ Sur le service `cardegame-api` → onglet **Environment** :
 | `DATABASE_URL` | l'URL Neon directe (elle peut commencer par `postgresql://` et finir par `?sslmode=require`, le backend s'en accommode) |
 | `JWT_SECRET` | *auto-généré, ne pas toucher* |
 | `ADMIN_KEY` | *auto-généré — **copier la valeur**, elle sert au seed* |
+| `BETA_INVITE_CODE` | optionnel — vide = inscription libre ; sinon requis pour créer un compte |
 | `CLOUDINARY_*` | laisser vide (rendu des cartes côté client) |
 
 Save → l'API redéploie.
@@ -64,9 +65,8 @@ Sur mobile : menu du navigateur → **Ajouter à l'écran d'accueil** (PWA).
 - **Redéploiement auto** à chaque `push` sur `main` (Render surveille le repo).
 - **Cold start** : l'API free s'endort après ~15 min d'inactivité ; le premier appel suivant met ~50 s.
 
-## Note — base partagée dev / prod
+## Bases séparées dev / prod
 
-Pour l'instant le local et la prod pointent sur **la même base Neon**. Propre mais mélangé
-(comptes de test avec comptes réels). Recommandé quand tu auras 2 min : créer une **branche
-Neon** `dev` (gratuit) pour le local et garder `main` pour la prod — il suffit alors de
-changer `DATABASE_URL` dans `backend/.env`.
+Le local pointe sur une branche Neon `dev` (copie de `production`, `backend/.env` →
+`DATABASE_URL`), Render reste sur `production`. Si `dev` devient trop sale à force de
+tests, elle peut être réinitialisée depuis Neon (reset from parent) sans toucher à la prod.
