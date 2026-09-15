@@ -15,7 +15,7 @@ from app.models.token import RefreshToken
 from app.models.card import UserCard
 from app.models.economy import Resource, UserResource
 from app.models.social import TradeListing
-from app.schemas.player import PlayerResponse, DailyRewardResponse, UpdateProfileRequest
+from app.schemas.player import PlayerResponse, DailyRewardResponse, UpdateProfileRequest, PlayerStatsResponse
 from app.schemas.auth import ChangePasswordRequest, DeleteAccountRequest, MessageResponse
 from app.schemas.economy import ResourceBalance
 from app.schemas.showcase import ShowcaseResponse, UpdateShowcaseRequest, UpdateTradeListingsRequest
@@ -23,6 +23,7 @@ from app.schemas.settings import PlayerSettings, UpdatePlayerSettings
 from app.services.daily_reward import DailyRewardService
 from app.services.showcase_view import build_showcase_response
 from app.services.account import delete_account
+from app.services.player_stats import build_player_stats
 
 router = APIRouter()
 daily_service = DailyRewardService()
@@ -62,6 +63,15 @@ async def get_profile(
 ):
     """Retourne le profil du joueur connecté, y compris ses ressources."""
     return await _profile_response(session, user)
+
+
+@router.get("/stats", response_model=PlayerStatsResponse)
+async def get_player_stats(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Statistiques enrichies pour l'onglet Statistiques du profil (sérieuses + fun)."""
+    return await build_player_stats(session, user)
 
 
 @router.patch("/me", response_model=PlayerResponse)

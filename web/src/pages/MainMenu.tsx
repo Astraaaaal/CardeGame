@@ -1,30 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
-import { friendsApi } from "@/api/friends";
 import { progressionApi } from "@/api/progression";
+import { showcaseApi } from "@/api/showcase";
 import { useAuthStore } from "@/stores/authStore";
-import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import Button from "@/components/ui/Button";
 import CoinDisplay from "@/components/player/CoinDisplay";
 import ResourceDisplay from "@/components/player/ResourceDisplay";
 import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
-import FriendsPanel from "@/components/social/FriendsPanel";
 import TradeRequestPopup from "@/components/social/TradeRequestPopup";
 import ActiveTradeBanner from "@/components/trade/ActiveTradeBanner";
+import BottomNav from "@/components/layout/BottomNav";
 
 export default function MainMenu() {
   const navigate = useNavigate();
   const { user, setUser } = useAuthStore();
-  // Rouvre automatiquement le panneau Amis au retour d'une sélection de
-  // carte pour un cadeau (cf. FriendsPanel / MessagesInbox), quel que soit
-  // l'onglet d'origine — FriendsPanel se replace lui-même sur le bon onglet.
-  const [friendsOpen, setFriendsOpen] = useState(
-    () => useCardSelectionStore.getState().result?.context?.purpose === "gift"
-  );
 
   const { data: player } = useQuery({
     queryKey: ["player"],
@@ -32,16 +25,16 @@ export default function MainMenu() {
     staleTime: 30_000,
   });
 
-  const { data: friendRequests } = useQuery({
-    queryKey: ["friend-requests"],
-    queryFn: friendsApi.listRequests,
-    staleTime: 30_000,
-  });
-  const pendingCount = friendRequests?.incoming.length ?? 0;
-
   const { data: levelStatus } = useQuery({
     queryKey: ["level-status"],
     queryFn: progressionApi.getLevel,
+    staleTime: 30_000,
+  });
+
+  const { data: showcase } = useQuery({
+    queryKey: ["showcase", user?.id],
+    queryFn: () => showcaseApi.get(user!.id),
+    enabled: !!user?.id,
     staleTime: 30_000,
   });
 
@@ -56,38 +49,71 @@ export default function MainMenu() {
     { label: "Progression", path: "/progression" },
   ];
 
+  const powerPct = levelStatus?.next_level_power_required
+    ? Math.min(100, Math.round((levelStatus.total_power / levelStatus.next_level_power_required) * 100))
+    : 100;
+
   return (
     <div className="min-h-screen bg-game-bg flex flex-col">
       <DailyRewardPopup />
       <TradeRequestPopup />
 
       <div className="px-4 pt-4 max-w-sm mx-auto w-full space-y-2">
-        <div className="bg-game-surface/50 border border-white/5 rounded-2xl px-4 py-3 flex items-center justify-between">
-          <button
-            className="text-white font-bold text-lg hover:text-accent transition-colors text-left"
-            onClick={() => navigate("/profile")}
-            title="Vitrine et statistiques"
-          >
-            {user?.display_name || "Joueur"}
-          </button>
-          <StreakBadge streak={user?.login_streak ?? 0} />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <CoinDisplay coins={user?.coins ?? 0} />
+        <div className="flex items-center justify-between">
           <ResourceDisplay amount={user?.resources?.[0]?.amount ?? 0} label={user?.resources?.[0]?.name} />
+          <CoinDisplay coins={user?.coins ?? 0} />
         </div>
 
         <button
-          className="w-full bg-game-surface/50 border border-white/5 rounded-2xl px-4 py-3 flex items-center justify-center gap-2 hover:border-accent/40 transition-colors"
+          className="w-full bg-game-surface/50 border border-white/5 rounded-2xl px-4 py-3 flex items-center justify-between hover:border-accent/40 transition-colors text-left"
+          onClick={() => navigate("/profile")}
+          title="Vitrine et statistiques"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-full overflow-hidden bg-black/30 border border-white/10 shrink-0 flex items-center justify-center">
+              {showcase?.avatar ? (
+                <img
+                  src={`/characters/${showcase.avatar.image_url}`}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-white/20 text-sm">?</span>
+              )}
+            </div>
+            <span className="text-white font-bold text-lg truncate">{user?.display_name || "Joueur"}</span>
+          </div>
+          <StreakBadge streak={user?.login_streak ?? 0} />
+        </button>
+
+        <button
+          className="w-full bg-game-surface/50 border border-white/5 rounded-2xl px-4 py-3 hover:border-accent/40 transition-colors text-left"
           onClick={() => navigate("/progression")}
         >
-          <span className="text-white/40 text-xs uppercase tracking-wide">Niveau</span>
-          <span className="text-accent font-extrabold text-lg">{levelStatus?.current_level ?? "—"}</span>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-white/40 text-xs uppercase tracking-wide">Niveau</span>
+            <span className="text-accent font-extrabold text-lg">{levelStatus?.current_level ?? "—"}</span>
+          </div>
+          {levelStatus && (
+            <>
+              <div className="h-1.5 bg-black/30 rounded-full overflow-hidden">
+                <div className="h-full bg-accent transition-all" style={{ width: `${powerPct}%` }} />
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-white/30 text-[11px]">
+                  {levelStatus.total_power.toLocaleString("fr-FR")} puissance
+                </span>
+                {levelStatus.next_level_power_required != null && (
+                  <span className="text-white/30 text-[11px]">
+                    {levelStatus.total_power.toLocaleString("fr-FR")} / {levelStatus.next_level_power_required.toLocaleString("fr-FR")}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
         </button>
       </div>
 
-      <FriendsPanel open={friendsOpen} onClose={() => setFriendsOpen(false)} />
       <ActiveTradeBanner />
 
       {/* Content */}
@@ -121,27 +147,7 @@ export default function MainMenu() {
         </div>
       </main>
 
-      <footer className="flex items-center justify-between px-4 py-4">
-        <button
-          className="text-white/70 hover:text-white text-xl"
-          onClick={() => navigate("/settings")}
-          title="Réglages"
-        >
-          ⚙️
-        </button>
-        <button
-          className="relative text-white/70 hover:text-white text-xl"
-          onClick={() => setFriendsOpen(true)}
-          title="Amis"
-        >
-          👥
-          {pendingCount > 0 && (
-            <span className="absolute -top-1 -right-1.5 inline-flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4">
-              {pendingCount}
-            </span>
-          )}
-        </button>
-      </footer>
+      <BottomNav />
     </div>
   );
 }

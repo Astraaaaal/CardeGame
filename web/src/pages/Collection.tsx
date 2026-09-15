@@ -9,6 +9,7 @@ import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import FilterModal from "@/components/collection/FilterModal";
 import ProbabilityModal from "@/components/collection/ProbabilityModal";
+import BottomNav from "@/components/layout/BottomNav";
 
 const TIER_FILTER_KEYS = [
     "rarity_id", "rarity_op", "quality_id", "quality_op",
@@ -226,6 +227,8 @@ export default function Collection() {
                     </div>
                 )}
             </main>
+
+            {!inSelectionMode && <BottomNav />}
 
             {showScrollTop && !inSelectionMode && (
                 <button

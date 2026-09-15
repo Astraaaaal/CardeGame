@@ -36,3 +36,29 @@ export interface DailyReward {
     is_new: boolean;
     total_coins: number;
 }
+
+export interface PlayerStats {
+    total_cards: number;
+    unique_cards: number;
+    packs_opened: number;
+    cards_recycled: number;
+    coins: number;
+    dust: number;
+    total_power: number;
+    average_power: number;
+    highest_power_card: import("./card").Card | null;
+    luckiest_card: import("./card").Card | null;
+    most_duplicated_card: import("./card").Card | null;
+    most_duplicated_count: number;
+    friends_count: number;
+    trades_completed: number;
+    gifts_sent: number;
+    gifts_received: number;
+    current_level: number;
+    achievements_unlocked: number;
+    achievements_total: number;
+    login_streak: number;
+    favorite_type_name: string | null;
+    favorite_type_count: number;
+    oldest_card: import("./card").Card | null;
+}

@@ -6,6 +6,7 @@ import { useTypes } from "@/hooks/useTypes";
 import { useAuthStore } from "@/stores/authStore";
 import type { LeaderboardEntry } from "@/types/leaderboard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import BottomNav from "@/components/layout/BottomNav";
 
 function EntryRow({ entry, isSelf }: { entry: LeaderboardEntry; isSelf: boolean }) {
     return (
@@ -134,6 +135,8 @@ export default function Leaderboard() {
                     </>
                 )}
             </main>
+
+            <BottomNav />
         </div>
     );
 }

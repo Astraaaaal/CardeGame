@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/authStore";
 import CardImage from "@/components/card/CardImage";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Button from "@/components/ui/Button";
+import BottomNav from "@/components/layout/BottomNav";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -152,6 +153,8 @@ export default function PlayerShowcase() {
                     </div>
                 )}
             </main>
+
+            <BottomNav />
         </div>
     );
 }

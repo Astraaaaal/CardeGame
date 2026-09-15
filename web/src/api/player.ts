@@ -1,10 +1,15 @@
 import api from "./client";
-import type { Player, DailyReward, PlayerSettings } from "@/types/player";
+import type { Player, DailyReward, PlayerSettings, PlayerStats } from "@/types/player";
 import type { MessageResponse } from "@/types/auth";
 
 export const playerApi = {
     getMe: async (): Promise<Player> => {
         const res = await api.get("/player/me");
+        return res.data;
+    },
+
+    getStats: async (): Promise<PlayerStats> => {
+        const res = await api.get("/player/stats");
         return res.data;
     },
 

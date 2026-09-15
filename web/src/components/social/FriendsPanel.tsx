@@ -289,7 +289,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                             transition={{ type: "tween", duration: 0.25 }}
                         >
                             <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
-                                <h2 className="text-white font-bold">Amis</h2>
+                                <h2 className="text-white font-bold">Social</h2>
                                 <button className="text-white/40 hover:text-white text-xl leading-none" onClick={onClose}>
                                     ×
                                 </button>

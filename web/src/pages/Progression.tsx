@@ -7,6 +7,7 @@ import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import TrophyRoad from "@/components/progression/TrophyRoad";
+import BottomNav from "@/components/layout/BottomNav";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -25,9 +26,8 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
     );
 }
 
-function LevelTab() {
+function RoadTab() {
     const qc = useQueryClient();
-    const [roadOpen, setRoadOpen] = useState(false);
     const { data, isLoading } = useQuery({ queryKey: ["level-status"], queryFn: progressionApi.getLevel });
 
     const claim = useMutation({
@@ -42,32 +42,8 @@ function LevelTab() {
 
     if (isLoading || !data) return <LoadingSpinner text="Chargement..." />;
 
-    const target = data.next_level_power_required ?? data.total_power;
-
     return (
         <div className="space-y-5">
-            <button
-                className="w-full bg-game-surface rounded-2xl border border-white/10 p-6 text-center hover:border-accent/40 transition-colors"
-                onClick={() => setRoadOpen(true)}
-            >
-                <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Niveau</p>
-                <p className="text-5xl font-extrabold text-accent mb-3">{data.current_level}</p>
-                <p className="text-white/60 text-sm mb-2">
-                    Puissance totale : <span className="text-gold font-bold">{data.total_power.toLocaleString("fr-FR")}</span>
-                </p>
-                {data.next_level_power_required != null ? (
-                    <>
-                        <ProgressBar value={data.total_power} max={target} />
-                        <p className="text-white/30 text-xs mt-1.5">
-                            {data.total_power.toLocaleString("fr-FR")} / {target.toLocaleString("fr-FR")} pour le niveau {data.current_level + 1}
-                        </p>
-                    </>
-                ) : (
-                    <p className="text-white/30 text-xs">Niveau maximum atteint !</p>
-                )}
-                <p className="text-accent text-xs mt-3">Voir la route des niveaux</p>
-            </button>
-
             {data.has_unclaimed && (
                 <div className="bg-gold/10 border border-gold/30 rounded-2xl p-4">
                     <p className="text-white font-semibold text-sm mb-2">Récompense(s) de niveau à récupérer</p>
@@ -91,7 +67,7 @@ function LevelTab() {
                 </div>
             )}
 
-            <TrophyRoad open={roadOpen} onClose={() => setRoadOpen(false)} />
+            <TrophyRoad />
         </div>
     );
 }
@@ -251,11 +227,11 @@ function QuestsTab() {
     );
 }
 
-type Tab = "level" | "achievements" | "quests";
+type Tab = "road" | "achievements" | "quests";
 
 export default function Progression() {
     const navigate = useNavigate();
-    const [tab, setTab] = useState<Tab>("level");
+    const [tab, setTab] = useState<Tab>("road");
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col">
@@ -269,7 +245,7 @@ export default function Progression() {
 
             <div className="flex border-b border-white/5">
                 {([
-                    { key: "level", label: "Niveau" },
+                    { key: "road", label: "Route des niveaux" },
                     { key: "achievements", label: "Achievements" },
                     { key: "quests", label: "Quêtes" },
                 ] as const).map((t) => (
@@ -286,10 +262,12 @@ export default function Progression() {
             </div>
 
             <main className="flex-1 px-4 py-6 max-w-sm mx-auto w-full overflow-y-auto">
-                {tab === "level" && <LevelTab />}
+                {tab === "road" && <RoadTab />}
                 {tab === "achievements" && <AchievementsTab />}
                 {tab === "quests" && <QuestsTab />}
             </main>
+
+            <BottomNav />
         </div>
     );
 }

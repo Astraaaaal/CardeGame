@@ -16,6 +16,7 @@ import PriceTag from "@/components/shop/PriceTag";
 import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CardPickerModal from "@/components/card/CardPickerModal";
+import BottomNav from "@/components/layout/BottomNav";
 import { getResourceBalance } from "@/utils/resources";
 
 function errMsg(e: unknown): string {
@@ -315,6 +316,8 @@ export default function Shop() {
             <main className="flex-1 px-4 py-6">
                 {tab === "boosters" ? <BoostersTab /> : <ResourcesTab />}
             </main>
+
+            <BottomNav />
         </div>
     );
 }

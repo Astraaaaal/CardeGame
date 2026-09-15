@@ -23,8 +23,8 @@ export default function Settings() {
             <div className="flex border-b border-white/5">
                 {([
                     { key: "profile", label: "Profil" },
-                    { key: "support", label: "Support" },
                     { key: "settings", label: "Paramètres" },
+                    { key: "support", label: "Support" },
                 ] as const).map((t) => (
                     <button
                         key={t.key}
