@@ -1,6 +1,6 @@
 import api from "./client";
 import type {
-    Friend, FriendRequestItem, FriendRequestsResponse,
+    Friend, FriendGroup, FriendRequestItem, FriendRequestsResponse,
     TradeRequestItem, TradeRequestsResponse,
 } from "@/types/social";
 import type { TradeSession } from "@/types/trade";
@@ -11,6 +11,13 @@ export const friendsApi = {
 
     addCloseFriend: (userId: number) => api.post(`/friends/${userId}/close-friend`).then(() => undefined),
     removeCloseFriend: (userId: number) => api.delete(`/friends/${userId}/close-friend`).then(() => undefined),
+
+    listGroups: () => api.get<FriendGroup[]>("/friends/groups").then((r) => r.data),
+    createGroup: (name: string) => api.post<FriendGroup>("/friends/groups", { name }).then((r) => r.data),
+    renameGroup: (id: number, name: string) => api.patch<FriendGroup>(`/friends/groups/${id}`, { name }).then((r) => r.data),
+    deleteGroup: (id: number) => api.delete(`/friends/groups/${id}`).then(() => undefined),
+    addToGroup: (userId: number, groupId: number) => api.post(`/friends/${userId}/groups/${groupId}`).then(() => undefined),
+    removeFromGroup: (userId: number, groupId: number) => api.delete(`/friends/${userId}/groups/${groupId}`).then(() => undefined),
 
     listRequests: () => api.get<FriendRequestsResponse>("/friends/requests").then((r) => r.data),
     send: (username: string) =>

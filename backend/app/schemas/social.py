@@ -13,6 +13,16 @@ class FriendOut(BaseModel):
     online: bool
     last_seen: datetime | None = None
     close_friend: bool = False
+    group_ids: list[int] = []
+
+
+class FriendGroupOut(BaseModel):
+    id: int
+    name: str
+
+
+class FriendGroupBody(BaseModel):
+    name: str = Field(min_length=1, max_length=30)
 
 
 class SendFriendRequestBody(BaseModel):

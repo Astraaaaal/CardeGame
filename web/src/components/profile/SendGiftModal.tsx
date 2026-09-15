@@ -31,12 +31,15 @@ interface SendGiftModalProps {
     /** Chemin de la page qui monte ce modal — sert de point de retour après
      * être passé par la Collection pour choisir une carte. */
     returnTo: string;
+    /** D'où vient l'ouverture (ligne d'ami vs messagerie) — transporté dans le
+     * contexte de sélection pour que le parent sache quel onglet restaurer. */
+    origin: "friend" | "inbox";
     initialState?: SendGiftInitialState;
     onClose: () => void;
     onSent?: () => void;
 }
 
-export default function SendGiftModal({ presetUsername, returnTo, initialState, onClose, onSent }: SendGiftModalProps) {
+export default function SendGiftModal({ presetUsername, returnTo, origin, initialState, onClose, onSent }: SendGiftModalProps) {
     const navigate = useNavigate();
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
 
@@ -80,7 +83,7 @@ export default function SendGiftModal({ presetUsername, returnTo, initialState, 
             title: "Choisis une carte à offrir",
             excludeIds: [],
             returnTo,
-            context: { purpose: "gift", username, subject, body },
+            context: { purpose: "gift", origin, username, subject, body },
         });
         onClose();
         navigate("/collection");

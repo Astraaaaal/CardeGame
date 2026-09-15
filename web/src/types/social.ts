@@ -5,6 +5,12 @@ export interface Friend {
     online: boolean;
     last_seen: string | null;
     close_friend: boolean;
+    group_ids: number[];
+}
+
+export interface FriendGroup {
+    id: number;
+    name: string;
 }
 
 export interface FriendRequestItem {

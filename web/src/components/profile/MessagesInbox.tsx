@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { messagesApi } from "@/api/messages";
 import type { AppMessage } from "@/types/message";
-import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import Button from "@/components/ui/Button";
 import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
-import SendGiftModal, { type SendGiftInitialState } from "@/components/profile/SendGiftModal";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -136,32 +134,19 @@ function MessageRow({ message }: { message: AppMessage }) {
     );
 }
 
-export default function MessagesInbox() {
-    const { data, isLoading } = useQuery({ queryKey: ["messages"], queryFn: messagesApi.list });
-    const [giftOpen, setGiftOpen] = useState(false);
-    const [giftInitialState, setGiftInitialState] = useState<SendGiftInitialState | undefined>(undefined);
-    const consumeResult = useCardSelectionStore((s) => s.consumeResult);
-    const qc = useQueryClient();
+interface MessagesInboxProps {
+    /** La modale de cadeau est possédée par le panneau parent (FriendsPanel) —
+     * un seul propriétaire évite une course entre deux `consumeResult()` au
+     * retour de la Collection en mode sélection. */
+    onSendGift: () => void;
+}
 
-    // Retour depuis la Collection (mode sélection) après avoir choisi une
-    // carte pour un cadeau — rouvre le compositeur avec tout ce qui était tapé.
-    useEffect(() => {
-        const result = consumeResult();
-        if (!result || result.context?.purpose !== "gift") return;
-        const card = result.selectedCards[0];
-        setGiftInitialState({
-            username: result.context.username ?? "",
-            subject: result.context.subject ?? "Cadeau",
-            body: result.context.body ?? "",
-            pickedCard: card ? { id: card.id, preview: card.preview } : null,
-        });
-        setGiftOpen(true);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+export default function MessagesInbox({ onSendGift }: MessagesInboxProps) {
+    const { data, isLoading } = useQuery({ queryKey: ["messages"], queryFn: messagesApi.list });
 
     return (
         <div className="space-y-3">
-            <Button variant="primary" size="sm" className="w-full" onClick={() => { setGiftInitialState(undefined); setGiftOpen(true); }}>
+            <Button variant="primary" size="sm" className="w-full" onClick={onSendGift}>
                 🎁 Envoyer un cadeau
             </Button>
 
@@ -173,15 +158,6 @@ export default function MessagesInbox() {
                 <div className="space-y-2">
                     {(data ?? []).map((m) => <MessageRow key={m.id} message={m} />)}
                 </div>
-            )}
-
-            {giftOpen && (
-                <SendGiftModal
-                    returnTo="/profile"
-                    initialState={giftInitialState}
-                    onClose={() => setGiftOpen(false)}
-                    onSent={() => qc.invalidateQueries({ queryKey: ["player"] })}
-                />
             )}
         </div>
     );

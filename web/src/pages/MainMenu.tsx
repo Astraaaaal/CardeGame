@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
 import { friendsApi } from "@/api/friends";
 import { useAuthStore } from "@/stores/authStore";
+import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import Button from "@/components/ui/Button";
 import CoinDisplay from "@/components/player/CoinDisplay";
 import ResourceDisplay from "@/components/player/ResourceDisplay";
@@ -19,7 +20,12 @@ export default function MainMenu() {
   const navigate = useNavigate();
   const { user, setUser } = useAuthStore();
   const logout = useLogout();
-  const [friendsOpen, setFriendsOpen] = useState(false);
+  // Rouvre automatiquement le panneau Amis au retour d'une sélection de
+  // carte pour un cadeau (cf. FriendsPanel / MessagesInbox), quel que soit
+  // l'onglet d'origine — FriendsPanel se replace lui-même sur le bon onglet.
+  const [friendsOpen, setFriendsOpen] = useState(
+    () => useCardSelectionStore.getState().result?.context?.purpose === "gift"
+  );
 
   const { data: player } = useQuery({
     queryKey: ["player"],
@@ -43,7 +49,6 @@ export default function MainMenu() {
     { label: "Ma Collection", icon: "📚", path: "/collection", color: "bg-purple-600" },
     { label: "Classement", icon: "🏆", path: "/leaderboard", color: "bg-purple-600" },
     { label: "Progression", icon: "⭐", path: "/progression", color: "bg-purple-600" },
-    { label: "Profil", icon: "👤", path: "/profile", color: "bg-purple-600" },
   ];
 
   return (
@@ -54,9 +59,13 @@ export default function MainMenu() {
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
         <div>
-          <h2 className="text-white font-bold text-lg">
+          <button
+            className="text-white font-bold text-lg hover:text-accent transition-colors"
+            onClick={() => navigate("/profile")}
+            title="Vitrine et statistiques"
+          >
             {user?.display_name || "Joueur"}
-          </h2>
+          </button>
           <div className="flex items-center gap-2 mt-0.5">
             <CoinDisplay coins={user?.coins ?? 0} />
             <ResourceDisplay amount={user?.resources?.[0]?.amount ?? 0} label={user?.resources?.[0]?.name} />
@@ -75,6 +84,13 @@ export default function MainMenu() {
                 {pendingCount}
               </span>
             )}
+          </button>
+          <button
+            className="text-white/70 hover:text-white text-xl"
+            onClick={() => navigate("/settings")}
+            title="Réglages"
+          >
+            ⚙️
           </button>
           <button
             className="text-white/40 hover:text-white text-sm transition-colors"

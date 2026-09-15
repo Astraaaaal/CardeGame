@@ -6,16 +6,17 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, or_, and_, update
+from sqlmodel import select, or_, and_, update, func
 
 from app.database import get_session
 from app.core.dependencies import get_current_user
 from app.core.ratelimit import rate_limit
 from app.models.user import User
-from app.models.social import FriendRequest, TradeRequest, CloseFriend
+from app.models.social import FriendRequest, TradeRequest, CloseFriend, FriendGroup, FriendGroupMember
 from app.schemas.social import (
     FriendOut, SendFriendRequestBody, FriendRequestOut, FriendRequestsResponse,
     TradeRequestOut, TradeRequestsResponse, SendTradeRequestBody,
+    FriendGroupOut, FriendGroupBody,
 )
 from app.schemas.trade_session import TradeSessionOut
 from app.services.friendship import friendship_between as _friendship_between
@@ -26,6 +27,7 @@ from app.services import quest_progress
 router = APIRouter()
 
 ONLINE_THRESHOLD_S = 300  # "en ligne" si vu il y a moins de 5 min
+MAX_FRIEND_GROUPS = 15
 
 
 def _is_online(user: User) -> bool:
@@ -53,11 +55,19 @@ async def list_friends(
     close_ids = {row.friend_user_id for row in (await session.execute(
         select(CloseFriend).where(CloseFriend.user_id == user.id)
     )).scalars().all()}
+    group_ids_by_friend: dict[int, list[int]] = {}
+    for group_id, friend_user_id in (await session.execute(
+        select(FriendGroupMember.group_id, FriendGroupMember.friend_user_id)
+        .join(FriendGroup, FriendGroup.id == FriendGroupMember.group_id)
+        .where(FriendGroup.user_id == user.id)
+    )).all():
+        group_ids_by_friend.setdefault(friend_user_id, []).append(group_id)
     return [
         FriendOut(
             user_id=f.id, username=f.username, display_name=f.display_name,
             online=_is_online(f), last_seen=f.last_seen,
             close_friend=f.id in close_ids,
+            group_ids=group_ids_by_friend.get(f.id, []),
         )
         for f in friends
     ]
@@ -84,6 +94,97 @@ async def remove_close_friend(
     session: AsyncSession = Depends(get_session),
 ):
     row = await session.get(CloseFriend, (user.id, friend_user_id))
+    if row:
+        await session.delete(row)
+        await session.commit()
+
+
+@router.get("/groups", response_model=list[FriendGroupOut])
+async def list_friend_groups(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    rows = (await session.execute(
+        select(FriendGroup).where(FriendGroup.user_id == user.id).order_by(FriendGroup.id)
+    )).scalars().all()
+    return [FriendGroupOut(id=g.id, name=g.name) for g in rows]
+
+
+@router.post("/groups", response_model=FriendGroupOut, status_code=201)
+async def create_friend_group(
+    body: FriendGroupBody,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    count = (await session.execute(
+        select(func.count()).select_from(FriendGroup).where(FriendGroup.user_id == user.id)
+    )).scalar() or 0
+    if count >= MAX_FRIEND_GROUPS:
+        raise HTTPException(400, f"Maximum {MAX_FRIEND_GROUPS} groupes.")
+    group = FriendGroup(user_id=user.id, name=body.name.strip())
+    session.add(group)
+    await session.commit()
+    await session.refresh(group)
+    return FriendGroupOut(id=group.id, name=group.name)
+
+
+@router.patch("/groups/{group_id}", response_model=FriendGroupOut)
+async def rename_friend_group(
+    group_id: int,
+    body: FriendGroupBody,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    group = await session.get(FriendGroup, group_id)
+    if not group or group.user_id != user.id:
+        raise HTTPException(404, "Groupe introuvable.")
+    group.name = body.name.strip()
+    session.add(group)
+    await session.commit()
+    return FriendGroupOut(id=group.id, name=group.name)
+
+
+@router.delete("/groups/{group_id}", status_code=204)
+async def delete_friend_group(
+    group_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    group = await session.get(FriendGroup, group_id)
+    if not group or group.user_id != user.id:
+        raise HTTPException(404, "Groupe introuvable.")
+    await session.delete(group)
+    await session.commit()
+
+
+@router.post("/{friend_user_id}/groups/{group_id}", status_code=204)
+async def add_friend_to_group(
+    friend_user_id: int,
+    group_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    group = await session.get(FriendGroup, group_id)
+    if not group or group.user_id != user.id:
+        raise HTTPException(404, "Groupe introuvable.")
+    if not await _friendship_between(session, user.id, friend_user_id):
+        raise HTTPException(400, "Vous devez déjà être amis.")
+    if not await session.get(FriendGroupMember, (group_id, friend_user_id)):
+        session.add(FriendGroupMember(group_id=group_id, friend_user_id=friend_user_id))
+        await session.commit()
+
+
+@router.delete("/{friend_user_id}/groups/{group_id}", status_code=204)
+async def remove_friend_from_group(
+    friend_user_id: int,
+    group_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    group = await session.get(FriendGroup, group_id)
+    if not group or group.user_id != user.id:
+        raise HTTPException(404, "Groupe introuvable.")
+    row = await session.get(FriendGroupMember, (group_id, friend_user_id))
     if row:
         await session.delete(row)
         await session.commit()
@@ -244,6 +345,22 @@ async def remove_friend(
     )).scalars().all()
     for row in close_rows:
         await session.delete(row)
+
+    # Même nettoyage pour les groupes personnalisés : retire l'ex-ami des
+    # groupes de l'utilisateur, et l'utilisateur des groupes de l'ex-ami.
+    group_member_rows = (await session.execute(
+        select(FriendGroupMember)
+        .join(FriendGroup, FriendGroup.id == FriendGroupMember.group_id)
+        .where(
+            or_(
+                and_(FriendGroup.user_id == user.id, FriendGroupMember.friend_user_id == friend_user_id),
+                and_(FriendGroup.user_id == friend_user_id, FriendGroupMember.friend_user_id == user.id),
+            ),
+        )
+    )).scalars().all()
+    for row in group_member_rows:
+        await session.delete(row)
+
     await session.commit()
 
 

@@ -4,9 +4,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendsApi } from "@/api/friends";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
+import type { Friend } from "@/types/social";
 import Button from "@/components/ui/Button";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import Modal from "@/components/ui/Modal";
+import CollapsibleSection from "@/components/ui/CollapsibleSection";
 import SendGiftModal, { type SendGiftInitialState } from "@/components/profile/SendGiftModal";
+import MessagesInbox from "@/components/profile/MessagesInbox";
 
 function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
@@ -16,7 +20,7 @@ function errMsg(e: unknown): string {
     return "Erreur.";
 }
 
-type Tab = "friends" | "requests" | "trades";
+type Tab = "friends" | "trades" | "messages";
 
 interface FriendsPanelProps {
     open: boolean;
@@ -26,29 +30,46 @@ interface FriendsPanelProps {
 export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
     const navigate = useNavigate();
     const qc = useQueryClient();
-    const [tab, setTab] = useState<Tab>("friends");
+    // Si on revient d'une sélection de carte pour un cadeau envoyé depuis la
+    // messagerie (cf. MessagesInbox via onSendGift), rouvre directement cet onglet.
+    const [tab, setTab] = useState<Tab>(() =>
+        useCardSelectionStore.getState().result?.context?.origin === "inbox" ? "messages" : "friends"
+    );
     const [username, setUsername] = useState("");
     const [err, setErr] = useState("");
     const [tradeUsername, setTradeUsername] = useState("");
     const [tradeErr, setTradeErr] = useState("");
     const [toRemove, setToRemove] = useState<{ id: number; name: string } | null>(null);
-    const [giftTarget, setGiftTarget] = useState<string | null>(null);
+
+    const [giftOpen, setGiftOpen] = useState(false);
+    const [giftOrigin, setGiftOrigin] = useState<"friend" | "inbox">("friend");
+    const [giftPresetUsername, setGiftPresetUsername] = useState<string | undefined>(undefined);
     const [giftInitialState, setGiftInitialState] = useState<SendGiftInitialState | undefined>(undefined);
     const consumeCardSelection = useCardSelectionStore((s) => s.consumeResult);
 
+    const [groupPickerFor, setGroupPickerFor] = useState<number | null>(null);
+    const [creatingGroup, setCreatingGroup] = useState(false);
+    const [newGroupName, setNewGroupName] = useState("");
+    const [renamingGroup, setRenamingGroup] = useState<{ id: number; name: string } | null>(null);
+    const [toDeleteGroup, setToDeleteGroup] = useState<{ id: number; name: string } | null>(null);
+
     // Retour depuis la Collection (mode sélection) après avoir choisi une
-    // carte pour un cadeau initié depuis ce panneau — rouvre le compositeur.
+    // carte pour un cadeau (ligne d'ami OU messagerie) — rouvre le compositeur
+    // avec tout ce qui était tapé, sur le bon onglet.
     useEffect(() => {
         const result = consumeCardSelection();
         if (!result || result.context?.purpose !== "gift") return;
         const card = result.selectedCards[0];
+        const isFriendOrigin = result.context.origin !== "inbox";
+        setGiftOrigin(isFriendOrigin ? "friend" : "inbox");
         setGiftInitialState({
             username: result.context.username ?? "",
             subject: result.context.subject ?? "Cadeau",
             body: result.context.body ?? "",
             pickedCard: card ? { id: card.id, preview: card.preview } : null,
         });
-        setGiftTarget(result.context.username ?? "");
+        setGiftPresetUsername(isFriendOrigin ? (result.context.username || undefined) : undefined);
+        setGiftOpen(true);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -63,6 +84,9 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
     const tradesQ = useQuery({
         queryKey: ["trade-requests"], queryFn: friendsApi.listTradeRequests,
         enabled: open, refetchInterval: open ? 20_000 : false,
+    });
+    const groupsQ = useQuery({
+        queryKey: ["friend-groups"], queryFn: friendsApi.listGroups, enabled: open,
     });
 
     const refreshAll = () => {
@@ -118,7 +142,43 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
         onSuccess: () => qc.invalidateQueries({ queryKey: ["friends"] }),
     });
 
+    const createGroup = useMutation({
+        mutationFn: (name: string) => friendsApi.createGroup(name),
+        onSuccess: () => {
+            setNewGroupName(""); setCreatingGroup(false);
+            qc.invalidateQueries({ queryKey: ["friend-groups"] });
+        },
+    });
+    const renameGroupM = useMutation({
+        mutationFn: ({ id, name }: { id: number; name: string }) => friendsApi.renameGroup(id, name),
+        onSuccess: () => { setRenamingGroup(null); qc.invalidateQueries({ queryKey: ["friend-groups"] }); },
+    });
+    const deleteGroupM = useMutation({
+        mutationFn: (id: number) => friendsApi.deleteGroup(id),
+        onSuccess: () => {
+            setToDeleteGroup(null);
+            qc.invalidateQueries({ queryKey: ["friend-groups"] });
+            qc.invalidateQueries({ queryKey: ["friends"] });
+        },
+    });
+    const addToGroupM = useMutation({
+        mutationFn: ({ userId, groupId }: { userId: number; groupId: number }) => friendsApi.addToGroup(userId, groupId),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["friends"] }),
+    });
+    const removeFromGroupM = useMutation({
+        mutationFn: ({ userId, groupId }: { userId: number; groupId: number }) => friendsApi.removeFromGroup(userId, groupId),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["friends"] }),
+    });
+
+    const openGift = (origin: "friend" | "inbox", presetUsername?: string) => {
+        setGiftOrigin(origin);
+        setGiftPresetUsername(presetUsername);
+        setGiftInitialState(undefined);
+        setGiftOpen(true);
+    };
+
     const friends = friendsQ.data ?? [];
+    const groups = groupsQ.data ?? [];
     const incomingReq = requestsQ.data?.incoming ?? [];
     const outgoingReq = requestsQ.data?.outgoing ?? [];
     const incomingTrades = tradesQ.data?.incoming ?? [];
@@ -126,11 +186,91 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
 
     const outgoingTradeTo = (userId: number) => outgoingTrades.find((t) => t.user_id === userId);
 
+    const closeFriends = friends.filter((f) => f.close_friend);
+    const friendsInGroup = (groupId: number) => friends.filter((f) => f.group_ids.includes(groupId));
+    const otherFriends = friends.filter((f) => !f.close_friend && f.group_ids.length === 0);
+
     const tabs: { key: Tab; label: string; badge: number }[] = [
-        { key: "friends", label: "Amis", badge: 0 },
-        { key: "requests", label: "Demandes", badge: incomingReq.length },
+        { key: "friends", label: "Amis", badge: incomingReq.length },
         { key: "trades", label: "Échanges", badge: incomingTrades.length },
+        { key: "messages", label: "Messages", badge: 0 },
     ];
+
+    const renderFriendRow = (f: Friend) => {
+        const pendingTrade = outgoingTradeTo(f.user_id);
+        return (
+            <div key={f.user_id} className="bg-black/20 border border-white/5 rounded-lg px-3 py-2.5">
+                <div className="flex items-center justify-between mb-1.5">
+                    <button
+                        className="flex items-center gap-2 min-w-0 hover:underline"
+                        onClick={() => { onClose(); navigate(`/players/${f.user_id}`); }}
+                    >
+                        <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${f.online ? "bg-green-400" : "bg-white/20"}`}
+                            title={f.online ? "En ligne" : "Hors ligne"}
+                        />
+                        <span className="text-white text-sm font-semibold truncate">{f.display_name}</span>
+                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button
+                            className="text-sm text-white/20 hover:text-white/50"
+                            title="Classer dans un groupe"
+                            onClick={() => setGroupPickerFor(groupPickerFor === f.user_id ? null : f.user_id)}
+                        >
+                            🏷️
+                        </button>
+                        <button
+                            className={`text-sm ${f.close_friend ? "text-gold" : "text-white/20 hover:text-white/50"}`}
+                            title={f.close_friend ? "Ami proche — clique pour retirer" : "Marquer comme ami proche"}
+                            disabled={toggleCloseFriend.isPending}
+                            onClick={() => toggleCloseFriend.mutate({ userId: f.user_id, isClose: f.close_friend })}
+                        >
+                            {f.close_friend ? "★" : "☆"}
+                        </button>
+                        <button
+                            className="text-red-400/70 hover:text-red-400 text-xs"
+                            onClick={() => setToRemove({ id: f.user_id, name: f.display_name })}
+                        >
+                            Retirer
+                        </button>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <Button
+                        variant="secondary" size="sm" className="flex-1"
+                        disabled={!!pendingTrade}
+                        loading={proposeTrade.isPending && proposeTrade.variables === f.user_id}
+                        onClick={() => proposeTrade.mutate(f.user_id)}
+                    >
+                        {pendingTrade ? "Échange en attente..." : "Proposer un échange"}
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => openGift("friend", f.username)}>
+                        🎁
+                    </Button>
+                </div>
+                {groupPickerFor === f.user_id && (
+                    <div className="mt-2 pt-2 border-t border-white/5 space-y-1">
+                        {groups.length === 0 ? (
+                            <p className="text-white/30 text-xs">Aucun groupe — crée-en un plus bas.</p>
+                        ) : groups.map((g) => (
+                            <label key={g.id} className="flex items-center gap-2 text-xs text-white/70 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={f.group_ids.includes(g.id)}
+                                    onChange={() =>
+                                        f.group_ids.includes(g.id)
+                                            ? removeFromGroupM.mutate({ userId: f.user_id, groupId: g.id })
+                                            : addToGroupM.mutate({ userId: f.user_id, groupId: g.id })
+                                    }
+                                />
+                                {g.name}
+                            </label>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <>
@@ -198,121 +338,140 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
 
                                         {friendsQ.isLoading ? (
                                             <p className="text-white/40 text-sm">Chargement...</p>
-                                        ) : friends.length === 0 ? (
-                                            <p className="text-white/30 text-sm text-center py-6">
-                                                Aucun ami pour l'instant.
-                                            </p>
                                         ) : (
                                             <div className="space-y-2">
-                                                {friends.map((f) => {
-                                                    const pendingTrade = outgoingTradeTo(f.user_id);
+                                                <CollapsibleSection title="Demandes" badge={incomingReq.length} defaultOpen={incomingReq.length > 0}>
+                                                    <div>
+                                                        <p className="text-white/40 text-xs font-semibold mb-2 uppercase tracking-wide">
+                                                            Reçues
+                                                        </p>
+                                                        {incomingReq.length === 0 ? (
+                                                            <p className="text-white/30 text-sm">Aucune demande reçue.</p>
+                                                        ) : (
+                                                            <div className="space-y-2">
+                                                                {incomingReq.map((r) => (
+                                                                    <div key={r.id} className="bg-black/20 border border-white/5 rounded-lg px-3 py-2.5">
+                                                                        <p className="text-white text-sm font-semibold mb-2">{r.display_name}</p>
+                                                                        <div className="flex gap-2">
+                                                                            <Button variant="primary" size="sm" className="flex-1"
+                                                                                loading={acceptReq.isPending && acceptReq.variables === r.id}
+                                                                                onClick={() => acceptReq.mutate(r.id)}>
+                                                                                Accepter
+                                                                            </Button>
+                                                                            <Button variant="secondary" size="sm" className="flex-1"
+                                                                                loading={declineReq.isPending && declineReq.variables === r.id}
+                                                                                onClick={() => declineReq.mutate(r.id)}>
+                                                                                Refuser
+                                                                            </Button>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-white/40 text-xs font-semibold mb-2 mt-4 uppercase tracking-wide">
+                                                            Envoyées
+                                                        </p>
+                                                        {outgoingReq.length === 0 ? (
+                                                            <p className="text-white/30 text-sm">Aucune demande envoyée.</p>
+                                                        ) : (
+                                                            <div className="space-y-2">
+                                                                {outgoingReq.map((r) => (
+                                                                    <div key={r.id} className="flex items-center justify-between bg-black/20 border border-white/5 rounded-lg px-3 py-2.5">
+                                                                        <span className="text-white text-sm">{r.display_name}</span>
+                                                                        <button
+                                                                            className="text-white/40 hover:text-red-400 text-xs"
+                                                                            onClick={() => declineReq.mutate(r.id)}
+                                                                        >
+                                                                            Annuler
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </CollapsibleSection>
+
+                                                <CollapsibleSection title="★ Amis proches" badge={closeFriends.length}>
+                                                    {closeFriends.length === 0 ? (
+                                                        <p className="text-white/30 text-sm">Aucun ami proche pour l'instant.</p>
+                                                    ) : closeFriends.map(renderFriendRow)}
+                                                </CollapsibleSection>
+
+                                                {groups.map((g) => {
+                                                    const members = friendsInGroup(g.id);
                                                     return (
-                                                        <div key={f.user_id}
-                                                            className="bg-black/20 border border-white/5 rounded-lg px-3 py-2.5">
-                                                            <div className="flex items-center justify-between mb-1.5">
-                                                                <button
-                                                                    className="flex items-center gap-2 min-w-0 hover:underline"
-                                                                    onClick={() => { onClose(); navigate(`/players/${f.user_id}`); }}
-                                                                >
-                                                                    <span
-                                                                        className={`w-2 h-2 rounded-full shrink-0 ${f.online ? "bg-green-400" : "bg-white/20"}`}
-                                                                        title={f.online ? "En ligne" : "Hors ligne"}
-                                                                    />
-                                                                    <span className="text-white text-sm font-semibold truncate">{f.display_name}</span>
-                                                                </button>
-                                                                <div className="flex items-center gap-2 shrink-0">
+                                                        <CollapsibleSection
+                                                            key={g.id}
+                                                            title={g.name}
+                                                            badge={members.length}
+                                                            actions={
+                                                                <>
                                                                     <button
-                                                                        className={`text-sm ${f.close_friend ? "text-gold" : "text-white/20 hover:text-white/50"}`}
-                                                                        title={f.close_friend ? "Ami proche — clique pour retirer" : "Marquer comme ami proche"}
-                                                                        disabled={toggleCloseFriend.isPending}
-                                                                        onClick={() => toggleCloseFriend.mutate({ userId: f.user_id, isClose: f.close_friend })}
+                                                                        className="text-white/30 hover:text-white text-xs"
+                                                                        title="Renommer"
+                                                                        onClick={() => setRenamingGroup({ id: g.id, name: g.name })}
                                                                     >
-                                                                        {f.close_friend ? "★" : "☆"}
+                                                                        ✎
                                                                     </button>
                                                                     <button
-                                                                        className="text-red-400/70 hover:text-red-400 text-xs"
-                                                                        onClick={() => setToRemove({ id: f.user_id, name: f.display_name })}
+                                                                        className="text-white/30 hover:text-red-400 text-xs"
+                                                                        title="Supprimer le groupe"
+                                                                        onClick={() => setToDeleteGroup({ id: g.id, name: g.name })}
                                                                     >
-                                                                        Retirer
+                                                                        🗑
                                                                     </button>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex gap-2">
-                                                                <Button
-                                                                    variant="secondary" size="sm" className="flex-1"
-                                                                    disabled={!!pendingTrade}
-                                                                    loading={proposeTrade.isPending && proposeTrade.variables === f.user_id}
-                                                                    onClick={() => proposeTrade.mutate(f.user_id)}
-                                                                >
-                                                                    {pendingTrade ? "Échange en attente..." : "Proposer un échange"}
-                                                                </Button>
-                                                                <Button
-                                                                    variant="secondary" size="sm"
-                                                                    onClick={() => { setGiftInitialState(undefined); setGiftTarget(f.username); }}
-                                                                >
-                                                                    🎁
-                                                                </Button>
-                                                            </div>
-                                                        </div>
+                                                                </>
+                                                            }
+                                                        >
+                                                            {members.length === 0 ? (
+                                                                <p className="text-white/30 text-sm">Aucun ami dans ce groupe.</p>
+                                                            ) : members.map(renderFriendRow)}
+                                                        </CollapsibleSection>
                                                     );
                                                 })}
+
+                                                {creatingGroup ? (
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30"
+                                                            placeholder="Nom du groupe..."
+                                                            maxLength={30}
+                                                            value={newGroupName}
+                                                            onChange={(e) => setNewGroupName(e.target.value)}
+                                                            onKeyDown={(e) => e.key === "Enter" && newGroupName.trim() && createGroup.mutate(newGroupName.trim())}
+                                                            autoFocus
+                                                        />
+                                                        <Button
+                                                            variant="primary" size="sm"
+                                                            disabled={!newGroupName.trim()}
+                                                            loading={createGroup.isPending}
+                                                            onClick={() => createGroup.mutate(newGroupName.trim())}
+                                                        >
+                                                            Créer
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        className="text-accent text-xs font-semibold px-1"
+                                                        onClick={() => setCreatingGroup(true)}
+                                                    >
+                                                        + Nouveau groupe
+                                                    </button>
+                                                )}
+
+                                                <CollapsibleSection title="Autres amis" badge={otherFriends.length} defaultOpen={groups.length === 0}>
+                                                    {friends.length === 0 ? (
+                                                        <p className="text-white/30 text-sm text-center py-6">
+                                                            Aucun ami pour l'instant.
+                                                        </p>
+                                                    ) : otherFriends.length === 0 ? (
+                                                        <p className="text-white/30 text-sm">Tous tes amis sont déjà classés.</p>
+                                                    ) : otherFriends.map(renderFriendRow)}
+                                                </CollapsibleSection>
                                             </div>
                                         )}
-                                    </>
-                                )}
-
-                                {tab === "requests" && (
-                                    <>
-                                        <div>
-                                            <p className="text-white/40 text-xs font-semibold mb-2 uppercase tracking-wide">
-                                                Reçues
-                                            </p>
-                                            {incomingReq.length === 0 ? (
-                                                <p className="text-white/30 text-sm">Aucune demande reçue.</p>
-                                            ) : (
-                                                <div className="space-y-2">
-                                                    {incomingReq.map((r) => (
-                                                        <div key={r.id} className="bg-black/20 border border-white/5 rounded-lg px-3 py-2.5">
-                                                            <p className="text-white text-sm font-semibold mb-2">{r.display_name}</p>
-                                                            <div className="flex gap-2">
-                                                                <Button variant="primary" size="sm" className="flex-1"
-                                                                    loading={acceptReq.isPending && acceptReq.variables === r.id}
-                                                                    onClick={() => acceptReq.mutate(r.id)}>
-                                                                    Accepter
-                                                                </Button>
-                                                                <Button variant="secondary" size="sm" className="flex-1"
-                                                                    loading={declineReq.isPending && declineReq.variables === r.id}
-                                                                    onClick={() => declineReq.mutate(r.id)}>
-                                                                    Refuser
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <p className="text-white/40 text-xs font-semibold mb-2 mt-4 uppercase tracking-wide">
-                                                Envoyées
-                                            </p>
-                                            {outgoingReq.length === 0 ? (
-                                                <p className="text-white/30 text-sm">Aucune demande envoyée.</p>
-                                            ) : (
-                                                <div className="space-y-2">
-                                                    {outgoingReq.map((r) => (
-                                                        <div key={r.id} className="flex items-center justify-between bg-black/20 border border-white/5 rounded-lg px-3 py-2.5">
-                                                            <span className="text-white text-sm">{r.display_name}</span>
-                                                            <button
-                                                                className="text-white/40 hover:text-red-400 text-xs"
-                                                                onClick={() => declineReq.mutate(r.id)}
-                                                            >
-                                                                Annuler
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
                                     </>
                                 )}
 
@@ -393,6 +552,10 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                         </div>
                                     </>
                                 )}
+
+                                {tab === "messages" && (
+                                    <MessagesInbox onSendGift={() => openGift("inbox")} />
+                                )}
                             </div>
                         </motion.aside>
                     </>
@@ -409,12 +572,49 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                 onCancel={() => setToRemove(null)}
             />
 
-            {giftTarget && (
+            <ConfirmModal
+                open={!!toDeleteGroup}
+                title="Supprimer ce groupe"
+                message={toDeleteGroup ? `Supprimer le groupe « ${toDeleteGroup.name} » ? Les amis n'en seront pas retirés d'ailleurs — juste de ce groupe.` : ""}
+                confirmLabel="Supprimer"
+                busy={deleteGroupM.isPending}
+                onConfirm={() => toDeleteGroup && deleteGroupM.mutate(toDeleteGroup.id)}
+                onCancel={() => setToDeleteGroup(null)}
+            />
+
+            {renamingGroup && (
+                <Modal open onClose={() => setRenamingGroup(null)} title="Renommer le groupe">
+                    <div className="space-y-3">
+                        <input
+                            className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                            maxLength={30}
+                            value={renamingGroup.name}
+                            onChange={(e) => setRenamingGroup({ ...renamingGroup, name: e.target.value })}
+                            onKeyDown={(e) => e.key === "Enter" && renamingGroup.name.trim() && renameGroupM.mutate(renamingGroup)}
+                            autoFocus
+                        />
+                        <div className="flex gap-2">
+                            <Button
+                                variant="primary" className="flex-1"
+                                disabled={!renamingGroup.name.trim()}
+                                loading={renameGroupM.isPending}
+                                onClick={() => renameGroupM.mutate(renamingGroup)}
+                            >
+                                Enregistrer
+                            </Button>
+                            <Button variant="secondary" onClick={() => setRenamingGroup(null)}>Annuler</Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {giftOpen && (
                 <SendGiftModal
-                    presetUsername={giftTarget}
+                    presetUsername={giftPresetUsername}
                     returnTo="/"
+                    origin={giftOrigin}
                     initialState={giftInitialState}
-                    onClose={() => { setGiftTarget(null); setGiftInitialState(undefined); }}
+                    onClose={() => setGiftOpen(false)}
                 />
             )}
         </>

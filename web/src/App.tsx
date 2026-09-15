@@ -9,6 +9,7 @@ import Shop from "@/pages/Shop";
 import PackOpening from "@/pages/PackOpening";
 import Collection from "@/pages/Collection";
 import Profile from "@/pages/Profile";
+import Settings from "@/pages/Settings";
 import PlayerShowcase from "@/pages/PlayerShowcase";
 import Leaderboard from "@/pages/Leaderboard";
 import Progression from "@/pages/Progression";
@@ -81,6 +82,14 @@ export default function App() {
                     element={
                         <ProtectedRoute>
                             <Profile />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/settings"
+                    element={
+                        <ProtectedRoute>
+                            <Settings />
                         </ProtectedRoute>
                     }
                 />

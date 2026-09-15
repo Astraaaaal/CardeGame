@@ -4,6 +4,7 @@ Modèles social — demandes d'ami et demandes d'échange (placeholder).
 
 from datetime import datetime
 from typing import Optional
+from sqlalchemy import Column, ForeignKey, Integer
 from sqlmodel import SQLModel, Field
 
 
@@ -53,6 +54,28 @@ class CloseFriend(SQLModel, table=True):
     __tablename__ = "close_friends"
 
     user_id: int = Field(foreign_key="users.id", primary_key=True)
+    friend_user_id: int = Field(foreign_key="users.id", primary_key=True)
+
+
+class FriendGroup(SQLModel, table=True):
+    """Groupe personnalisé créé par un joueur pour organiser sa liste d'amis
+    (ex: "Guilde", "École") — propriété à sens unique, comme CloseFriend."""
+    __tablename__ = "friend_groups"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", index=True)
+    name: str = Field(max_length=30)
+
+
+class FriendGroupMember(SQLModel, table=True):
+    """Appartenance d'un ami à un groupe — un ami peut être dans plusieurs
+    groupes à la fois (pas de contrainte d'exclusivité)."""
+    __tablename__ = "friend_group_members"
+
+    # ON DELETE CASCADE : supprimer un groupe vide ses membres sans étape manuelle.
+    group_id: int = Field(
+        sa_column=Column(Integer, ForeignKey("friend_groups.id", ondelete="CASCADE"), primary_key=True),
+    )
     friend_user_id: int = Field(foreign_key="users.id", primary_key=True)
 
 

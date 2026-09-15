@@ -11,7 +11,7 @@ from sqlmodel import select
 from app.models.user import User
 from app.models.card import UserCard
 from app.models.economy import UserResource, ShopPurchase
-from app.models.social import FriendRequest, TradeRequest, TradeListing, CloseFriend
+from app.models.social import FriendRequest, TradeRequest, TradeListing, CloseFriend, FriendGroup, FriendGroupMember
 from app.models.token import RefreshToken
 from app.models.message import Message
 from app.models.achievement import UserAchievement
@@ -53,5 +53,9 @@ async def delete_account(session: AsyncSession, user: User) -> None:
     await session.execute(delete(CloseFriend).where(
         or_(CloseFriend.user_id == user_id, CloseFriend.friend_user_id == user_id)
     ))
+    # Appartenance de ce user dans les groupes d'AUTRUI (ses propres groupes
+    # sont supprimés juste après, ce qui vide leurs membres via ON DELETE CASCADE).
+    await session.execute(delete(FriendGroupMember).where(FriendGroupMember.friend_user_id == user_id))
+    await session.execute(delete(FriendGroup).where(FriendGroup.user_id == user_id))
     await session.execute(delete(User).where(User.id == user_id))
     await session.commit()
