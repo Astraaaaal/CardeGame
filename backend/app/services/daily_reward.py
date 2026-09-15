@@ -6,10 +6,14 @@ Identique à la logique de account_manager.py mais côté serveur.
 from datetime import date, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
-from app.config import settings
+from app.models.game_config import GameConfig
 
 
 class DailyRewardService:
+
+    async def _tuning(self, session: AsyncSession) -> GameConfig:
+        config = await session.get(GameConfig, 1)
+        return config or GameConfig()  # filet de sécurité, la ligne est seedée au démarrage
 
     async def check_and_claim(
         self, session: AsyncSession, user: User
@@ -19,11 +23,12 @@ class DailyRewardService:
         Retourne {reward, streak, is_new, total_coins}.
         """
         today = date.today()
+        config = await self._tuning(session)
 
         if user.last_daily_claim:
             if user.last_daily_claim == today:
                 # Déjà réclamé aujourd'hui
-                reward = settings.DAILY_BASE_REWARD + settings.DAILY_STREAK_BONUS * (
+                reward = config.daily_base_reward + config.daily_streak_bonus * (
                     user.login_streak - 1
                 )
                 return {
@@ -43,7 +48,7 @@ class DailyRewardService:
             # Premier login
             user.login_streak = 1
 
-        reward = settings.DAILY_BASE_REWARD + settings.DAILY_STREAK_BONUS * (
+        reward = config.daily_base_reward + config.daily_streak_bonus * (
             user.login_streak - 1
         )
 

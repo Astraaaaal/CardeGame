@@ -35,9 +35,8 @@ class Settings(BaseSettings):
     # ── CORS ── (JSON en variable d'env : '["https://mon-site.fr"]')
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
-    # ── Game ──
-    DAILY_BASE_REWARD: int = 500
-    DAILY_STREAK_BONUS: int = 100
+    # Les réglages de gameplay (récompense quotidienne, etc.) vivent en base
+    # (cf. app/models/game_config.py), éditables depuis l'admin — pas ici.
 
     model_config = SettingsConfigDict(
         env_file=".env",

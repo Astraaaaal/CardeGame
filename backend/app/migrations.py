@@ -340,6 +340,16 @@ async def apply_patches(conn: AsyncConnection) -> None:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("recycle_value %s.%s: %s", table, row_id, exc)
 
+    # Réglages globaux (récompense quotidienne) — ligne singleton, remplace
+    # les anciennes variables d'environnement DAILY_BASE_REWARD/DAILY_STREAK_BONUS.
+    try:
+        await conn.execute(text(
+            "INSERT INTO game_config (id, daily_base_reward, daily_streak_bonus) "
+            "VALUES (1, 500, 100) ON CONFLICT (id) DO NOTHING"
+        ))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("seed game_config: %s", exc)
+
     # Backfill de la puissance (colonne ajoutée après coup) pour les cartes
     # déjà en base — chacune reçoit un tirage rétroactif, une seule fois.
     try:

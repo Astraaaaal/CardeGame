@@ -17,6 +17,7 @@ from app.models.economy import Resource, UserResource, ShopOffer, ShopPurchase, 
 from app.models.level import LevelTier
 from app.models.achievement import AchievementDef
 from app.models.quest import QuestDef
+from app.models.game_config import GameConfig
 from app.schemas.content import (
     SetIn, SetPatch, SetOut,
     BoosterIn, BoosterPatch, BoosterOut,
@@ -25,6 +26,8 @@ from app.schemas.content import (
 )
 from app.schemas.economy import ResourceIn, ResourcePatch, ShopOfferIn, DailyFeatureIn, DailyFeatureOut
 from app.schemas.progression_admin import LevelTierPatch, AchievementDefPatch, QuestDefPatch
+from app.schemas.game_config import GameConfigPatch
+from app.schemas.reference_admin import TuningPatch
 
 router = APIRouter(dependencies=[Depends(require_admin)])
 
@@ -546,11 +549,11 @@ async def clear_daily_feature(target_date: str, session: AsyncSession = Depends(
         await session.commit()
 
 
-# ──────────────  TABLES DE RÉGLAGE (lecture seule ici)  ───────────
+# ──────────────  TABLES DE RÉGLAGE (poids de tirage + recyclage)  ───────────
 
 @router.get("/tuning")
 async def tuning(session: AsyncSession = Depends(get_session)):
-    """raretés / qualités / spécialités / jewelries + leurs poids (pour info)."""
+    """raretés / qualités / spécialités / jewelries + leurs poids."""
     async def dump(model):
         rows = (await session.execute(select(model))).scalars().all()
         return [
@@ -566,6 +569,23 @@ async def tuning(session: AsyncSession = Depends(get_session)):
         "specialties": await dump(Specialty),
         "jewelries": await dump(Jewelry),
     }
+
+
+_TUNING_MODELS = {"rarities": Rarity, "qualities": Quality, "specialties": Specialty, "jewelries": Jewelry}
+
+
+@router.patch("/tuning/{table}/{item_id}")
+async def update_tuning(table: str, item_id: str, body: TuningPatch, session: AsyncSession = Depends(get_session)):
+    model = _TUNING_MODELS.get(table)
+    if not model:
+        raise HTTPException(404, "Table inconnue.")
+    row = await session.get(model, item_id)
+    if not row:
+        raise HTTPException(404, "Introuvable.")
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(row, k, v)
+    await session.commit()
+    return {"id": row.id, "name": row.name, "weight": row.weight, "recycle_value": row.recycle_value}
 
 
 # ────────────────────  PROGRESSION (niveaux / achievements / quêtes)  ─────
@@ -644,3 +664,29 @@ async def update_quest_def(quest_id: str, body: QuestDefPatch, session: AsyncSes
             "metric": q.metric, "threshold": q.threshold,
             "reward_resource_id": q.reward_resource_id, "reward_amount": q.reward_amount,
             "reward_booster_id": q.reward_booster_id, "active": q.active}
+
+
+# ──────────────────────  RÉGLAGES GLOBAUX DU JEU  ──────────────────────
+
+@router.get("/game-config")
+async def get_game_config(session: AsyncSession = Depends(get_session)):
+    config = await session.get(GameConfig, 1)
+    if not config:
+        config = GameConfig()
+        session.add(config)
+        await session.commit()
+        await session.refresh(config)
+    return {"daily_base_reward": config.daily_base_reward, "daily_streak_bonus": config.daily_streak_bonus}
+
+
+@router.patch("/game-config")
+async def update_game_config(body: GameConfigPatch, session: AsyncSession = Depends(get_session)):
+    config = await session.get(GameConfig, 1)
+    if not config:
+        config = GameConfig(id=1)
+    for k, v in body.model_dump(exclude_unset=True).items():
+        setattr(config, k, v)
+    session.add(config)
+    await session.commit()
+    await session.refresh(config)
+    return {"daily_base_reward": config.daily_base_reward, "daily_streak_bonus": config.daily_streak_bonus}

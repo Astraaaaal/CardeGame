@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { adminApi, adminKey } from "@/api/admin";
+import { adminApi, adminKey, type GameConfig } from "@/api/admin";
 import { useTypes } from "@/hooks/useTypes";
 import type {
     GameSet,
@@ -12,6 +12,8 @@ import type {
     AdminShopOffer,
     CharacterSetLink,
     Tuning,
+    TuningEntry,
+    TuningTable,
 } from "@/types/content";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
@@ -683,9 +685,116 @@ function ShopOfferForm({
     );
 }
 
+/* ────────────────────────  Réglages globaux du jeu  ───────────────────── */
+
+function GameConfigSection() {
+    const qc = useQueryClient();
+    const { data, isLoading } = useQuery({ queryKey: ["admin", "game-config"], queryFn: adminApi.getGameConfig });
+    const [draft, setDraft] = useState<GameConfig | null>(null);
+    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+    const config = draft ?? data;
+
+    const save = useMutation({
+        mutationFn: (b: GameConfig) => adminApi.updateGameConfig(b),
+        onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "game-config"] }); setMsg({ text: "Enregistré.", ok: true }); },
+        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
+    });
+
+    if (isLoading || !config) return <p className="text-white/40 text-sm">…</p>;
+
+    return (
+        <div className="bg-game-surface/60 border border-white/5 rounded-lg px-3 py-3 space-y-3 max-w-sm">
+            {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
+            <div>
+                <label className={labelCls}>Récompense quotidienne de base (pièces)</label>
+                <input
+                    type="number" className={inputCls} value={config.daily_base_reward}
+                    onChange={(e) => setDraft({ ...config, daily_base_reward: Number(e.target.value) })}
+                />
+            </div>
+            <div>
+                <label className={labelCls}>Bonus par jour de série (pièces)</label>
+                <input
+                    type="number" className={inputCls} value={config.daily_streak_bonus}
+                    onChange={(e) => setDraft({ ...config, daily_streak_bonus: Number(e.target.value) })}
+                />
+            </div>
+            <Button variant="secondary" size="sm" loading={save.isPending} onClick={() => save.mutate(config)}>
+                OK
+            </Button>
+        </div>
+    );
+}
+
+/* ──────────────────  Poids de tirage & recyclage (rareté/qualité/...)  ────────────────── */
+
+function TuningTableRows({ table, label, entries }: { table: TuningTable; label: string; entries: TuningEntry[] }) {
+    const qc = useQueryClient();
+    const [drafts, setDrafts] = useState<Record<string, Partial<TuningEntry>>>({});
+    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+    const save = useMutation({
+        mutationFn: (e: TuningEntry) => adminApi.updateTuning(table, e.id, { weight: e.weight, recycle_value: e.recycle_value }),
+        onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "tuning"] }); setMsg({ text: "Enregistré.", ok: true }); },
+        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
+    });
+
+    return (
+        <div>
+            <h4 className="text-white/50 text-xs font-semibold uppercase mb-1.5">{label}</h4>
+            {msg && <p className={`text-xs mb-1 ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
+            <div className="space-y-2">
+                {entries.map((entry) => {
+                    const draft = { ...entry, ...drafts[entry.id] };
+                    return (
+                        <div key={entry.id} className="bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
+                            <span className="text-white text-sm font-semibold w-24 shrink-0 truncate">{entry.name}</span>
+                            <div className="flex-1 min-w-[90px]">
+                                <label className="block text-white/40 text-[10px]">Poids (tirage)</label>
+                                <input
+                                    type="number" step="0.1" className={inputCls} value={draft.weight ?? 0}
+                                    onChange={(e) => setDrafts((d) => ({ ...d, [entry.id]: { ...draft, weight: Number(e.target.value) } }))}
+                                />
+                            </div>
+                            <div className="flex-1 min-w-[90px]">
+                                <label className="block text-white/40 text-[10px]">Poussière (recyclage)</label>
+                                <input
+                                    type="number" className={inputCls} value={draft.recycle_value ?? 0}
+                                    onChange={(e) => setDrafts((d) => ({ ...d, [entry.id]: { ...draft, recycle_value: Number(e.target.value) } }))}
+                                />
+                            </div>
+                            <Button
+                                variant="secondary" size="sm"
+                                loading={save.isPending && save.variables?.id === entry.id}
+                                onClick={() => save.mutate(draft as TuningEntry)}
+                            >
+                                OK
+                            </Button>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+function TuningSection() {
+    const { data, isLoading } = useQuery({ queryKey: ["admin", "tuning"], queryFn: adminApi.tuning });
+    if (isLoading || !data) return <p className="text-white/40 text-sm">…</p>;
+    return (
+        <div className="space-y-4">
+            <TuningTableRows table="rarities" label="Raretés" entries={data.rarities} />
+            <TuningTableRows table="qualities" label="Qualités" entries={data.qualities} />
+            <TuningTableRows table="specialties" label="Spécialités" entries={data.specialties} />
+            <TuningTableRows table="jewelries" label="Bijoux" entries={data.jewelries} />
+        </div>
+    );
+}
+
 /* ─────────────────────────────── Panneau ────────────────────────────── */
 
-type Tab = "characters" | "boosters" | "sets" | "types" | "resources" | "offers" | "messages" | "progression" | "bugReports";
+type Tab ="characters" | "boosters" | "sets" | "types" | "resources" | "offers" | "messages" | "progression" | "settings" | "bugReports";
 
 function Panel() {
     const navigate = useNavigate();
@@ -805,7 +914,10 @@ function Panel() {
     return (
         <div className="min-h-screen bg-game-bg flex flex-col">
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
-                <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
+                <button
+                    className="text-accent text-sm font-semibold"
+                    onClick={() => { adminKey.clear(); navigate("/"); }}
+                >
                     Jeu
                 </button>
                 <h1 className="text-white font-bold">Contenu</h1>
@@ -818,7 +930,7 @@ function Panel() {
             </header>
 
             <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
-                {(["characters", "boosters", "sets", "types", "resources", "offers", "messages", "progression", "bugReports"] as Tab[]).map((t) => (
+                {(["characters", "boosters", "sets", "types", "resources", "offers", "messages", "progression", "settings", "bugReports"] as Tab[]).map((t) => (
                     <button
                         key={t}
                         className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${tab === t ? "bg-accent text-white" : "bg-white/10 text-white/50 hover:bg-white/20"
@@ -828,13 +940,13 @@ function Panel() {
                         {{
                             characters: "Personnages", boosters: "Boosters", sets: "Sets",
                             types: "Types", resources: "Ressources", offers: "Offres shop",
-                            messages: "Messagerie", progression: "Progression", bugReports: "Signalements",
+                            messages: "Messagerie", progression: "Progression", settings: "Réglages", bugReports: "Signalements",
                         }[t]}
                     </button>
                 ))}
             </div>
 
-            {tab !== "messages" && tab !== "progression" && tab !== "bugReports" && (
+            {tab !== "messages" && tab !== "progression" && tab !== "settings" && tab !== "bugReports" && (
                 <div className="px-4 pb-2">
                     <input
                         type="search"
@@ -847,7 +959,7 @@ function Panel() {
             )}
 
             <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-2">
-                {tab !== "messages" && tab !== "progression" && tab !== "bugReports" && (
+                {tab !== "messages" && tab !== "progression" && tab !== "settings" && tab !== "bugReports" && (
                     <Button
                         variant="secondary"
                         size="sm"
@@ -869,6 +981,12 @@ function Panel() {
 
                 {tab === "messages" && <AdminMessagesComposer resources={resources} />}
                 {tab === "progression" && <AdminProgressionEditor resources={resources} boosters={boostersQ.data ?? []} />}
+                {tab === "settings" && (
+                    <div className="space-y-6">
+                        <GameConfigSection />
+                        <TuningSection />
+                    </div>
+                )}
                 {tab === "bugReports" && <AdminBugReports />}
 
                 {tab === "sets" &&

@@ -14,6 +14,8 @@ import type {
     AdminShopOffer,
     DailyFeature,
     Tuning,
+    TuningEntry,
+    TuningTable,
 } from "@/types/content";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
@@ -45,6 +47,8 @@ export const adminApi = {
     },
 
     tuning: () => http.get<Tuning>("/tuning").then((r) => r.data),
+    updateTuning: (table: TuningTable, id: string, b: Partial<Pick<TuningEntry, "weight" | "recycle_value">>) =>
+        http.patch<TuningEntry>(`/tuning/${table}/${id}`, b).then((r) => r.data),
 
     // ── Sets ──
     listSets: () => http.get<GameSet[]>("/sets").then((r) => r.data),
@@ -114,7 +118,16 @@ export const adminApi = {
     listQuestDefs: () => http.get<AdminQuestDef[]>("/quest-defs").then((r) => r.data),
     updateQuestDef: (id: string, b: Partial<Pick<AdminQuestDef, "threshold" | "reward_resource_id" | "reward_amount" | "reward_booster_id" | "active">>) =>
         http.patch<AdminQuestDef>(`/quest-defs/${id}`, b).then((r) => r.data),
+
+    // ── Réglages globaux du jeu ──
+    getGameConfig: () => http.get<GameConfig>("/game-config").then((r) => r.data),
+    updateGameConfig: (b: Partial<GameConfig>) => http.patch<GameConfig>("/game-config", b).then((r) => r.data),
 };
+
+export interface GameConfig {
+    daily_base_reward: number;
+    daily_streak_bonus: number;
+}
 
 export interface AdminLevelTier {
     level: number;
