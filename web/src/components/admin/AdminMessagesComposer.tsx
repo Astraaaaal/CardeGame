@@ -3,19 +3,12 @@ import { useMutation } from "@tanstack/react-query";
 import { adminMessagesApi } from "@/api/admin";
 import type { AdminResource } from "@/types/content";
 import Button from "@/components/ui/Button";
+import { errMsg } from "@/utils/errors";
 
 const inputCls =
     "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
     "placeholder-white/30 focus:border-accent focus:outline-none transition-colors";
 const labelCls = "block text-white/60 text-xs mb-1";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
 
 interface AdminMessagesComposerProps {
     resources: AdminResource[];

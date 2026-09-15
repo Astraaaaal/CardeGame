@@ -9,14 +9,7 @@ import type { Card } from "@/types/card";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import CardImage from "@/components/card/CardImage";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
+import { errMsg } from "@/utils/errors";
 
 /** Sélecteur d'avatar : un des personnages possédés (déduplique les variantes). */
 function AvatarPickerModal({

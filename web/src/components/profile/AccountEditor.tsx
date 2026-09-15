@@ -5,14 +5,7 @@ import { playerApi } from "@/api/player";
 import { useAuthStore } from "@/stores/authStore";
 import { useLogout } from "@/hooks/useAuth";
 import Button from "@/components/ui/Button";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
+import { errMsg } from "@/utils/errors";
 
 /** Nom affiché + changement de mot de passe. */
 export default function AccountEditor() {

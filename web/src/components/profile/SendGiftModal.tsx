@@ -10,14 +10,7 @@ import ResourceIcon from "@/components/ui/ResourceIcon";
 import AddResourceModal from "@/components/trade/AddResourceModal";
 import AddBoosterModal from "@/components/trade/AddBoosterModal";
 import type { Card } from "@/types/card";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
+import { errMsg } from "@/utils/errors";
 
 export interface SendGiftInitialState {
     username: string;

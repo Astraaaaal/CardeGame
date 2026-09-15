@@ -7,6 +7,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import CardImage from "./CardImage";
+import { errMsg } from "@/utils/errors";
 
 interface CardDetailProps {
     open: boolean;
@@ -17,14 +18,6 @@ interface CardDetailProps {
 
 function rarityColorToCSS(color: number[]): string {
     return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-}
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
 }
 
 /**

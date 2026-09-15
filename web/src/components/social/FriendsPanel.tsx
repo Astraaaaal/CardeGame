@@ -11,14 +11,7 @@ import Modal from "@/components/ui/Modal";
 import CollapsibleSection from "@/components/ui/CollapsibleSection";
 import SendGiftModal, { type SendGiftInitialState } from "@/components/profile/SendGiftModal";
 import MessagesInbox from "@/components/profile/MessagesInbox";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
+import { errMsg } from "@/utils/errors";
 
 type Tab = "friends" | "trades" | "messages";
 

@@ -3,18 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi, type AdminLevelTier, type AdminAchievementDef, type AdminQuestDef } from "@/api/admin";
 import type { AdminResource, AdminBooster } from "@/types/content";
 import Button from "@/components/ui/Button";
+import { errMsg } from "@/utils/errors";
 
 const inputCls =
     "bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-white " +
     "focus:border-accent focus:outline-none transition-colors";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
 
 function ResourceSelect({ value, resources, onChange }: { value: string | null; resources: AdminResource[]; onChange: (v: string) => void }) {
     return (

@@ -7,14 +7,7 @@ import CardImage from "@/components/card/CardImage";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Button from "@/components/ui/Button";
 import BottomNav from "@/components/layout/BottomNav";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
+import { errMsg } from "@/utils/errors";
 
 export default function PlayerShowcase() {
     const navigate = useNavigate();

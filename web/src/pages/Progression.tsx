@@ -8,14 +8,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import TrophyRoad from "@/components/progression/TrophyRoad";
 import BottomNav from "@/components/layout/BottomNav";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
+import { errMsg } from "@/utils/errors";
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
     const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 100;

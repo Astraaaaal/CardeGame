@@ -6,14 +6,7 @@ import { useLogout } from "@/hooks/useAuth";
 import type { PlayerSettings, TradeRequestPolicy, GiftPolicy } from "@/types/player";
 import Button from "@/components/ui/Button";
 import DeleteAccountModal from "@/components/profile/DeleteAccountModal";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
+import { errMsg } from "@/utils/errors";
 
 const POLICY_OPTIONS: { value: TradeRequestPolicy; label: string }[] = [
     { value: "everyone", label: "Tout le monde" },

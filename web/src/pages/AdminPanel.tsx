@@ -15,6 +15,7 @@ import type {
     TuningEntry,
     TuningTable,
 } from "@/types/content";
+import { errMsg } from "@/utils/errors";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -26,14 +27,6 @@ const inputCls =
     "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
     "placeholder-white/30 focus:border-accent focus:outline-none transition-colors";
 const labelCls = "block text-white/60 text-xs mb-1";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
 
 const hexFromRgb = (r: number, g: number, b: number) =>
     "#" + [r, g, b].map((x) => Math.max(0, Math.min(255, x)).toString(16).padStart(2, "0")).join("");

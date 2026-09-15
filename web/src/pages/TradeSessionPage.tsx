@@ -10,16 +10,9 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import AddResourceModal from "@/components/trade/AddResourceModal";
+import { errMsg } from "@/utils/errors";
 
 const MAX_ITEMS_PER_SIDE = 12;
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
 
 const ACTIVE = new Set(["negotiating", "confirming"]);
 

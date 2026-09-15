@@ -18,14 +18,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CardPickerModal from "@/components/card/CardPickerModal";
 import BottomNav from "@/components/layout/BottomNav";
 import { getResourceBalance } from "@/utils/resources";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
+import { errMsg } from "@/utils/errors";
 
 type Quantity = 1 | 5 | 10;
 

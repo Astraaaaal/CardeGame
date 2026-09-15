@@ -10,14 +10,7 @@ import type { Card } from "@/types/card";
 import type { TradeListingSlotIn, TradeListingMode } from "@/types/showcase";
 import Button from "@/components/ui/Button";
 import CardImage from "@/components/card/CardImage";
-
-function errMsg(e: unknown): string {
-    if (e && typeof e === "object" && "response" in e) {
-        const r = (e as { response?: { data?: { detail?: unknown } } }).response;
-        if (typeof r?.data?.detail === "string") return r.data.detail;
-    }
-    return "Erreur.";
-}
+import { errMsg } from "@/utils/errors";
 
 const MODE_LABELS: { value: TradeListingMode; label: string }[] = [
     { value: "buy_now", label: "Achat direct" },
