@@ -1,7 +1,7 @@
 import api from "./client";
 import type {
     Friend, FriendGroup, FriendRequestItem, FriendRequestsResponse,
-    TradeRequestItem, TradeRequestsResponse,
+    TradePulse, TradeRequestItem, TradeRequestsResponse,
 } from "@/types/social";
 import type { TradeSession } from "@/types/trade";
 
@@ -28,10 +28,11 @@ export const friendsApi = {
         api.delete(`/friends/requests/${requestId}`).then(() => undefined),
 
     listTradeRequests: () => api.get<TradeRequestsResponse>("/friends/trade-requests").then((r) => r.data),
-    listUnseenTradeRequests: () =>
-        api.get<TradeRequestItem[]>("/friends/trade-requests/unseen").then((r) => r.data),
+    tradePulse: () => api.get<TradePulse>("/friends/trade-requests/pulse").then((r) => r.data),
     markTradeRequestsSeen: () =>
         api.post("/friends/trade-requests/mark-seen").then(() => undefined),
+    markTradeRequestSeen: (requestId: number) =>
+        api.post(`/friends/trade-requests/${requestId}/seen`).then(() => undefined),
     proposeTrade: (friendUserId: number) =>
         api.post<TradeRequestItem>(`/friends/${friendUserId}/trade-request`).then((r) => r.data),
     sendTrade: (username: string) =>

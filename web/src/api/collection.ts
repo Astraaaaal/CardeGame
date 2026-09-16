@@ -31,6 +31,8 @@ export interface CollectionParams {
     jewelry_id?: string;
     jewelry_op?: TierOp;
     type_names?: string[];
+    min_power?: number;
+    max_power?: number;
 }
 
 export interface CollectionResponse {

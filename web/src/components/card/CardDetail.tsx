@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import CardImage from "./CardImage";
 import { errMsg } from "@/utils/errors";
+import { showRewards } from "@/stores/rewardPopupStore";
 
 interface CardDetailProps {
     open: boolean;
@@ -71,6 +72,10 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
     const recycle = useMutation({
         mutationFn: () => collectionApi.recycle({ card_ids: recycleIds }),
         onSuccess: (res) => {
+            showRewards({
+                title: `Recyclage ×${res.recycled_count}`,
+                items: [{ kind: "resource", resourceId: res.resource_id, amount: res.gained, name: res.resource_name }],
+            });
             setResult(`+${res.gained.toLocaleString("fr-FR")} ${res.resource_name} (solde : ${res.new_balance.toLocaleString("fr-FR")})`);
             setConfirmingRecycle(false);
             setSelectedIds(new Set());
@@ -81,10 +86,22 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
         onError: (e) => { setResult(errMsg(e)); setConfirmingRecycle(false); },
     });
 
-    const toggleCopy = (id: string) => {
+    // Exemplaires regroupés par puissance identique (⚡13 ×5 plutôt que 5 lignes) :
+    // cocher une ligne sélectionne tous les exemplaires de cette puissance.
+    const copyGroups = Object.values(
+        (copiesQ.data?.copies ?? []).reduce<Record<string, { power: number | null; ids: string[] }>>((acc, c) => {
+            (acc[String(c.power)] ??= { power: c.power, ids: [] }).ids.push(c.id);
+            return acc;
+        }, {})
+    ).sort((a, b) => (b.power ?? -1) - (a.power ?? -1));
+
+    const toggleCopies = (ids: string[]) => {
         setSelectedIds((prev) => {
             const next = new Set(prev);
-            if (next.has(id)) next.delete(id); else next.add(id);
+            const allSelected = ids.every((id) => next.has(id));
+            for (const id of ids) {
+                if (allSelected) next.delete(id); else next.add(id);
+            }
             return next;
         });
     };
@@ -205,14 +222,17 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                                                 <p className="text-white/40 text-xs">Chargement...</p>
                                             ) : (
                                                 <div className="bg-black/30 rounded-lg px-3 py-2 space-y-1.5 max-h-32 overflow-y-auto">
-                                                    {(copiesQ.data?.copies ?? []).map((c) => (
-                                                        <label key={c.id} className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
+                                                    {copyGroups.map((g) => (
+                                                        <label key={String(g.power)} className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
                                                             <input
                                                                 type="checkbox"
-                                                                checked={selectedIds.has(c.id)}
-                                                                onChange={() => toggleCopy(c.id)}
+                                                                checked={g.ids.every((id) => selectedIds.has(id))}
+                                                                onChange={() => toggleCopies(g.ids)}
                                                             />
-                                                            {c.power != null ? `⚡${c.power}` : "—"}
+                                                            {g.power != null ? `⚡${g.power}` : "—"}
+                                                            {g.ids.length > 1 && (
+                                                                <span className="text-white/40 text-xs">×{g.ids.length}</span>
+                                                            )}
                                                         </label>
                                                     ))}
                                                 </div>

@@ -9,6 +9,8 @@ import ResourceIcon from "@/components/ui/ResourceIcon";
 import TrophyRoad from "@/components/progression/TrophyRoad";
 import BottomNav from "@/components/layout/BottomNav";
 import { errMsg } from "@/utils/errors";
+import { rewardItems, showRewards } from "@/stores/rewardPopupStore";
+import type { PendingLevelReward } from "@/types/progression";
 
 function ProgressBar({ value, max }: { value: number; max: number }) {
     const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 100;
@@ -24,8 +26,12 @@ function RoadTab() {
     const { data, isLoading } = useQuery({ queryKey: ["level-status"], queryFn: progressionApi.getLevel });
 
     const claim = useMutation({
-        mutationFn: progressionApi.claimLevel,
-        onSuccess: (status) => {
+        mutationFn: (_pending: PendingLevelReward[]) => progressionApi.claimLevel(),
+        onSuccess: (status, pending) => {
+            showRewards({
+                title: pending.length > 1 ? "Récompenses de niveau" : `Niveau ${pending[0]?.level}`,
+                items: pending.flatMap((r) => rewardItems(r)),
+            });
             qc.setQueryData(["level-status"], status);
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["booster-inventory"] });
@@ -54,7 +60,7 @@ function RoadTab() {
                             </div>
                         ))}
                     </div>
-                    <Button variant="gold" size="sm" className="w-full" loading={claim.isPending} onClick={() => claim.mutate()}>
+                    <Button variant="gold" size="sm" className="w-full" loading={claim.isPending} onClick={() => claim.mutate(data.pending_rewards)}>
                         Tout récupérer
                     </Button>
                 </div>
@@ -76,6 +82,7 @@ function AchievementRow({ achievement }: { achievement: Achievement }) {
     const claim = useMutation({
         mutationFn: () => progressionApi.claimAchievement(achievement.id),
         onSuccess: (a) => {
+            showRewards({ title: a.name, items: rewardItems(a) });
             qc.setQueryData<Achievement[]>(["achievements"], (old) => old?.map((x) => x.id === a.id ? a : x));
             // Les achievements enchaînés (10 cartes -> 50 -> 100...) n'affichent
             // que le palier courant : le patch ci-dessus ne fait que marquer
@@ -172,6 +179,7 @@ function QuestsTab() {
     const claim = useMutation({
         mutationFn: (id: number) => progressionApi.claimQuest(id),
         onSuccess: (q) => {
+            showRewards({ title: q.name, items: rewardItems(q) });
             qc.setQueryData<Quest[]>(["quests"], (old) => old?.map((x) => x.id === q.id ? q : x));
             qc.invalidateQueries({ queryKey: ["player"] });
         },

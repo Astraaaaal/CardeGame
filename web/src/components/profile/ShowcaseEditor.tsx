@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { showcaseApi } from "@/api/showcase";
+import { progressionApi } from "@/api/progression";
 import { useAuthStore } from "@/stores/authStore";
 import { useCollection } from "@/hooks/useCollection";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
@@ -67,12 +68,15 @@ const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_pro
         enabled: !!user,
     });
     const { data: collection } = useCollection({ sort_by: "rarity" });
+    const { data: achievementList } = useQuery({ queryKey: ["achievements"], queryFn: progressionApi.getAchievements });
+    const unlockedAchievements = (achievementList ?? []).filter((a) => a.unlocked_at);
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
     const consumeResultIfPurpose = useCardSelectionStore((s) => s.consumeResultIfPurpose);
 
     const [avatarId, setAvatarId] = useState<string | null>(null);
     const [avatarImg, setAvatarImg] = useState<string | null>(null);
     const [slots, setSlots] = useState<(string | null)[]>([null, null, null]);
+    const [achievementSlots, setAchievementSlots] = useState<(string | null)[]>([null, null, null]);
     const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
     const [pickedPreviews, setPickedPreviews] = useState<Record<string, Card>>({});
 
@@ -98,6 +102,7 @@ const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_pro
         setAvatarId(result.context?.avatarId || null);
         setAvatarImg(result.context?.avatarImg || null);
         setSlots([0, 1, 2].map((i) => (i === slotIndex ? picked?.id ?? null : result.context?.[`slot${i}`] || null)));
+        setAchievementSlots([0, 1, 2].map((i) => result.context?.[`achievement${i}`] || null));
         if (picked) setPickedPreviews((p) => ({ ...p, [picked.id]: picked.preview }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -108,6 +113,7 @@ const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_pro
         setAvatarId(showcase.avatar?.character_id ?? null);
         setAvatarImg(showcase.avatar?.image_url ?? null);
         setSlots([0, 1, 2].map((i) => showcase.cards[i]?.id ?? null));
+        setAchievementSlots(showcase.achievement_slots);
     }, [showcase]);
 
     // Fusionne la collection actuelle + les cartes déjà en vitrine + une carte
@@ -136,13 +142,16 @@ const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_pro
                 slot0: slots[0] ?? "",
                 slot1: slots[1] ?? "",
                 slot2: slots[2] ?? "",
+                achievement0: achievementSlots[0] ?? "",
+                achievement1: achievementSlots[1] ?? "",
+                achievement2: achievementSlots[2] ?? "",
             },
         });
         navigate("/collection");
     };
 
     const save = useMutation({
-        mutationFn: () => showcaseApi.update(avatarId, slots),
+        mutationFn: () => showcaseApi.update(avatarId, slots, achievementSlots),
         onSuccess: (updated) => qc.setQueryData(["showcase", user?.id], updated),
     });
 
@@ -200,6 +209,32 @@ const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_pro
                         );
                     })}
                 </div>
+            </div>
+
+            <div className="bg-game-surface rounded-2xl border border-white/10 p-4">
+                <h3 className="text-white font-bold text-sm mb-1">Achievements affichés (3 max)</h3>
+                <p className="text-white/30 text-xs mb-3">Parmi ceux que tu as déjà débloqués.</p>
+                {unlockedAchievements.length === 0 ? (
+                    <p className="text-white/40 text-sm">Aucun achievement débloqué pour l'instant.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {achievementSlots.map((selectedId, i) => (
+                            <select
+                                key={i}
+                                className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                                value={selectedId ?? ""}
+                                onChange={(e) => setAchievementSlots((s) => s.map((v, j) => (j === i ? e.target.value || null : v)))}
+                            >
+                                <option value="">— Emplacement vide —</option>
+                                {unlockedAchievements
+                                    .filter((a) => a.id === selectedId || !achievementSlots.includes(a.id))
+                                    .map((a) => (
+                                        <option key={a.id} value={a.id}>{a.name}</option>
+                                    ))}
+                            </select>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {avatarPickerOpen && (

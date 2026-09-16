@@ -15,13 +15,14 @@ from app.models.token import RefreshToken
 from app.models.card import UserCard
 from app.models.economy import Resource, UserResource
 from app.models.social import TradeListing
+from app.models.achievement import UserAchievement
 from app.schemas.player import PlayerResponse, DailyRewardResponse, UpdateProfileRequest, PlayerStatsResponse
 from app.schemas.auth import ChangePasswordRequest, DeleteAccountRequest, MessageResponse
 from app.schemas.economy import ResourceBalance
 from app.schemas.showcase import ShowcaseResponse, UpdateShowcaseRequest, UpdateTradeListingsRequest
 from app.schemas.settings import PlayerSettings, UpdatePlayerSettings
 from app.services.daily_reward import DailyRewardService
-from app.services.showcase_view import build_showcase_response
+from app.services.showcase_view import build_showcase_response, ACHIEVEMENT_SLOT_FIELDS
 from app.services.account import delete_account
 from app.services.player_stats import build_player_stats
 
@@ -161,6 +162,14 @@ async def update_showcase(
             if not card or card.user_id != user.id:
                 raise HTTPException(400, "Une des cartes choisies ne t'appartient pas.")
         setattr(user, field, card_id)
+
+    chosen = [a for a in body.achievement_slots if a]
+    if len(set(chosen)) != len(chosen):
+        raise HTTPException(400, "Un même achievement est affiché plusieurs fois.")
+    for field, achievement_id in zip(ACHIEVEMENT_SLOT_FIELDS, body.achievement_slots):
+        if achievement_id and not await session.get(UserAchievement, (user.id, achievement_id)):
+            raise HTTPException(400, "Tu n'as pas encore débloqué cet achievement.")
+        setattr(user, field, achievement_id)
 
     session.add(user)
     await session.commit()

@@ -6,6 +6,7 @@ import Button from "@/components/ui/Button";
 import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import { errMsg } from "@/utils/errors";
+import { rewardItems, showRewards, type RewardItem } from "@/stores/rewardPopupStore";
 
 function fmt(iso: string): string {
     return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -26,6 +27,11 @@ function MessageRow({ message }: { message: AppMessage }) {
     const claim = useMutation({
         mutationFn: () => messagesApi.claim(message.id),
         onSuccess: (m) => {
+            if (m.claimed_at && !m.claim_error) {
+                const items: RewardItem[] = rewardItems(m);
+                if (m.reward_card) items.push({ kind: "card", card: m.reward_card });
+                showRewards({ title: m.subject || "Cadeau", items });
+            }
             qc.setQueryData<AppMessage[]>(["messages"], (old) => old?.map((x) => x.id === m.id ? m : x));
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["collection"] });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useGameStore } from "@/stores/gameStore";
+import { useHoldAnimationLock } from "@/stores/animationLockStore";
 import type { Card } from "@/types/card";
 import CardReveal from "@/components/card/CardReveal";
 import CardImage from "@/components/card/CardImage";
@@ -10,6 +11,9 @@ import Button from "@/components/ui/Button";
 
 export default function PackOpening() {
   const navigate = useNavigate();
+  // Tant qu'on est sur cet écran : pas de popup d'échange ni d'entrée forcée
+  // dans un échange — ça attend le retour à la boutique / collection.
+  useHoldAnimationLock();
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const {
     currentPacks,

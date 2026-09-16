@@ -13,12 +13,10 @@ from app.config import settings
 from app.database import get_session
 from app.core.security import decode_token
 from app.models.user import User
+from app.services.presence import LAST_SEEN_THROTTLE_S
 
 bearer_scheme = HTTPBearer()
 
-# En-dessous de cet écart, on ne réécrit pas last_seen (évite une requête
-# d'écriture à chaque appel API alors que le joueur est déjà marqué actif).
-_LAST_SEEN_THROTTLE_S = 60
 
 
 async def require_admin(x_admin_key: str = Header(default="")):
@@ -76,7 +74,7 @@ async def get_current_user(
         )
 
     now = datetime.utcnow()
-    if not user.last_seen or (now - user.last_seen).total_seconds() > _LAST_SEEN_THROTTLE_S:
+    if not user.last_seen or (now - user.last_seen).total_seconds() > LAST_SEEN_THROTTLE_S:
         user.last_seen = now
         session.add(user)
         await session.commit()

@@ -89,6 +89,8 @@ async def get_collection(
     jewelry_id: Optional[str] = Query(None),
     jewelry_op: str = Query("eq", pattern=_OP_PATTERN),
     type_names: list[str] = Query([]),
+    min_power: Optional[int] = Query(None, ge=0),
+    max_power: Optional[int] = Query(None, ge=0),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -98,6 +100,7 @@ async def get_collection(
     chaque filtre accepte un mode "eq" (exact), "gte" (ce palier et au-dessus)
     ou "lte" (ce palier et en dessous), basé sur tier_order.rank().
     `type_names` : un ou plusieurs types de personnage (nom, pas id) — vide = tous.
+    `min_power` / `max_power` : bornes incluses sur la puissance de chaque exemplaire.
     """
     # Requête de base — seul set_id reste un filtre exact simple côté SQL,
     # les 4 axes à palier + le type sont filtrés en Python.
@@ -116,6 +119,8 @@ async def get_collection(
         and _matches_tier("specialty", c.specialty_id, specialty_id, specialty_op)
         and _matches_tier("jewelry", c.jewelry_id, jewelry_id, jewelry_op)
         and (not type_names or (chars_map.get(c.character_id) and chars_map[c.character_id].type in type_names))
+        and (min_power is None or (c.power or 0) >= min_power)
+        and (max_power is None or (c.power or 0) <= max_power)
     ]
 
     if not all_cards:

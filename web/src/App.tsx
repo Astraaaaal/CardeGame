@@ -13,9 +13,12 @@ import Settings from "@/pages/Settings";
 import PlayerShowcase from "@/pages/PlayerShowcase";
 import Leaderboard from "@/pages/Leaderboard";
 import Progression from "@/pages/Progression";
+import Inventory from "@/pages/Inventory";
 import TradeSessionPage from "@/pages/TradeSessionPage";
 import AdminPanel from "@/pages/AdminPanel";
 import LegalNotice from "@/pages/LegalNotice";
+import TradeWatcher from "@/components/trade/TradeWatcher";
+import RewardPopup from "@/components/player/RewardPopup";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, setUser } = useAuthStore();
@@ -40,6 +43,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 export default function App() {
     return (
         <div className="max-w-mobile mx-auto min-h-screen">
+            <TradeWatcher />
+            <RewardPopup />
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/admin" element={<AdminPanel />} />
@@ -114,6 +119,14 @@ export default function App() {
                     element={
                         <ProtectedRoute>
                             <Progression />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/inventory"
+                    element={
+                        <ProtectedRoute>
+                            <Inventory />
                         </ProtectedRoute>
                     }
                 />

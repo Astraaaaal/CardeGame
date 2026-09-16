@@ -11,7 +11,6 @@ import CoinDisplay from "@/components/player/CoinDisplay";
 import ResourceDisplay from "@/components/player/ResourceDisplay";
 import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
-import TradeRequestPopup from "@/components/social/TradeRequestPopup";
 import ActiveTradeBanner from "@/components/trade/ActiveTradeBanner";
 import BottomNav from "@/components/layout/BottomNav";
 
@@ -45,6 +44,7 @@ export default function MainMenu() {
   const menuItems = [
     { label: "Boutique", path: "/shop" },
     { label: "Ma Collection", path: "/collection" },
+    { label: "Inventaire", path: "/inventory" },
     { label: "Classement", path: "/leaderboard" },
     { label: "Progression", path: "/progression" },
   ];
@@ -56,7 +56,6 @@ export default function MainMenu() {
   return (
     <div className="min-h-screen bg-game-bg flex flex-col">
       <DailyRewardPopup />
-      <TradeRequestPopup />
 
       <div className="px-4 pt-4 max-w-sm mx-auto w-full space-y-2">
         <div className="flex items-center justify-between">

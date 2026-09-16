@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendsApi } from "@/api/friends";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
+import { TRADE_PULSE_KEY, useTradePulse } from "@/hooks/useTradePulse";
+import { markTradeJoined } from "@/components/trade/TradeWatcher";
 import type { Friend } from "@/types/social";
 import Button from "@/components/ui/Button";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -77,17 +79,29 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
         queryKey: ["friend-requests"], queryFn: friendsApi.listRequests,
         enabled: open, refetchInterval: open ? 20_000 : false,
     });
+    // Pas de polling propre : TradeWatcher invalide cette liste dès que l'état
+    // des échanges change (cf. useTradePulse).
     const tradesQ = useQuery({
-        queryKey: ["trade-requests"], queryFn: friendsApi.listTradeRequests,
-        enabled: open, refetchInterval: open ? 20_000 : false,
+        queryKey: ["trade-requests"], queryFn: friendsApi.listTradeRequests, enabled: open,
     });
     const groupsQ = useQuery({
         queryKey: ["friend-groups"], queryFn: friendsApi.listGroups, enabled: open,
     });
+    const { data: pulse } = useTradePulse();
+    const unseenTradeCount = pulse?.incoming_unseen.length ?? 0;
+
+    useEffect(() => {
+        if (!open || tab !== "trades" || unseenTradeCount === 0) return;
+        friendsApi.markTradeRequestsSeen().then(() => qc.invalidateQueries({ queryKey: TRADE_PULSE_KEY }));
+    }, [open, tab, unseenTradeCount, qc]);
 
     const refreshAll = () => {
         qc.invalidateQueries({ queryKey: ["friends"] });
         qc.invalidateQueries({ queryKey: ["friend-requests"] });
+    };
+    const refreshTrades = () => {
+        qc.invalidateQueries({ queryKey: ["trade-requests"] });
+        qc.invalidateQueries({ queryKey: TRADE_PULSE_KEY });
     };
 
     const sendReq = useMutation({
@@ -109,24 +123,26 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
     });
     const proposeTrade = useMutation({
         mutationFn: (userId: number) => friendsApi.proposeTrade(userId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["trade-requests"] }),
+        onSuccess: () => { setErr(""); refreshTrades(); },
+        onError: (e) => setErr(errMsg(e)),
     });
     const sendTradeReq = useMutation({
         mutationFn: () => friendsApi.sendTrade(tradeUsername.trim()),
         onSuccess: () => {
             setTradeUsername(""); setTradeErr("");
-            qc.invalidateQueries({ queryKey: ["trade-requests"] });
+            refreshTrades();
         },
         onError: (e) => setTradeErr(errMsg(e)),
     });
     const cancelTrade = useMutation({
         mutationFn: (id: number) => friendsApi.cancelTradeRequest(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["trade-requests"] }),
+        onSuccess: refreshTrades,
     });
     const acceptTrade = useMutation({
         mutationFn: (id: number) => friendsApi.acceptTradeRequest(id),
         onSuccess: (session) => {
-            qc.invalidateQueries({ queryKey: ["trade-requests"] });
+            markTradeJoined(session.id);
+            refreshTrades();
             onClose();
             navigate(`/trade/${session.id}`);
         },
@@ -189,7 +205,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
 
     const tabs: { key: Tab; label: string; badge: number }[] = [
         { key: "friends", label: "Amis", badge: incomingReq.length },
-        { key: "trades", label: "Échanges", badge: incomingTrades.length },
+        { key: "trades", label: "Échanges", badge: pulse?.incoming_ids.length ?? incomingTrades.length },
         { key: "messages", label: "Messages", badge: 0 },
     ];
 

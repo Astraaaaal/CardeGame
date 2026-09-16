@@ -2,7 +2,7 @@
 Routes social — amis, amis proches, demandes d'ami, demandes d'échange (placeholder).
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,23 +15,20 @@ from app.models.user import User
 from app.models.social import FriendRequest, TradeRequest, CloseFriend, FriendGroup, FriendGroupMember
 from app.schemas.social import (
     FriendOut, SendFriendRequestBody, FriendRequestOut, FriendRequestsResponse,
-    TradeRequestOut, TradeRequestsResponse, SendTradeRequestBody,
+    TradeRequestOut, TradeRequestsResponse, SendTradeRequestBody, TradePulseOut,
     FriendGroupOut, FriendGroupBody,
 )
 from app.schemas.trade_session import TradeSessionOut
 from app.services.friendship import friendship_between as _friendship_between
+from app.services import trade_requests as _trade_requests
 from app.services.trade_requests import create_trade_request as _create_trade_request
-from app.services.trade_session import create_session as _create_trade_session, build_out as _build_trade_session_out
+from app.services.trade_session import build_out as _build_trade_session_out
 from app.services import quest_progress
+from app.services.presence import is_online as _is_online
 
 router = APIRouter()
 
-ONLINE_THRESHOLD_S = 300  # "en ligne" si vu il y a moins de 5 min
 MAX_FRIEND_GROUPS = 15
-
-
-def _is_online(user: User) -> bool:
-    return bool(user.last_seen and datetime.utcnow() - user.last_seen < timedelta(seconds=ONLINE_THRESHOLD_S))
 
 
 @router.get("/", response_model=list[FriendOut])
@@ -394,48 +391,20 @@ async def list_trade_requests(
         )
         (incoming if is_incoming else outgoing).append(item)
 
-    # Consulter la liste marque les demandes reçues comme vues — le popup de
-    # notification (basé sur /trade-requests/unseen) ne les re-signalera plus.
-    await session.execute(
-        update(TradeRequest)
-        .where(TradeRequest.addressee_id == user.id, TradeRequest.status == "pending", TradeRequest.seen == False)  # noqa: E712
-        .values(seen=True)
-    )
-    await session.commit()
-
+    # Pas de "vu" ici : la liste est aussi chargée depuis l'onglet Amis (état
+    # "échange en attente" des boutons), ça étoufferait le popup. C'est
+    # l'affichage de l'onglet Échanges qui marque vu (POST .../mark-seen).
     return TradeRequestsResponse(incoming=incoming, outgoing=outgoing)
 
 
-@router.get("/trade-requests/unseen", response_model=list[TradeRequestOut])
-async def list_unseen_trade_requests(
+@router.get("/trade-requests/pulse", response_model=TradePulseOut)
+async def trade_pulse(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """
-    Demandes d'échange reçues pas encore vues — sert au popup de notification.
-    Ne marque PAS comme vu (contrairement à GET /trade-requests) : c'est au
-    popup de le faire explicitement une fois affiché (POST .../mark-seen).
-    """
-    rows = (await session.execute(
-        select(TradeRequest).where(
-            TradeRequest.status == "pending",
-            TradeRequest.addressee_id == user.id,
-            TradeRequest.seen == False,  # noqa: E712
-        )
-    )).scalars().all()
-    if not rows:
-        return []
-    other_ids = {r.requester_id for r in rows}
-    users = {u.id: u for u in (await session.execute(
-        select(User).where(User.id.in_(other_ids))
-    )).scalars().all()}
-    return [
-        TradeRequestOut(
-            id=r.id, user_id=users[r.requester_id].id, username=users[r.requester_id].username,
-            display_name=users[r.requester_id].display_name, created_at=r.created_at,
-        )
-        for r in rows if r.requester_id in users
-    ]
+    """Interrogé en continu par le client : échange lancé (pour y entrer
+    automatiquement), demandes reçues à afficher, ids pour rafraîchir les listes."""
+    return await _trade_requests.build_pulse(session, user)
 
 
 @router.post("/trade-requests/mark-seen", status_code=204)
@@ -443,6 +412,8 @@ async def mark_trade_requests_seen(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    """Onglet Échanges affiché : les demandes reçues y sont visibles, le popup
+    n'a plus à les signaler."""
     await session.execute(
         update(TradeRequest)
         .where(TradeRequest.addressee_id == user.id, TradeRequest.status == "pending")
@@ -509,15 +480,26 @@ async def accept_trade_request(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Accepte une demande d'échange reçue : ouvre la session d'échange en direct."""
+    """Accepte une demande d'échange reçue : ouvre la session d'échange en
+    direct et annule les autres propositions envoyées par les deux joueurs."""
+    trade = await _trade_requests.accept_trade_request(session, request_id, user.id)
+    return await _build_trade_session_out(session, trade, user.id)
+
+
+@router.post("/trade-requests/{request_id}/seen", status_code=204)
+async def mark_trade_request_seen(
+    request_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """"Plus tard" depuis le popup : la demande reste en attente dans l'onglet
+    Échanges mais n'est plus signalée."""
     req = await session.get(TradeRequest, request_id)
     if not req or req.status != "pending" or req.addressee_id != user.id:
         raise HTTPException(404, "Demande introuvable.")
-
-    trade = await _create_trade_session(session, req.requester_id, req.addressee_id)
-    await session.delete(req)
+    req.seen = True
+    session.add(req)
     await session.commit()
-    return await _build_trade_session_out(session, trade, user.id)
 
 
 @router.delete("/trade-requests/{request_id}", status_code=204)

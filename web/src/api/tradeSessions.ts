@@ -2,7 +2,6 @@ import api from "./client";
 import type { TradeSession } from "@/types/trade";
 
 export const tradeSessionsApi = {
-    getActive: () => api.get<TradeSession | null>("/trade-sessions/active").then((r) => r.data),
     get: (sessionId: number) => api.get<TradeSession>(`/trade-sessions/${sessionId}`).then((r) => r.data),
     addCard: (sessionId: number, userCardId: string) =>
         api.post<TradeSession>(`/trade-sessions/${sessionId}/items/cards`, { user_card_id: userCardId }).then((r) => r.data),

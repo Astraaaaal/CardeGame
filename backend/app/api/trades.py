@@ -13,19 +13,9 @@ from app.schemas.trade_session import (
     TradeSessionOut, AddCardItemBody, AddResourceItemBody, SetReadyBody,
 )
 from app.services import trade_session as svc
+from app.services.ranking import refresh_best_rank
 
 router = APIRouter()
-
-
-@router.get("/active", response_model=TradeSessionOut | None)
-async def get_active_session(
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-):
-    trade = await svc.get_active_session_for(session, user.id)
-    if not trade:
-        return None
-    return await svc.build_out(session, trade, user.id)
 
 
 @router.get("/{session_id}", response_model=TradeSessionOut)
@@ -100,6 +90,10 @@ async def confirm_trade(
 ):
     trade = await svc.get_session_or_404(session, session_id, user.id)
     removed = await svc.confirm(session, trade, user.id)
+    if trade.status == svc.STATUS_COMPLETED:
+        for participant_id in (trade.user_a_id, trade.user_b_id):
+            await refresh_best_rank(session, await session.get(User, participant_id))
+        await session.commit()
     return await svc.build_out(session, trade, user.id, removed_items=removed)
 
 

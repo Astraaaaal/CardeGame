@@ -52,6 +52,7 @@ class DailyRewardService:
             user.login_streak - 1
         )
 
+        user.best_login_streak = max(user.best_login_streak, user.login_streak)
         user.coins += reward
         user.last_daily_claim = today
         await session.commit()

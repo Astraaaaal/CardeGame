@@ -11,6 +11,7 @@ import Button from "@/components/ui/Button";
 import BottomNav from "@/components/layout/BottomNav";
 import { errMsg } from "@/utils/errors";
 import type { Card } from "@/types/card";
+import { showRewards } from "@/stores/rewardPopupStore";
 
 export default function PlayerShowcase() {
     const navigate = useNavigate();
@@ -32,6 +33,8 @@ export default function PlayerShowcase() {
     const buy = useMutation({
         mutationFn: (slot: number) => showcaseApi.buyTradeListing(id, slot),
         onSuccess: (updated, slot) => {
+            const bought = data?.trade_listings.find((l) => l.slot === slot);
+            if (bought) showRewards({ title: "Achat réussi", items: [{ kind: "card", card: bought.card }] });
             qc.setQueryData(["showcase", id], updated);
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["collection"] });
@@ -90,6 +93,18 @@ export default function PlayerShowcase() {
                             </div>
                             <h2 className="text-white font-bold text-lg">{data.display_name}</h2>
                             <p className="text-white/40 text-xs">@{data.username}</p>
+                            <div className="grid grid-cols-3 gap-2 w-full mt-2">
+                                {[
+                                    { label: "Niveau", value: String(data.level) },
+                                    { label: "Meilleure série", value: `${data.best_login_streak} j` },
+                                    { label: "Meilleur rang", value: data.best_global_rank ? `#${data.best_global_rank}` : "—" },
+                                ].map((stat) => (
+                                    <div key={stat.label} className="bg-game-surface border border-white/10 rounded-xl px-2 py-2 text-center">
+                                        <p className="text-accent font-extrabold text-lg leading-tight">{stat.value}</p>
+                                        <p className="text-white/40 text-[10px] uppercase tracking-wide">{stat.label}</p>
+                                    </div>
+                                ))}
+                            </div>
                             {!isSelf && data.friendship_status === "none" && (
                                 <>
                                     <Button
@@ -113,6 +128,25 @@ export default function PlayerShowcase() {
                                 </Button>
                             )}
                         </div>
+
+                        {data.achievements.length > 0 && (
+                            <div>
+                                <p className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-2">
+                                    Achievements
+                                </p>
+                                <div className="space-y-2">
+                                    {data.achievements.map((a) => (
+                                        <div key={a.id} className="flex items-center gap-3 bg-gold/10 border border-gold/30 rounded-xl px-3 py-2.5">
+                                            <span className="text-xl">🏆</span>
+                                            <div className="min-w-0">
+                                                <p className="text-white text-sm font-semibold truncate">{a.name}</p>
+                                                <p className="text-white/40 text-xs">{a.description}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <div>
                             <p className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-2">

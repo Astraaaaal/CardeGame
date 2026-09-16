@@ -110,6 +110,14 @@ _STATEMENTS = [
     "ALTER TABLE resources ADD COLUMN IF NOT EXISTS starting_amount INTEGER NOT NULL DEFAULT 0",
     # Reroll : la puissance peut être retirée seule (ou en plus d'un autre axe).
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS reroll_power BOOLEAN NOT NULL DEFAULT FALSE",
+    # Vitrine enrichie : meilleure série de connexion, meilleur rang global,
+    # 3 achievements affichés. La meilleure série part au moins de la série actuelle.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS best_login_streak INTEGER NOT NULL DEFAULT 0",
+    "UPDATE users SET best_login_streak = login_streak WHERE best_login_streak < login_streak",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS best_global_rank INTEGER",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_achievement_1_id VARCHAR(50)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_achievement_2_id VARCHAR(50)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_achievement_3_id VARCHAR(50)",
 ]
 
 # Boosters offerts à certains paliers de niveau (en plus des pièces) —

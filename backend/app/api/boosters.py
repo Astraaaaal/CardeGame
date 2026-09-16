@@ -15,6 +15,7 @@ from app.models.economy import Resource
 from app.schemas.booster import BoosterResponse, PackOpenRequest, PackOpenResponse, OpenOwnedRequest, OwnedBoosterOut
 from app.services.pack_service import PackService
 from app.services import booster_inventory
+from app.services.ranking import refresh_best_rank
 
 router = APIRouter()
 pack_service = PackService()
@@ -75,6 +76,8 @@ async def open_packs(
         booster_id=request.booster_id,
         quantity=request.quantity,
     )
+    await refresh_best_rank(session, user)
+    await session.commit()
     return PackOpenResponse(**result)
 
 
@@ -99,4 +102,6 @@ async def open_owned_boosters(
 ):
     """Ouvre des boosters déjà possédés (gratuit — même flux/animation qu'un achat)."""
     result = await booster_inventory.open_owned(session, user, request.booster_id, request.quantity)
+    await refresh_best_rank(session, user)
+    await session.commit()
     return PackOpenResponse(**result)

@@ -14,13 +14,15 @@ import BottomNav from "@/components/layout/BottomNav";
 const TIER_FILTER_KEYS = [
     "rarity_id", "rarity_op", "quality_id", "quality_op",
     "specialty_id", "specialty_op", "jewelry_id", "jewelry_op", "type_names",
+    "min_power", "max_power",
 ] as const;
 
 function countActiveFilters(f: CollectionParams): number {
     const tierCount = ["rarity_id", "quality_id", "specialty_id", "jewelry_id"].filter(
         (k) => !!f[k as keyof CollectionParams]
     ).length;
-    return tierCount + (f.type_names?.length ? 1 : 0);
+    const powerCount = f.min_power != null || f.max_power != null ? 1 : 0;
+    return tierCount + (f.type_names?.length ? 1 : 0) + powerCount;
 }
 
 const SORT_OPTIONS = [
@@ -43,7 +45,6 @@ export default function Collection() {
     const [search, setSearch] = useState("");
     const [filterModalOpen, setFilterModalOpen] = useState(false);
     const [probModalOpen, setProbModalOpen] = useState(false);
-    const [showScrollTop, setShowScrollTop] = useState(false);
     const scrollRef = useRef<HTMLElement>(null);
     // Empêche un double-tap/double-clic sur "Valider" de déclencher deux
     // resolveSelection()/navigate() (ex: double-appel de confirmSelection).
@@ -89,6 +90,13 @@ export default function Collection() {
         const to = selectionRequest?.returnTo ?? "/";
         setPicked(new Map());
         navigate(to);
+    };
+
+    // Selon la hauteur du contenu, c'est la fenêtre ou <main> qui défile : on pilote les deux.
+    const scrollPage = (to: "top" | "bottom") => {
+        const main = scrollRef.current;
+        window.scrollTo({ top: to === "top" ? 0 : document.documentElement.scrollHeight, behavior: "smooth" });
+        main?.scrollTo({ top: to === "top" ? 0 : main.scrollHeight, behavior: "smooth" });
     };
 
     const patchFilters = (patch: Partial<CollectionParams>) =>
@@ -200,7 +208,6 @@ export default function Collection() {
             <main
                 ref={scrollRef}
                 className={`flex-1 overflow-y-auto py-4 ${inSelectionMode ? "pb-24" : ""}`}
-                onScroll={(e) => setShowScrollTop(e.currentTarget.scrollTop > 400)}
             >
                 {isLoading ? (
                     <LoadingSpinner text="Chargement de la collection..." />
@@ -235,16 +242,22 @@ export default function Collection() {
 
             {!inSelectionMode && <BottomNav />}
 
-            {showScrollTop && !inSelectionMode && (
-                <button
-                    className="absolute bottom-6 right-4 z-30 w-11 h-11 rounded-full bg-accent text-white
-                     shadow-lg flex items-center justify-center text-xl hover:bg-accent/80 transition-colors"
-                    title="Remonter en haut"
-                    onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" })}
-                >
-                    ↑
-                </button>
-            )}
+            <div className={`fixed inset-x-0 z-30 pointer-events-none ${inSelectionMode ? "bottom-24" : "bottom-20"}`}>
+                <div className="max-w-mobile mx-auto px-4 flex flex-col items-start gap-2">
+                    {([["top", "↑", "Tout en haut"], ["bottom", "↓", "Tout en bas"]] as const).map(([to, icon, label]) => (
+                        <button
+                            key={to}
+                            className="pointer-events-auto w-10 h-10 rounded-full bg-game-surface/90 border border-white/15 text-white/80
+                             shadow-lg flex items-center justify-center text-lg hover:border-accent hover:text-white transition-colors"
+                            title={label}
+                            aria-label={label}
+                            onClick={() => scrollPage(to)}
+                        >
+                            {icon}
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             {inSelectionMode && (
                 <div className="absolute bottom-0 left-0 right-0 z-30 bg-game-surface border-t border-white/10 p-4">

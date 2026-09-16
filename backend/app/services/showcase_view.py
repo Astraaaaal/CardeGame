@@ -11,8 +11,12 @@ from app.models.card import UserCard
 from app.models.character import Character
 from app.models.economy import Resource
 from app.models.social import TradeListing, FriendRequest
-from app.schemas.showcase import ShowcaseResponse, AvatarInfo, TradeListingOut
+from app.models.achievement import AchievementDef, UserAchievement
+from app.schemas.showcase import ShowcaseResponse, AvatarInfo, TradeListingOut, ShowcaseAchievement
 from app.services.card_view import build_card_response
+from app.services.levels import get_all_tiers, get_total_power, current_level_for_power
+
+ACHIEVEMENT_SLOT_FIELDS = ("showcase_achievement_1_id", "showcase_achievement_2_id", "showcase_achievement_3_id")
 
 
 async def build_showcase_response(session: AsyncSession, target: User, viewer_id: int | None = None) -> ShowcaseResponse:
@@ -51,6 +55,20 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
             mode=listing.mode,
         ))
 
+    achievement_slots = [getattr(target, f) for f in ACHIEVEMENT_SLOT_FIELDS]
+    achievements = []
+    for achievement_id in achievement_slots:
+        if not achievement_id:
+            continue
+        definition = await session.get(AchievementDef, achievement_id)
+        if definition and await session.get(UserAchievement, (target.id, achievement_id)):
+            achievements.append(ShowcaseAchievement(
+                id=definition.id, name=definition.name,
+                description=definition.description, category=definition.category,
+            ))
+
+    level = current_level_for_power(await get_all_tiers(session), await get_total_power(session, target.id))
+
     friendship_status = "self"
     if viewer_id is not None and viewer_id != target.id:
         rel = (await session.execute(
@@ -72,4 +90,9 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
         user_id=target.id, username=target.username, display_name=target.display_name,
         avatar=avatar, cards=cards, trade_listings=trade_listings,
         friendship_status=friendship_status,
+        level=level,
+        best_login_streak=max(target.best_login_streak, target.login_streak),
+        best_global_rank=target.best_global_rank,
+        achievements=achievements,
+        achievement_slots=achievement_slots,
     )

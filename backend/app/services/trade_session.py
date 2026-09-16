@@ -22,12 +22,7 @@ from app.schemas.trade_session import TradeSessionOut, TradeSessionItemOut
 from app.services.card_view import build_card_response
 from app.services.wallet import get_balance, apply_delta, COINS_ID
 from app.services import quest_progress
-
-ONLINE_THRESHOLD_S = 300
-
-
-def _is_online(user: User) -> bool:
-    return bool(user.last_seen and datetime.utcnow() - user.last_seen < timedelta(seconds=ONLINE_THRESHOLD_S))
+from app.services.presence import is_online as _is_online
 
 
 def _side(trade: TradeSession, user_id: int) -> str:
@@ -58,6 +53,11 @@ async def get_active_session_for(session: AsyncSession, user_id: int) -> TradeSe
 
 
 async def create_session(session: AsyncSession, user_a_id: int, user_b_id: int) -> TradeSession:
+    # Verrouille les deux joueurs (ordre fixe, anti-deadlock) : deux demandes
+    # du même joueur acceptées au même instant ne doivent ouvrir qu'une session.
+    await session.execute(
+        select(User.id).where(User.id.in_([user_a_id, user_b_id])).order_by(User.id).with_for_update()
+    )
     if await get_active_session_for(session, user_a_id):
         raise HTTPException(409, "Tu as déjà un échange en cours.")
     if await get_active_session_for(session, user_b_id):

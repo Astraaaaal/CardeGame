@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -13,6 +13,7 @@ import CardDetail from "@/components/card/CardDetail";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import AddResourceModal from "@/components/trade/AddResourceModal";
 import { errMsg } from "@/utils/errors";
+import { showRewards, type RewardItem } from "@/stores/rewardPopupStore";
 
 const MAX_ITEMS_PER_SIDE = 12;
 
@@ -123,6 +124,23 @@ export default function TradeSessionPage() {
         mutationFn: () => tradeSessionsApi.cancel(id),
         onSuccess: invalidate,
     });
+
+    // Échange conclu sous nos yeux (pas au rechargement d'un échange déjà
+    // terminé) : récapitulatif de ce qu'on a reçu, par-dessus le résumé.
+    const previousStatus = useRef(trade?.status);
+    useEffect(() => {
+        if (!trade) return;
+        const was = previousStatus.current;
+        previousStatus.current = trade.status;
+        if (trade.status !== "completed" || !was || !ACTIVE.has(was)) return;
+        const items: RewardItem[] = trade.other_items.flatMap((item): RewardItem[] => {
+            if (item.item_type === "card") return item.card ? [{ kind: "card", card: item.card }] : [];
+            return item.resource_id && item.amount
+                ? [{ kind: "resource", resourceId: item.resource_id, amount: item.amount, name: item.resource_name }]
+                : [];
+        });
+        showRewards({ title: `Échange avec ${trade.other_display_name}`, items });
+    }, [trade]);
 
     if (isLoading || !trade) {
         return <LoadingSpinner text="Chargement de l'échange..." />;

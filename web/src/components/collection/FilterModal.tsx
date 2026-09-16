@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import { useProbabilities } from "@/hooks/useCollection";
@@ -15,6 +16,76 @@ const OP_LABELS: { value: TierOp; label: string }[] = [
     { value: "gte", label: "À partir de" },
     { value: "lte", label: "Et en dessous" },
 ];
+
+const POWER_MAX = 20000;
+const POWER_STEP = 100;
+
+const RANGE_INPUT = `absolute inset-0 w-full appearance-none bg-transparent pointer-events-none
+    [&::-webkit-slider-runnable-track]:bg-transparent [&::-moz-range-track]:bg-transparent
+    [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none
+    [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full
+    [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-accent
+    [&::-webkit-slider-thumb]:cursor-pointer
+    [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5
+    [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2
+    [&::-moz-range-thumb]:border-accent [&::-moz-range-thumb]:cursor-pointer`;
+
+/** Intervalle de puissance à deux curseurs. La valeur est appliquée au
+ * filtre 300 ms après le dernier mouvement, pas à chaque pixel glissé. */
+function PowerRangeFilter({ min, max, onChange }: {
+    min?: number;
+    max?: number;
+    onChange: (patch: Partial<CollectionParams>) => void;
+}) {
+    const [lo, setLo] = useState(min ?? 0);
+    const [hi, setHi] = useState(max ?? POWER_MAX);
+
+    useEffect(() => {
+        setLo(min ?? 0);
+        setHi(max ?? POWER_MAX);
+    }, [min, max]);
+
+    useEffect(() => {
+        const nextMin = lo > 0 ? lo : undefined;
+        const nextMax = hi < POWER_MAX ? hi : undefined;
+        if (nextMin === min && nextMax === max) return;
+        const t = setTimeout(() => onChange({ min_power: nextMin, max_power: nextMax }), 300);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lo, hi]);
+
+    return (
+        <div>
+            <div className="flex items-center justify-between mb-1.5">
+                <label className="text-white/50 text-xs font-semibold uppercase tracking-wide">Puissance</label>
+                <span className="text-white text-xs font-semibold tabular-nums">
+                    {lo.toLocaleString("fr-FR")} – {hi.toLocaleString("fr-FR")}{hi === POWER_MAX ? "+" : ""}
+                </span>
+            </div>
+            <div className="relative h-6">
+                <div className="absolute top-1/2 -translate-y-1/2 inset-x-0 h-1.5 rounded-full bg-white/10" />
+                <div
+                    className="absolute top-1/2 -translate-y-1/2 h-1.5 rounded-full bg-accent"
+                    style={{ left: `${(lo / POWER_MAX) * 100}%`, right: `${100 - (hi / POWER_MAX) * 100}%` }}
+                />
+                <input
+                    type="range" min={0} max={POWER_MAX} step={POWER_STEP} value={lo}
+                    aria-label="Puissance minimale"
+                    className={RANGE_INPUT}
+                    // Curseurs superposés en fin de piste : celui du bas doit rester attrapable.
+                    style={{ zIndex: lo > POWER_MAX - POWER_STEP * 5 ? 2 : 1 }}
+                    onChange={(e) => setLo(Math.min(Number(e.target.value), hi))}
+                />
+                <input
+                    type="range" min={0} max={POWER_MAX} step={POWER_STEP} value={hi}
+                    aria-label="Puissance maximale"
+                    className={RANGE_INPUT}
+                    onChange={(e) => setHi(Math.max(Number(e.target.value), lo))}
+                />
+            </div>
+        </div>
+    );
+}
 
 interface FilterModalProps {
     open: boolean;
@@ -48,6 +119,8 @@ export default function FilterModal({ open, onClose, filters, onChange, onReset 
     return (
         <Modal open={open} onClose={onClose} title="Filtres avancés">
             <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+                <PowerRangeFilter min={filters.min_power} max={filters.max_power} onChange={onChange} />
+
                 <div>
                     <label className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-1.5 block">
                         Type{selectedTypes.length > 0 ? ` (${selectedTypes.length})` : ""}

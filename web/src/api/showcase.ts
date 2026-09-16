@@ -7,10 +7,15 @@ export const showcaseApi = {
         return res.data;
     },
 
-    update: async (avatarCharacterId: string | null, cardSlots: (string | null)[]): Promise<Showcase> => {
+    update: async (
+        avatarCharacterId: string | null,
+        cardSlots: (string | null)[],
+        achievementSlots: (string | null)[],
+    ): Promise<Showcase> => {
         const res = await api.put("/player/showcase", {
             avatar_character_id: avatarCharacterId,
             card_slots: cardSlots,
+            achievement_slots: achievementSlots,
         });
         return res.data;
     },

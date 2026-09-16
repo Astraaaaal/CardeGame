@@ -19,6 +19,13 @@ export interface TradeListing {
 
 export type FriendshipStatus = "self" | "friends" | "pending" | "none";
 
+export interface ShowcaseAchievement {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+}
+
 export interface Showcase {
     user_id: number;
     username: string;
@@ -27,6 +34,11 @@ export interface Showcase {
     cards: Card[];
     trade_listings: TradeListing[];
     friendship_status: FriendshipStatus;
+    level: number;
+    best_login_streak: number;
+    best_global_rank: number | null;
+    achievements: ShowcaseAchievement[];
+    achievement_slots: (string | null)[];
 }
 
 export interface TradeListingSlotIn {

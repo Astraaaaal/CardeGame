@@ -17,6 +17,8 @@ import PriceTag from "@/components/shop/PriceTag";
 import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
+import { useHasPendingTradeProposal } from "@/hooks/useTradePulse";
+import { showRewards } from "@/stores/rewardPopupStore";
 import BottomNav from "@/components/layout/BottomNav";
 import { getResourceBalance } from "@/utils/resources";
 import { errMsg } from "@/utils/errors";
@@ -29,6 +31,7 @@ function BoostersTab() {
     const { data: boosters, isLoading } = useBoosters();
     const openMutation = usePackOpening();
     const openOwnedMutation = useOpenOwnedBoosters();
+    const tradePending = useHasPendingTradeProposal();
 
     const { data: inventory } = useQuery({ queryKey: ["booster-inventory"], queryFn: boostersApi.getInventory });
 
@@ -71,6 +74,7 @@ function BoostersTab() {
                     <h3 className="text-white/50 text-xs font-semibold uppercase tracking-wide">
                         Boosters reçus — à ouvrir
                     </h3>
+                    {tradePending && <TradePendingNotice />}
                     {inventory.map((o) => (
                         <div key={o.booster_id} className="flex items-center justify-between bg-gold/10 border border-gold/30 rounded-xl px-4 py-3">
                             <div>
@@ -79,6 +83,7 @@ function BoostersTab() {
                             </div>
                             <Button
                                 variant="gold" size="sm"
+                                disabled={tradePending}
                                 loading={openOwnedMutation.isPending && openOwnedMutation.variables?.booster_id === o.booster_id}
                                 onClick={() => handleOpenOwned(o.booster_id, o.quantity)}
                             >
@@ -145,11 +150,12 @@ function BoostersTab() {
                                 className="w-full"
                                 onClick={handleOpen}
                                 loading={openMutation.isPending}
-                                disabled={cantAfford}
+                                disabled={cantAfford || tradePending}
                             >
                                 Acheter et Ouvrir
                             </Button>
 
+                            {tradePending && <TradePendingNotice />}
                             {cantAfford && (
                                 <p className="text-red-400 text-xs text-center">
                                     Pas assez de {selected.resource_name.toLowerCase()}
@@ -160,6 +166,14 @@ function BoostersTab() {
                 </AnimatePresence>
             </Modal>
         </>
+    );
+}
+
+function TradePendingNotice() {
+    return (
+        <p className="text-amber-300/80 text-xs text-center">
+            Ouverture de boosters indisponible tant qu'une proposition d'échange attend une réponse.
+        </p>
     );
 }
 
@@ -192,6 +206,7 @@ function ResourcesTab() {
     const consumeResultIfPurpose = useCardSelectionStore((s) => s.consumeResultIfPurpose);
     const [feedback, setFeedback] = useState<{ offerId: string; text: string; ok: boolean } | null>(null);
     const rerollHandled = useRef(false);
+    const tradePending = useHasPendingTradeProposal();
 
     const buy = useMutation({
         mutationFn: ({ offer, cardId }: { offer: ShopOffer; cardId?: string }) =>
@@ -207,6 +222,7 @@ function ResourcesTab() {
                 navigate("/opening");
                 return;
             }
+            showRewards({ title: offer.name, items: res.cards.map((card) => ({ kind: "card" as const, card })) });
             setFeedback({ offerId: offer.id, text: res.message, ok: true });
         },
         onError: (e, { offer }) => setFeedback({ offerId: offer.id, text: errMsg(e), ok: false }),
@@ -253,6 +269,7 @@ function ResourcesTab() {
                     {offers.map((o) => {
                         const limitReached = !!o.purchase_limit_per_day
                             && o.purchases_today >= o.purchase_limit_per_day;
+                        const blockedByTrade = tradePending && o.kind === "booster";
                         return (
                             <div key={o.id} className={`bg-game-surface rounded-2xl p-4 border ${o.featured_today ? "border-gold/60" : "border-white/10"}`}>
                                 <div className="flex items-center justify-between mb-1">
@@ -276,12 +293,13 @@ function ResourcesTab() {
                                     variant="primary"
                                     size="sm"
                                     className="w-full"
-                                    disabled={limitReached}
+                                    disabled={limitReached || blockedByTrade}
                                     loading={buy.isPending && buy.variables?.offer.id === o.id}
                                     onClick={() => handleBuy(o)}
                                 >
                                     {limitReached ? "Limite atteinte" : "Acheter"}
                                 </Button>
+                                {blockedByTrade && <div className="mt-2"><TradePendingNotice /></div>}
                                 {feedback?.offerId === o.id && (
                                     <p className={`text-xs mt-2 ${feedback.ok ? "text-green-400" : "text-red-400"}`}>
                                         {feedback.text}

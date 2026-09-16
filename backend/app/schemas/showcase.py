@@ -13,6 +13,13 @@ class AvatarInfo(BaseModel):
     image_url: str
 
 
+class ShowcaseAchievement(BaseModel):
+    id: str
+    name: str
+    description: str
+    category: str
+
+
 class TradeListingOut(BaseModel):
     slot: int
     card: CardResponse
@@ -33,11 +40,18 @@ class ShowcaseResponse(BaseModel):
     # ce joueur (cf. app/services/showcase_view.py), pour piloter le bouton
     # "Ajouter en ami" côté vitrine publique.
     friendship_status: str = "self"
+    level: int = 1
+    best_login_streak: int = 0
+    best_global_rank: int | None = None
+    achievements: list[ShowcaseAchievement] = []  # 0 à 3, emplacements vides omis
+    # Emplacements bruts (3, None = vide) — pour que l'éditeur conserve l'ordre.
+    achievement_slots: list[str | None] = [None, None, None]
 
 
 class UpdateShowcaseRequest(BaseModel):
     avatar_character_id: str | None = None
     card_slots: list[str | None] = Field(min_length=3, max_length=3)
+    achievement_slots: list[str | None] = Field(default_factory=lambda: [None, None, None], min_length=3, max_length=3)
 
 
 class TradeListingSlotIn(BaseModel):

@@ -28,13 +28,18 @@ class User(SQLModel, table=True):
 
     # Streak
     login_streak: int = Field(default=0)
+    best_login_streak: int = Field(default=0)
     last_daily_claim: Optional[date] = Field(default=None)
+    # Meilleur rang atteint au classement global de puissance (1 = premier),
+    # rafraîchi quand la puissance change ou qu'un classement est consulté
+    # (cf. app/services/ranking.py). None tant que le joueur n'a aucune puissance.
+    best_global_rank: Optional[int] = Field(default=None)
 
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: Optional[datetime] = Field(default=None)
-    # Mis à jour (au plus une fois/minute) à chaque requête authentifiée —
-    # sert à dériver un statut "en ligne" approximatif (cf. core/dependencies.py).
+    # Mis à jour (au plus toutes les 20 s) à chaque requête authentifiée —
+    # sert à dériver le statut "en ligne" (cf. app/services/presence.py).
     last_seen: Optional[datetime] = Field(default=None)
 
     # Vitrine publique (consultable par les autres joueurs) : avatar = un
@@ -44,6 +49,10 @@ class User(SQLModel, table=True):
     showcase_card_1_id: Optional[str] = Field(default=None, foreign_key="user_cards.id")
     showcase_card_2_id: Optional[str] = Field(default=None, foreign_key="user_cards.id")
     showcase_card_3_id: Optional[str] = Field(default=None, foreign_key="user_cards.id")
+    # Jusqu'à 3 achievements débloqués affichés sur la vitrine.
+    showcase_achievement_1_id: Optional[str] = Field(default=None, max_length=50)
+    showcase_achievement_2_id: Optional[str] = Field(default=None, max_length=50)
+    showcase_achievement_3_id: Optional[str] = Field(default=None, max_length=50)
 
     # Paramètres sociaux — contrôlent qui peut t'envoyer une demande d'ami ou
     # d'échange, et si une nouvelle demande d'échange déclenche un popup.
