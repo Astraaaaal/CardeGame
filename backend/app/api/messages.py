@@ -11,6 +11,7 @@ from app.core.ratelimit import rate_limit
 from app.models.user import User
 from app.schemas.message import MessageOut, SendGiftBody, SendAdminMessageBody, SendAdminMessageResponse
 from app.services import messages as svc
+from app.services.ranking import refresh_all_best_ranks
 
 router = APIRouter()
 admin_router = APIRouter(dependencies=[Depends(require_admin)])
@@ -52,6 +53,9 @@ async def claim_message(
 ):
     msg = await svc.get_message_or_404(session, message_id, user.id)
     msg = await svc.claim(session, msg)
+    if msg.reward_card_id and msg.claimed_at:
+        await refresh_all_best_ranks(session)
+        await session.commit()
     return await svc.build_out(session, msg)
 
 

@@ -25,7 +25,7 @@ from app.services.daily_feature import get_todays_featured_offer_id
 from app.services.tier_order import rank
 from app.services.wallet import get_balance, apply_delta
 from app.services.power import roll_power
-from app.services.ranking import refresh_best_rank
+from app.services.ranking import refresh_all_best_ranks
 
 router = APIRouter()
 pack_service = PackService()
@@ -267,7 +267,7 @@ async def buy_offer(
 
     new_balance = await apply_delta(session, user, offer.resource_id, -offer.price)
     session.add(ShopPurchase(user_id=user.id, offer_id=offer.id))
-    await refresh_best_rank(session, user)
+    await refresh_all_best_ranks(session)
 
     await session.commit()
 

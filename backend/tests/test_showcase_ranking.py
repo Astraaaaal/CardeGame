@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
+from sqlmodel import select
 
 from app.api.player import update_showcase
 from app.models.achievement import AchievementDef, UserAchievement
@@ -26,21 +27,37 @@ async def _give_power(session, user, power):
 
 
 async def test_best_rank_keeps_the_best_ever_reached(session):
-    alice, bob = await make_user(session, "alice"), await make_user(session, "bob")
+    alice, bob, carol = [await make_user(session, n) for n in ("alice", "bob", "carol")]
     assert await ranking.current_global_rank(session, alice.id) is None
 
     await _give_power(session, alice, 100)
     await _give_power(session, bob, 50)
-    await ranking.refresh_best_rank(session, alice)
-    await ranking.refresh_best_rank(session, bob)
-    assert (alice.best_global_rank, bob.best_global_rank) == (1, 2)
+    await _give_power(session, carol, 50)
+    await ranking.refresh_all_best_ranks(session)
+    # Ex-aequo : même rang, le suivant saute.
+    assert (alice.best_global_rank, bob.best_global_rank, carol.best_global_rank) == (1, 2, 2)
 
-    # Bob dépasse Alice : Alice descend 2e mais garde son meilleur rang 1.
+    # Bob dépasse Alice : Alice descend 2e mais garde son meilleur rang 1,
+    # et Bob obtient le 1er rang sans avoir eu besoin de consulter quoi que ce soit.
     await _give_power(session, bob, 200)
     assert await ranking.current_global_rank(session, alice.id) == 2
-    await ranking.refresh_best_rank(session, alice)
-    await ranking.refresh_best_rank(session, bob)
-    assert (alice.best_global_rank, bob.best_global_rank) == (1, 1)
+    await ranking.refresh_all_best_ranks(session)
+    assert (alice.best_global_rank, bob.best_global_rank, carol.best_global_rank) == (1, 1, 2)
+
+
+async def test_rank_improves_when_someone_else_loses_power(session):
+    alice, bob = await make_user(session, "alice"), await make_user(session, "bob")
+    await _give_power(session, alice, 100)
+    await _give_power(session, bob, 50)
+    await ranking.refresh_all_best_ranks(session)
+    assert bob.best_global_rank == 2
+
+    # Alice recycle toutes ses cartes : Bob passe 1er sans rien faire lui-même.
+    for card in (await session.execute(select(UserCard).where(UserCard.user_id == alice.id))).scalars().all():
+        await session.delete(card)
+    await session.commit()
+    await ranking.refresh_all_best_ranks(session)
+    assert bob.best_global_rank == 1
 
 
 async def test_daily_reward_tracks_best_streak(session):

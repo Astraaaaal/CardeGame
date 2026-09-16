@@ -95,13 +95,18 @@ export default function PlayerShowcase() {
                             <p className="text-white/40 text-xs">@{data.username}</p>
                             <div className="grid grid-cols-3 gap-2 w-full mt-2">
                                 {[
-                                    { label: "Niveau", value: String(data.level) },
-                                    { label: "Meilleure série", value: `${data.best_login_streak} j` },
-                                    { label: "Meilleur rang", value: data.best_global_rank ? `#${data.best_global_rank}` : "—" },
+                                    { label: "Niveau", value: String(data.level), detail: null },
+                                    { label: "Meilleure série", value: `${data.best_login_streak} j`, detail: null },
+                                    {
+                                        label: "Rang",
+                                        value: data.current_global_rank ? `#${data.current_global_rank}` : "—",
+                                        detail: data.best_global_rank ? `meilleur #${data.best_global_rank}` : null,
+                                    },
                                 ].map((stat) => (
                                     <div key={stat.label} className="bg-game-surface border border-white/10 rounded-xl px-2 py-2 text-center">
                                         <p className="text-accent font-extrabold text-lg leading-tight">{stat.value}</p>
                                         <p className="text-white/40 text-[10px] uppercase tracking-wide">{stat.label}</p>
+                                        {stat.detail && <p className="text-gold text-[10px] mt-0.5">{stat.detail}</p>}
                                     </div>
                                 ))}
                             </div>

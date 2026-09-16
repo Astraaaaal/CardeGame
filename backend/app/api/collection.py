@@ -22,6 +22,7 @@ from app.schemas.economy import RecycleByIdsRequest, RecycleByIdsResponse
 from app.services.card_view import build_card_response
 from app.services.power import combined_rarity
 from app.services import quest_progress
+from app.services.ranking import refresh_all_best_ranks
 from app.services.tier_order import (
     RARITY_ORDER, QUALITY_ORDER, SPECIALTY_ORDER, JEWELRY_ORDER, rank,
 )
@@ -368,6 +369,7 @@ async def recycle_cards(
     user.cards_recycled += len(owned)
 
     await quest_progress.increment(session, user.id, "cards_recycled", len(owned))
+    await refresh_all_best_ranks(session)
     await session.commit()
 
     return RecycleByIdsResponse(

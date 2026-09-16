@@ -16,7 +16,7 @@ from app.models.social import TradeListing
 from app.schemas.showcase import ShowcaseResponse
 from app.schemas.social import TradeRequestOut
 from app.services.showcase_view import build_showcase_response
-from app.services.ranking import refresh_best_rank
+from app.services.ranking import refresh_all_best_ranks
 from app.services.wallet import get_balance, apply_delta
 from app.services.trade_requests import create_trade_request
 
@@ -33,8 +33,6 @@ async def get_player_showcase(
     target = await session.get(User, user_id)
     if not target:
         raise HTTPException(404, "Joueur introuvable.")
-    await refresh_best_rank(session, target)
-    await session.commit()
     return await build_showcase_response(session, target, viewer_id=user.id)
 
 
@@ -83,6 +81,7 @@ async def buy_trade_listing(
     session.add(seller)
 
     await session.delete(listing)
+    await refresh_all_best_ranks(session)
     await session.commit()
 
     return await build_showcase_response(session, seller, viewer_id=buyer.id)

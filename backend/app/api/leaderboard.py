@@ -17,7 +17,6 @@ from app.models.card import UserCard
 from app.models.character import Character, CharacterType
 from app.models.social import FriendRequest
 from app.schemas.leaderboard import LeaderboardEntry, LeaderboardResponse
-from app.services.ranking import record_rank
 
 router = APIRouter()
 
@@ -92,13 +91,6 @@ async def leaderboard_global(
 ):
     """Top 10 des joueurs par puissance totale, tous joueurs confondus."""
     entries = await _leaderboard(session, None, None, 10)
-    ranked = {u.id: u for u in (await session.execute(
-        select(User).where(User.id.in_([e.user_id for e in entries]))
-    )).scalars().all()} if entries else {}
-    changed = [ranked[e.user_id] for e in entries if e.user_id in ranked and record_rank(ranked[e.user_id], e.rank)]
-    if changed:
-        session.add_all(changed)
-        await session.commit()
     return LeaderboardResponse(entries=entries)
 
 

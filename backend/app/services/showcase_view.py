@@ -15,6 +15,7 @@ from app.models.achievement import AchievementDef, UserAchievement
 from app.schemas.showcase import ShowcaseResponse, AvatarInfo, TradeListingOut, ShowcaseAchievement
 from app.services.card_view import build_card_response
 from app.services.levels import get_all_tiers, get_total_power, current_level_for_power
+from app.services.ranking import current_global_rank
 
 ACHIEVEMENT_SLOT_FIELDS = ("showcase_achievement_1_id", "showcase_achievement_2_id", "showcase_achievement_3_id")
 
@@ -92,6 +93,7 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
         friendship_status=friendship_status,
         level=level,
         best_login_streak=max(target.best_login_streak, target.login_streak),
+        current_global_rank=await current_global_rank(session, target.id),
         best_global_rank=target.best_global_rank,
         achievements=achievements,
         achievement_slots=achievement_slots,

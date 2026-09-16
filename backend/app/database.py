@@ -67,6 +67,13 @@ async def init_db():
         await conn.run_sync(SQLModel.metadata.create_all)
         await apply_patches(conn)
 
+    # Rattrape le meilleur rang des joueurs existants (colonne ajoutée après
+    # coup) et tout changement de puissance fait hors des routes (admin, script).
+    from app.services.ranking import refresh_all_best_ranks
+    async with async_session() as session:
+        await refresh_all_best_ranks(session)
+        await session.commit()
+
 
 async def get_session() -> AsyncSession:  # type: ignore
     """Dependency injection pour les routes FastAPI."""

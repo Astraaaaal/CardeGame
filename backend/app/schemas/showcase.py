@@ -42,6 +42,7 @@ class ShowcaseResponse(BaseModel):
     friendship_status: str = "self"
     level: int = 1
     best_login_streak: int = 0
+    current_global_rank: int | None = None
     best_global_rank: int | None = None
     achievements: list[ShowcaseAchievement] = []  # 0 à 3, emplacements vides omis
     # Emplacements bruts (3, None = vide) — pour que l'éditeur conserve l'ordre.

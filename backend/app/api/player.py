@@ -25,6 +25,7 @@ from app.services.daily_reward import DailyRewardService
 from app.services.showcase_view import build_showcase_response, ACHIEVEMENT_SLOT_FIELDS
 from app.services.account import delete_account
 from app.services.player_stats import build_player_stats
+from app.services.ranking import refresh_all_best_ranks
 
 router = APIRouter()
 daily_service = DailyRewardService()
@@ -130,6 +131,8 @@ async def delete_my_account(
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(400, "Mot de passe incorrect.")
     await delete_account(session, user)
+    await refresh_all_best_ranks(session)
+    await session.commit()
     return MessageResponse(message="Compte supprimé.")
 
 

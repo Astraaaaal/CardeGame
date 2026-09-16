@@ -1,10 +1,15 @@
 """
 Rang au classement global de puissance (cf. app/api/leaderboard.py) et
-suivi du meilleur rang atteint (User.best_global_rank).
+meilleur rang atteint (User.best_global_rank).
 
-Le rang dépend aussi des autres joueurs : on ne le recalcule pas en continu,
-seulement quand la puissance du joueur augmente (ouverture de booster,
-échange, achat) et quand sa vitrine ou le classement global est consulté.
+Le rang d'un joueur dépend aussi des autres : dès qu'une puissance change
+quelque part (ouverture, achat, échange, cadeau, recyclage, suppression de
+compte...), on recalcule le rang de TOUS les joueurs en une requête et on
+retient chaque amélioration — le meilleur rang est donc exact.
+Coût proportionnel au nombre de joueurs possédant des cartes : si ça devient
+lourd, passer à un recalcul périodique (toutes les X minutes).
+
+Classement "sportif" : ex-aequo = même rang, le suivant saute (1, 2, 2, 4).
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,7 +45,31 @@ def record_rank(user: User, rank: int | None) -> bool:
     return True
 
 
-async def refresh_best_rank(session: AsyncSession, user: User) -> None:
-    """Recalcule le rang actuel du joueur et le retient s'il est meilleur. Ne commit pas."""
-    if record_rank(user, await current_global_rank(session, user.id)):
-        session.add(user)
+async def refresh_all_best_ranks(session: AsyncSession) -> None:
+    """Recalcule le rang de chaque joueur et retient les améliorations. Ne commit pas."""
+    total = func.sum(UserCard.power)
+    rows = (await session.execute(
+        select(UserCard.user_id, total)
+        .where(UserCard.power != None)  # noqa: E711
+        .group_by(UserCard.user_id)
+        .order_by(total.desc())
+    )).all()
+
+    ranks: dict[int, int] = {}
+    previous_total = None
+    rank = 0
+    for position, (user_id, user_total) in enumerate(rows, start=1):
+        user_total = int(user_total or 0)
+        if user_total <= 0:
+            break
+        if user_total != previous_total:
+            rank = position
+            previous_total = user_total
+        ranks[user_id] = rank
+    if not ranks:
+        return
+
+    users = (await session.execute(select(User).where(User.id.in_(ranks.keys())))).scalars().all()
+    for user in users:
+        if record_rank(user, ranks[user.id]):
+            session.add(user)

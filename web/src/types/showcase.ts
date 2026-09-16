@@ -36,6 +36,7 @@ export interface Showcase {
     friendship_status: FriendshipStatus;
     level: number;
     best_login_streak: number;
+    current_global_rank: number | null;
     best_global_rank: number | null;
     achievements: ShowcaseAchievement[];
     achievement_slots: (string | null)[];
