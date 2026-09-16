@@ -9,9 +9,9 @@ from datetime import datetime, timedelta
 
 from app.models.user import User
 
-ONLINE_THRESHOLD_S = 60
+ONLINE_THRESHOLD_S = 30
 # Doit rester nettement sous le seuil, sinon un joueur actif clignoterait hors ligne.
-LAST_SEEN_THROTTLE_S = 20
+LAST_SEEN_THROTTLE_S = 10
 
 
 def is_online(user: User) -> bool:

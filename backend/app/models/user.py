@@ -38,7 +38,7 @@ class User(SQLModel, table=True):
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: Optional[datetime] = Field(default=None)
-    # Mis à jour (au plus toutes les 20 s) à chaque requête authentifiée —
+    # Mis à jour (au plus toutes les 10 s) à chaque requête authentifiée —
     # sert à dériver le statut "en ligne" (cf. app/services/presence.py).
     last_seen: Optional[datetime] = Field(default=None)
 

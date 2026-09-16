@@ -81,9 +81,9 @@ async def test_showcase_only_accepts_unlocked_achievements(session):
     assert out.achievement_slots == [None, "a1", None]
 
 
-def test_online_threshold_is_about_a_minute():
+def test_online_threshold_is_thirty_seconds():
     user = type("U", (), {})()
-    user.last_seen = datetime.utcnow() - timedelta(seconds=45)
+    user.last_seen = datetime.utcnow() - timedelta(seconds=20)
     assert presence.is_online(user)
-    user.last_seen = datetime.utcnow() - timedelta(seconds=90)
+    user.last_seen = datetime.utcnow() - timedelta(seconds=40)
     assert not presence.is_online(user)
