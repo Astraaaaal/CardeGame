@@ -108,7 +108,9 @@ export default function PlayerShowcase() {
                                 </>
                             )}
                             {!isSelf && data.friendship_status === "pending" && (
-                                <p className="text-white/40 text-xs">Réponse en attente</p>
+                                <Button variant="secondary" size="sm" disabled>
+                                    Réponse en attente
+                                </Button>
                             )}
                         </div>
 

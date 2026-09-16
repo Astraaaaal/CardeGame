@@ -30,5 +30,5 @@ def setup_logging() -> None:
 
     # Les libs tierces sont bruyantes en DEBUG (requêtes SQL, handshakes...) —
     # gardées à WARNING pour ne pas noyer les logs applicatifs.
-    for noisy in ("sqlalchemy.engine", "httpx", "httpcore", "uvicorn.access", "asyncio"):
+    for noisy in ("sqlalchemy.engine", "httpx", "httpcore", "uvicorn.access", "asyncio", "aiosqlite"):
         logging.getLogger(noisy).setLevel(logging.WARNING)

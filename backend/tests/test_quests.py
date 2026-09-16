@@ -29,7 +29,7 @@ async def _make_quest_def(session, **overrides) -> QuestDef:
 
 
 async def _assign_and_complete(session, user, qdef: QuestDef) -> UserQuest:
-    uq = UserQuest(user_id=user.id, quest_def_id=qdef.id, period="daily", period_key="2026-09-15")
+    uq = UserQuest(user_id=user.id, quest_def_id=qdef.id, period="daily", period_key=quest_progress.daily_key())
     session.add(uq)
     await quest_progress.increment(session, user.id, qdef.metric, qdef.threshold)
     await session.commit()
@@ -69,7 +69,7 @@ async def test_claim_grants_booster_reward(session):
 async def test_claim_before_threshold_reached_fails(session):
     user = await make_user(session)
     qdef = await _make_quest_def(session, threshold=3)
-    uq = UserQuest(user_id=user.id, quest_def_id=qdef.id, period="daily", period_key="2026-09-15")
+    uq = UserQuest(user_id=user.id, quest_def_id=qdef.id, period="daily", period_key=quest_progress.daily_key())
     session.add(uq)
     await quest_progress.increment(session, user.id, qdef.metric, 1)  # sous le seuil
     await session.commit()

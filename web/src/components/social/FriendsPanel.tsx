@@ -48,8 +48,12 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
 
     // Retour depuis la Collection (mode sélection) après avoir choisi une
     // carte pour un cadeau (ligne d'ami OU messagerie) — rouvre le compositeur
-    // avec tout ce qui était tapé, sur le bon onglet.
+    // avec tout ce qui était tapé, sur le bon onglet. Revérifié à chaque
+    // ouverture du panneau (pas seulement au montage) : si le panneau reste
+    // monté entre deux ouvertures (toggle sans démonter), un montage unique
+    // ratait la sélection en attente au retour de la Collection.
     useEffect(() => {
+        if (!open) return;
         const result = consumeCardSelection(["gift"]);
         if (!result) return;
         const card = result.selectedCards[0];
@@ -63,8 +67,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
         });
         setGiftPresetUsername(isFriendOrigin ? (result.context?.username || undefined) : undefined);
         setGiftOpen(true);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [open, consumeCardSelection]);
 
     const friendsQ = useQuery({
         queryKey: ["friends"], queryFn: friendsApi.list,

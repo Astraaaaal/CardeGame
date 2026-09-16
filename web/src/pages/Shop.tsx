@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/stores/authStore";
+import { useGameStore } from "@/stores/gameStore";
 import { useBoosters } from "@/hooks/useBoosters";
 import { usePackOpening, useOpenOwnedBoosters } from "@/hooks/usePackOpening";
 import { boostersApi } from "@/api/boosters";
@@ -183,7 +184,9 @@ function offerPreview(o: ShopOffer): string {
 }
 
 function ResourcesTab() {
+    const navigate = useNavigate();
     const qc = useQueryClient();
+    const { setPacks } = useGameStore();
     const { data: offers, isLoading } = useQuery({ queryKey: ["shop-offers"], queryFn: shopApi.list });
     const [pickerFor, setPickerFor] = useState<ShopOffer | null>(null);
     const [feedback, setFeedback] = useState<{ offerId: string; text: string; ok: boolean } | null>(null);
@@ -192,10 +195,18 @@ function ResourcesTab() {
         mutationFn: ({ offer, cardId }: { offer: ShopOffer; cardId?: string }) =>
             shopApi.buy(offer.id, cardId),
         onSuccess: (res, { offer }) => {
-            setFeedback({ offerId: offer.id, text: res.message, ok: true });
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["collection"] });
             setPickerFor(null);
+            if (offer.kind === "booster" && res.cards.length > 0) {
+                // Même écran de révélation que l'achat classique d'un booster —
+                // sinon les cartes obtenues apparaissent silencieusement dans la
+                // collection, sans aucun retour visible ("j'ai rien reçu ?").
+                setPacks([res.cards]);
+                navigate("/opening");
+                return;
+            }
+            setFeedback({ offerId: offer.id, text: res.message, ok: true });
         },
         onError: (e, { offer }) => setFeedback({ offerId: offer.id, text: errMsg(e), ok: false }),
     });

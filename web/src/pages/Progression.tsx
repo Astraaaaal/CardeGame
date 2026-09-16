@@ -77,6 +77,11 @@ function AchievementRow({ achievement }: { achievement: Achievement }) {
         mutationFn: () => progressionApi.claimAchievement(achievement.id),
         onSuccess: (a) => {
             qc.setQueryData<Achievement[]>(["achievements"], (old) => old?.map((x) => x.id === a.id ? a : x));
+            // Les achievements enchaînés (10 cartes -> 50 -> 100...) n'affichent
+            // que le palier courant : le patch ci-dessus ne fait que marquer
+            // CELUI-CI comme récupéré, il faut refetch pour voir apparaître le
+            // palier suivant de la chaîne sans recharger la page.
+            qc.invalidateQueries({ queryKey: ["achievements"] });
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["collection"] });
         },

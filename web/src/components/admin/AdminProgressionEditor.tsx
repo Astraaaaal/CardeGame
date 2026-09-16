@@ -27,27 +27,18 @@ function BoosterSelect({ value, boosters, onChange }: { value: string | null; bo
     );
 }
 
-function LevelTiersSection({ resources, boosters }: { resources: AdminResource[]; boosters: AdminBooster[] }) {
-    const qc = useQueryClient();
-    const { data, isLoading } = useQuery({ queryKey: ["admin", "level-tiers"], queryFn: adminApi.listLevelTiers });
-    const [drafts, setDrafts] = useState<Record<number, Partial<AdminLevelTier>>>({});
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-
-    const save = useMutation({
-        mutationFn: (t: AdminLevelTier) => adminApi.updateLevelTier(t.level, {
-            power_required: t.power_required, reward_resource_id: t.reward_resource_id || null, reward_amount: t.reward_amount,
-            reward_booster_id: t.reward_booster_id || null,
-        }),
-        onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "level-tiers"] }); setMsg({ text: "Enregistré.", ok: true }); },
-        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
-    });
-
-    if (isLoading) return <p className="text-white/40 text-sm">…</p>;
-
+function LevelTiersSection({
+    data, drafts, setDrafts, resources, boosters,
+}: {
+    data: AdminLevelTier[];
+    drafts: Record<number, Partial<AdminLevelTier>>;
+    setDrafts: (fn: (d: Record<number, Partial<AdminLevelTier>>) => Record<number, Partial<AdminLevelTier>>) => void;
+    resources: AdminResource[];
+    boosters: AdminBooster[];
+}) {
     return (
         <div className="space-y-2">
-            {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
-            {(data ?? []).map((t) => {
+            {data.map((t) => {
                 const draft = { ...t, ...drafts[t.level] };
                 return (
                     <div key={t.level} className="bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2 flex items-center gap-2 flex-wrap">
@@ -70,9 +61,6 @@ function LevelTiersSection({ resources, boosters }: { resources: AdminResource[]
                             boosters={boosters}
                             onChange={(v) => setDrafts((d) => ({ ...d, [t.level]: { ...draft, reward_booster_id: v } }))}
                         />
-                        <Button variant="secondary" size="sm" loading={save.isPending && save.variables?.level === t.level} onClick={() => save.mutate(draft as AdminLevelTier)}>
-                            OK
-                        </Button>
                     </div>
                 );
             })}
@@ -80,31 +68,22 @@ function LevelTiersSection({ resources, boosters }: { resources: AdminResource[]
     );
 }
 
-function AchievementsSection({ resources, boosters }: { resources: AdminResource[]; boosters: AdminBooster[] }) {
-    const qc = useQueryClient();
-    const { data, isLoading } = useQuery({ queryKey: ["admin", "achievement-defs"], queryFn: adminApi.listAchievementDefs });
-    const [drafts, setDrafts] = useState<Record<string, Partial<AdminAchievementDef>>>({});
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-
-    const save = useMutation({
-        mutationFn: (a: AdminAchievementDef) => adminApi.updateAchievementDef(a.id, {
-            threshold: a.threshold, reward_resource_id: a.reward_resource_id || null, reward_amount: a.reward_amount,
-            reward_booster_id: a.reward_booster_id || null, active: a.active,
-        }),
-        onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "achievement-defs"] }); setMsg({ text: "Enregistré.", ok: true }); },
-        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
-    });
-
-    if (isLoading) return <p className="text-white/40 text-sm">…</p>;
-
-    const byCategory = (data ?? []).reduce<Record<string, AdminAchievementDef[]>>((acc, a) => {
+function AchievementsSection({
+    data, drafts, setDrafts, resources, boosters,
+}: {
+    data: AdminAchievementDef[];
+    drafts: Record<string, Partial<AdminAchievementDef>>;
+    setDrafts: (fn: (d: Record<string, Partial<AdminAchievementDef>>) => Record<string, Partial<AdminAchievementDef>>) => void;
+    resources: AdminResource[];
+    boosters: AdminBooster[];
+}) {
+    const byCategory = data.reduce<Record<string, AdminAchievementDef[]>>((acc, a) => {
         (acc[a.category] ??= []).push(a);
         return acc;
     }, {});
 
     return (
         <div className="space-y-4">
-            {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
             {Object.entries(byCategory).map(([cat, items]) => (
                 <div key={cat}>
                     <h4 className="text-white/50 text-xs font-semibold uppercase mb-1.5">{cat}</h4>
@@ -134,9 +113,6 @@ function AchievementsSection({ resources, boosters }: { resources: AdminResource
                                             boosters={boosters}
                                             onChange={(v) => setDrafts((d) => ({ ...d, [a.id]: { ...draft, reward_booster_id: v } }))}
                                         />
-                                        <Button variant="secondary" size="sm" loading={save.isPending && save.variables?.id === a.id} onClick={() => save.mutate(draft as AdminAchievementDef)}>
-                                            OK
-                                        </Button>
                                     </div>
                                 </div>
                             );
@@ -148,27 +124,18 @@ function AchievementsSection({ resources, boosters }: { resources: AdminResource
     );
 }
 
-function QuestsSection({ resources, boosters }: { resources: AdminResource[]; boosters: AdminBooster[] }) {
-    const qc = useQueryClient();
-    const { data, isLoading } = useQuery({ queryKey: ["admin", "quest-defs"], queryFn: adminApi.listQuestDefs });
-    const [drafts, setDrafts] = useState<Record<string, Partial<AdminQuestDef>>>({});
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-
-    const save = useMutation({
-        mutationFn: (q: AdminQuestDef) => adminApi.updateQuestDef(q.id, {
-            threshold: q.threshold, reward_resource_id: q.reward_resource_id || null, reward_amount: q.reward_amount,
-            reward_booster_id: q.reward_booster_id || null, active: q.active,
-        }),
-        onSuccess: () => { qc.invalidateQueries({ queryKey: ["admin", "quest-defs"] }); setMsg({ text: "Enregistré.", ok: true }); },
-        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
-    });
-
-    if (isLoading) return <p className="text-white/40 text-sm">…</p>;
-
+function QuestsSection({
+    data, drafts, setDrafts, resources, boosters,
+}: {
+    data: AdminQuestDef[];
+    drafts: Record<string, Partial<AdminQuestDef>>;
+    setDrafts: (fn: (d: Record<string, Partial<AdminQuestDef>>) => Record<string, Partial<AdminQuestDef>>) => void;
+    resources: AdminResource[];
+    boosters: AdminBooster[];
+}) {
     return (
         <div className="space-y-2">
-            {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
-            {(data ?? []).map((q) => {
+            {data.map((q) => {
                 const draft = { ...q, ...drafts[q.id] };
                 return (
                     <div key={q.id} className="bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2">
@@ -193,9 +160,6 @@ function QuestsSection({ resources, boosters }: { resources: AdminResource[]; bo
                                 boosters={boosters}
                                 onChange={(v) => setDrafts((d) => ({ ...d, [q.id]: { ...draft, reward_booster_id: v } }))}
                             />
-                            <Button variant="secondary" size="sm" loading={save.isPending && save.variables?.id === q.id} onClick={() => save.mutate(draft as AdminQuestDef)}>
-                                OK
-                            </Button>
                         </div>
                     </div>
                 );
@@ -207,10 +171,64 @@ function QuestsSection({ resources, boosters }: { resources: AdminResource[]; bo
 type Section = "levels" | "achievements" | "quests";
 
 export default function AdminProgressionEditor({ resources, boosters }: { resources: AdminResource[]; boosters: AdminBooster[] }) {
+    const qc = useQueryClient();
     const [section, setSection] = useState<Section>("levels");
+    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+    const levelTiersQ = useQuery({ queryKey: ["admin", "level-tiers"], queryFn: adminApi.listLevelTiers });
+    const achievementsQ = useQuery({ queryKey: ["admin", "achievement-defs"], queryFn: adminApi.listAchievementDefs });
+    const questsQ = useQuery({ queryKey: ["admin", "quest-defs"], queryFn: adminApi.listQuestDefs });
+
+    const [levelDrafts, setLevelDrafts] = useState<Record<number, Partial<AdminLevelTier>>>({});
+    const [achievementDrafts, setAchievementDrafts] = useState<Record<string, Partial<AdminAchievementDef>>>({});
+    const [questDrafts, setQuestDrafts] = useState<Record<string, Partial<AdminQuestDef>>>({});
+
+    const dirtyCount = Object.keys(levelDrafts).length + Object.keys(achievementDrafts).length + Object.keys(questDrafts).length;
+
+    const saveAll = useMutation({
+        mutationFn: async () => {
+            const calls: Promise<unknown>[] = [];
+
+            for (const [level, patch] of Object.entries(levelDrafts)) {
+                const t = { ...levelTiersQ.data!.find((x) => x.level === Number(level))!, ...patch };
+                calls.push(adminApi.updateLevelTier(t.level, {
+                    power_required: t.power_required, reward_resource_id: t.reward_resource_id || null,
+                    reward_amount: t.reward_amount, reward_booster_id: t.reward_booster_id || null,
+                }));
+            }
+            for (const [id, patch] of Object.entries(achievementDrafts)) {
+                const a = { ...achievementsQ.data!.find((x) => x.id === id)!, ...patch };
+                calls.push(adminApi.updateAchievementDef(a.id, {
+                    threshold: a.threshold, reward_resource_id: a.reward_resource_id || null,
+                    reward_amount: a.reward_amount, reward_booster_id: a.reward_booster_id || null, active: a.active,
+                }));
+            }
+            for (const [id, patch] of Object.entries(questDrafts)) {
+                const q = { ...questsQ.data!.find((x) => x.id === id)!, ...patch };
+                calls.push(adminApi.updateQuestDef(q.id, {
+                    threshold: q.threshold, reward_resource_id: q.reward_resource_id || null,
+                    reward_amount: q.reward_amount, reward_booster_id: q.reward_booster_id || null, active: q.active,
+                }));
+            }
+
+            await Promise.all(calls);
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["admin", "level-tiers"] });
+            qc.invalidateQueries({ queryKey: ["admin", "achievement-defs"] });
+            qc.invalidateQueries({ queryKey: ["admin", "quest-defs"] });
+            setLevelDrafts({});
+            setAchievementDrafts({});
+            setQuestDrafts({});
+            setMsg({ text: "Tout est enregistré.", ok: true });
+        },
+        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
+    });
+
+    const loading = levelTiersQ.isLoading || achievementsQ.isLoading || questsQ.isLoading;
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-3 pb-2">
             <div className="flex gap-2">
                 {([
                     { key: "levels", label: "Niveaux" },
@@ -226,9 +244,34 @@ export default function AdminProgressionEditor({ resources, boosters }: { resour
                     </button>
                 ))}
             </div>
-            {section === "levels" && <LevelTiersSection resources={resources} boosters={boosters} />}
-            {section === "achievements" && <AchievementsSection resources={resources} boosters={boosters} />}
-            {section === "quests" && <QuestsSection resources={resources} boosters={boosters} />}
+
+            {loading ? (
+                <p className="text-white/40 text-sm">…</p>
+            ) : (
+                <>
+                    {section === "levels" && (
+                        <LevelTiersSection data={levelTiersQ.data ?? []} drafts={levelDrafts} setDrafts={setLevelDrafts} resources={resources} boosters={boosters} />
+                    )}
+                    {section === "achievements" && (
+                        <AchievementsSection data={achievementsQ.data ?? []} drafts={achievementDrafts} setDrafts={setAchievementDrafts} resources={resources} boosters={boosters} />
+                    )}
+                    {section === "quests" && (
+                        <QuestsSection data={questsQ.data ?? []} drafts={questDrafts} setDrafts={setQuestDrafts} resources={resources} boosters={boosters} />
+                    )}
+                </>
+            )}
+
+            <div className="sticky bottom-0 bg-game-bg/95 backdrop-blur border-t border-white/10 pt-3 -mx-4 px-4 pb-2">
+                {msg && <p className={`text-xs mb-2 ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
+                <Button
+                    variant="primary" className="w-full"
+                    disabled={dirtyCount === 0}
+                    loading={saveAll.isPending}
+                    onClick={() => saveAll.mutate()}
+                >
+                    {dirtyCount > 0 ? `Enregistrer tout (${dirtyCount})` : "Enregistrer tout"}
+                </Button>
+            </div>
         </div>
     );
 }
