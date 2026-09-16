@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { showcaseApi } from "@/api/showcase";
@@ -8,9 +8,8 @@ import { useCollection } from "@/hooks/useCollection";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import type { Card } from "@/types/card";
 import type { TradeListingSlotIn, TradeListingMode } from "@/types/showcase";
-import Button from "@/components/ui/Button";
 import CardImage from "@/components/card/CardImage";
-import { errMsg } from "@/utils/errors";
+import type { EditorSaveHandle } from "@/components/profile/ShowcaseEditor";
 
 const MODE_LABELS: { value: TradeListingMode; label: string }[] = [
     { value: "buy_now", label: "Achat direct" },
@@ -26,7 +25,7 @@ function parseSlot(raw: string | undefined): TradeListingSlotIn | null {
     }
 }
 
-export default function TradeListingsEditor() {
+const TradeListingsEditor = forwardRef<EditorSaveHandle>(function TradeListingsEditor(_props, ref) {
     const navigate = useNavigate();
     const { user } = useAuthStore();
     const qc = useQueryClient();
@@ -43,7 +42,6 @@ export default function TradeListingsEditor() {
 
     const [slots, setSlots] = useState<(TradeListingSlotIn | null)[]>([null, null, null]);
     const [pickedPreviews, setPickedPreviews] = useState<Record<string, Card>>({});
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
     // Garde en ref (pas en state) : sous StrictMode, React rejoue les effets
     // d'un même montage avec la closure d'origine, donc un state comme
@@ -116,12 +114,10 @@ export default function TradeListingsEditor() {
 
     const save = useMutation({
         mutationFn: () => showcaseApi.updateTradeListings(slots),
-        onSuccess: (updated) => {
-            qc.setQueryData(["showcase", user?.id], updated);
-            setMsg({ text: "Annonces enregistrées.", ok: true });
-        },
-        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
+        onSuccess: (updated) => qc.setQueryData(["showcase", user?.id], updated),
     });
+
+    useImperativeHandle(ref, () => ({ save: () => save.mutateAsync() }));
 
     if (isLoading) return <p className="text-white/40 text-sm">Chargement...</p>;
 
@@ -152,23 +148,23 @@ export default function TradeListingsEditor() {
                             )}
                             {slot && (
                                 <>
-                                    <div className="flex gap-1">
-                                        <input
-                                            type="number" min={0}
-                                            className="w-full bg-black/30 border border-white/10 rounded px-1.5 py-1 text-xs text-white"
-                                            value={slot.price}
-                                            onChange={(e) => patchSlot(i, { price: Math.max(0, +e.target.value) })}
-                                        />
-                                        <select
-                                            className="bg-black/30 border border-white/10 rounded px-1 py-1 text-xs text-white"
-                                            value={slot.resource_id}
-                                            onChange={(e) => patchSlot(i, { resource_id: e.target.value })}
-                                        >
-                                            {(resources ?? []).map((r) => (
-                                                <option key={r.id} value={r.id}>{r.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    <input
+                                        type="number" min={0} inputMode="numeric"
+                                        className="w-full bg-black/30 border border-white/10 rounded px-1 py-1.5 text-sm font-semibold text-white text-center
+                                                   [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                        placeholder="Prix"
+                                        value={slot.price}
+                                        onChange={(e) => patchSlot(i, { price: Math.max(0, +e.target.value) })}
+                                    />
+                                    <select
+                                        className="w-full bg-black/30 border border-white/10 rounded px-1.5 py-1 text-xs text-white"
+                                        value={slot.resource_id}
+                                        onChange={(e) => patchSlot(i, { resource_id: e.target.value })}
+                                    >
+                                        {(resources ?? []).map((r) => (
+                                            <option key={r.id} value={r.id}>{r.name}</option>
+                                        ))}
+                                    </select>
                                     <select
                                         className="w-full bg-black/30 border border-white/10 rounded px-1.5 py-1 text-xs text-white"
                                         value={slot.mode}
@@ -190,14 +186,8 @@ export default function TradeListingsEditor() {
                     );
                 })}
             </div>
-
-            {msg && (
-                <p className={`text-xs mt-3 ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>
-            )}
-
-            <Button variant="primary" className="w-full mt-3" loading={save.isPending} onClick={() => save.mutate()}>
-                Enregistrer
-            </Button>
         </div>
     );
-}
+});
+
+export default TradeListingsEditor;

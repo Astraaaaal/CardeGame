@@ -19,7 +19,14 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
         <QueryClientProvider client={queryClient}>
             <BrowserRouter
-                future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+                // v7_startTransition désactivé : navigate() passait alors par
+                // React.startTransition, ce qui pouvait faire recommencer le
+                // rendu de la page de destination après qu'un effet y ait déjà
+                // consommé un état ponctuel (ex: cardSelectionStore pour un
+                // cadeau) — le 2e rendu la retrouvait vide et perdait l'état
+                // restauré par le 1er (le compositeur de cadeau se rouvrait
+                // puis disparaissait aussitôt).
+                future={{ v7_startTransition: false, v7_relativeSplatPath: true }}
             >
                 <App />
             </BrowserRouter>

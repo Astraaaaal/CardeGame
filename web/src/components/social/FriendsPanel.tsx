@@ -182,6 +182,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
 
     const outgoingTradeTo = (userId: number) => outgoingTrades.find((t) => t.user_id === userId);
 
+    const onlineFriends = friends.filter((f) => f.online);
     const closeFriends = friends.filter((f) => f.close_friend);
     const friendsInGroup = (groupId: number) => friends.filter((f) => f.group_ids.includes(groupId));
     const otherFriends = friends.filter((f) => !f.close_friend && f.group_ids.length === 0);
@@ -388,6 +389,12 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                                             </div>
                                                         )}
                                                     </div>
+                                                </CollapsibleSection>
+
+                                                <CollapsibleSection title="Amis en ligne" badge={onlineFriends.length} defaultOpen>
+                                                    {onlineFriends.length === 0 ? (
+                                                        <p className="text-white/30 text-sm">Aucun ami en ligne pour l'instant.</p>
+                                                    ) : onlineFriends.map(renderFriendRow)}
                                                 </CollapsibleSection>
 
                                                 <CollapsibleSection title="Amis proches" badge={closeFriends.length}>

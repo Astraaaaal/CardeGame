@@ -45,6 +45,9 @@ export default function Collection() {
     const [probModalOpen, setProbModalOpen] = useState(false);
     const [showScrollTop, setShowScrollTop] = useState(false);
     const scrollRef = useRef<HTMLElement>(null);
+    // Empêche un double-tap/double-clic sur "Valider" de déclencher deux
+    // resolveSelection()/navigate() (ex: double-appel de confirmSelection).
+    const confirmedRef = useRef(false);
 
     const selectionRequest = useCardSelectionStore((s) => s.request);
     const resolveSelection = useCardSelectionStore((s) => s.resolveSelection);
@@ -73,6 +76,8 @@ export default function Collection() {
     };
 
     const confirmSelection = () => {
+        if (confirmedRef.current) return;
+        confirmedRef.current = true;
         resolveSelection(Array.from(picked, ([id, preview]) => ({ id, preview })));
         const to = selectionRequest?.returnTo ?? "/";
         setPicked(new Map());

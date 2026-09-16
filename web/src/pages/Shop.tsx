@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,7 +16,7 @@ import BoosterCard from "@/components/shop/BoosterCard";
 import PriceTag from "@/components/shop/PriceTag";
 import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import CardPickerModal from "@/components/card/CardPickerModal";
+import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import BottomNav from "@/components/layout/BottomNav";
 import { getResourceBalance } from "@/utils/resources";
 import { errMsg } from "@/utils/errors";
@@ -188,8 +188,10 @@ function ResourcesTab() {
     const qc = useQueryClient();
     const { setPacks } = useGameStore();
     const { data: offers, isLoading } = useQuery({ queryKey: ["shop-offers"], queryFn: shopApi.list });
-    const [pickerFor, setPickerFor] = useState<ShopOffer | null>(null);
+    const requestSelection = useCardSelectionStore((s) => s.requestSelection);
+    const consumeResultIfPurpose = useCardSelectionStore((s) => s.consumeResultIfPurpose);
     const [feedback, setFeedback] = useState<{ offerId: string; text: string; ok: boolean } | null>(null);
+    const rerollHandled = useRef(false);
 
     const buy = useMutation({
         mutationFn: ({ offer, cardId }: { offer: ShopOffer; cardId?: string }) =>
@@ -197,7 +199,6 @@ function ResourcesTab() {
         onSuccess: (res, { offer }) => {
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["collection"] });
-            setPickerFor(null);
             if (offer.kind === "booster" && res.cards.length > 0) {
                 // Même écran de révélation que l'achat classique d'un booster —
                 // sinon les cartes obtenues apparaissent silencieusement dans la
@@ -211,10 +212,29 @@ function ResourcesTab() {
         onError: (e, { offer }) => setFeedback({ offerId: offer.id, text: errMsg(e), ok: false }),
     });
 
+    // Retour de la Collection (mode sélection) avec la carte à relancer.
+    useEffect(() => {
+        if (rerollHandled.current || !offers) return;
+        const result = consumeResultIfPurpose(["reroll"]);
+        if (!result) return;
+        rerollHandled.current = true;
+        const offer = offers.find((o) => o.id === result.context?.offerId);
+        const cardId = result.selectedCards[0]?.id;
+        if (offer && cardId) buy.mutate({ offer, cardId });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [offers]);
+
     const handleBuy = (offer: ShopOffer) => {
         setFeedback(null);
         if (offer.kind === "reroll") {
-            setPickerFor(offer);
+            requestSelection({
+                max: 1,
+                title: "Choisis la carte à relancer",
+                excludeIds: [],
+                returnTo: "/shop",
+                context: { purpose: "reroll", offerId: offer.id },
+            });
+            navigate("/collection");
         } else {
             buy.mutate({ offer });
         }
@@ -272,13 +292,6 @@ function ResourcesTab() {
                     })}
                 </div>
             )}
-
-            {pickerFor && (
-                <CardPickerModal
-                    onClose={() => setPickerFor(null)}
-                    onPick={(cardId) => buy.mutate({ offer: pickerFor, cardId })}
-                />
-            )}
         </>
     );
 }
@@ -288,7 +301,9 @@ type Tab = "boosters" | "resources";
 export default function Shop() {
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const [tab, setTab] = useState<Tab>("boosters");
+    const [tab, setTab] = useState<Tab>(() =>
+        useCardSelectionStore.getState().result?.context?.purpose === "reroll" ? "resources" : "boosters"
+    );
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col">

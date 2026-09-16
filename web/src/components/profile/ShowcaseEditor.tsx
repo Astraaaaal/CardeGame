@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { showcaseApi } from "@/api/showcase";
@@ -6,10 +6,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { useCollection } from "@/hooks/useCollection";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import type { Card } from "@/types/card";
-import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import CardImage from "@/components/card/CardImage";
-import { errMsg } from "@/utils/errors";
 
 /** Sélecteur d'avatar : un des personnages possédés (déduplique les variantes). */
 function AvatarPickerModal({
@@ -54,7 +52,11 @@ function AvatarPickerModal({
     );
 }
 
-export default function ShowcaseEditor() {
+export interface EditorSaveHandle {
+    save: () => Promise<unknown>;
+}
+
+const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_props, ref) {
     const navigate = useNavigate();
     const { user } = useAuthStore();
     const qc = useQueryClient();
@@ -73,7 +75,6 @@ export default function ShowcaseEditor() {
     const [slots, setSlots] = useState<(string | null)[]>([null, null, null]);
     const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
     const [pickedPreviews, setPickedPreviews] = useState<Record<string, Card>>({});
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
     // Garde d'initialisation en ref (pas en state) : sous StrictMode, React
     // rejoue les effets d'un même montage avec la closure d'origine, donc un
@@ -142,12 +143,10 @@ export default function ShowcaseEditor() {
 
     const save = useMutation({
         mutationFn: () => showcaseApi.update(avatarId, slots),
-        onSuccess: (updated) => {
-            qc.setQueryData(["showcase", user?.id], updated);
-            setMsg({ text: "Vitrine enregistrée.", ok: true });
-        },
-        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
+        onSuccess: (updated) => qc.setQueryData(["showcase", user?.id], updated),
     });
+
+    useImperativeHandle(ref, () => ({ save: () => save.mutateAsync() }));
 
     if (isLoading) return <p className="text-white/40 text-sm">Chargement...</p>;
 
@@ -203,22 +202,6 @@ export default function ShowcaseEditor() {
                 </div>
             </div>
 
-            {msg && (
-                <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>
-            )}
-
-            <div className="flex gap-2">
-                <Button variant="primary" className="flex-1" loading={save.isPending} onClick={() => save.mutate()}>
-                    Enregistrer
-                </Button>
-                <Button
-                    variant="secondary"
-                    onClick={() => user && navigate(`/players/${user.id}`)}
-                >
-                    Voir comme un autre joueur
-                </Button>
-            </div>
-
             {avatarPickerOpen && (
                 <AvatarPickerModal
                     onClose={() => setAvatarPickerOpen(false)}
@@ -231,4 +214,6 @@ export default function ShowcaseEditor() {
             )}
         </div>
     );
-}
+});
+
+export default ShowcaseEditor;

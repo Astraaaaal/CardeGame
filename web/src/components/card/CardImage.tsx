@@ -68,6 +68,10 @@ export default function CardImage({
                 maxWidth: MAX_W[size],
                 aspectRatio: "5 / 7",
                 containerType: "inline-size",
+                // Isole le repaint de la carte (filtres, blend, animations) :
+                // sans ça, une sélection de texte à la souris repeint toute la
+                // grille à chaque mouvement, ce qui fige les machines modestes.
+                contain: "paint",
                 borderRadius: "5cqi",
                 overflow: "hidden",
                 boxShadow: `inset 0 0 0 3px ${frame}, inset 0 0 0 4.5px rgba(0,0,0,.55), 0 0 ${ex ? 26 : 14}px ${rarity}${ex ? "88" : "55"}, 0 4px 14px rgba(0,0,0,.45)`,
