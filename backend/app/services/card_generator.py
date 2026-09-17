@@ -175,7 +175,9 @@ class CardGeneratorService:
             * frac(specialty, all_specialties)
             * frac(jewelry, all_jewelries)
         )
-        return round(combined, 12)
+        # Pas d'arrondi : les combinaisons ultra-rares descendent sous 1e-12 et
+        # tomberaient à 0 (carte sans puissance, rareté affichée « — »).
+        return combined
 
     async def _get_characters_for_sets(
         self, session: AsyncSession, set_ids: list[str]

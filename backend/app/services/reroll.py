@@ -54,7 +54,9 @@ async def _recompute_probability(session: AsyncSession, card: UserCard) -> float
         * await frac(Specialty, card.specialty_id)
         * await frac(Jewelry, card.jewelry_id)
     )
-    return round(combined, 12)
+    # Pas d'arrondi : les combinaisons ultra-rares descendent sous 1e-12 et
+    # tomberaient à 0 (plus aucune puissance possible).
+    return combined
 
 
 async def apply_reroll(session: AsyncSession, card: UserCard, rules) -> None:
