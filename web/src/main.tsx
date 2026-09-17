@@ -6,6 +6,12 @@ import App from "./App";
 import "./styles/globals.css";
 import "./styles/card.css";
 
+// Ancien cache des données API du service worker (retiré) : on le vide sur
+// les appareils où il existe encore, pour ne plus rien resservir de périmé.
+if ("caches" in window) {
+    caches.delete("api-data").catch(() => {});
+}
+
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {

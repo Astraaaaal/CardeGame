@@ -35,15 +35,9 @@ export default defineConfig({
                             expiration: { maxEntries: 500, maxAgeSeconds: 60 * 60 * 24 * 30 },
                         },
                     },
-                    {
-                        // Stale-while-revalidate pour les données API
-                        urlPattern: /^https:\/\/.*\/api\/(boosters|collection).*/i,
-                        handler: "StaleWhileRevalidate",
-                        options: {
-                            cacheName: "api-data",
-                            expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 },
-                        },
-                    },
+                    // Pas de cache pour les données API : React Query s'en charge déjà.
+                    // Un « stale-while-revalidate » ici resservait la collection d'avant
+                    // un booster ou un reroll à l'arrivée sur la page.
                 ],
             },
         }),
