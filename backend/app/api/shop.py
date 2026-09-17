@@ -2,7 +2,6 @@
 Routes shop — offres contre ressources (boosters, cartes précises, upgrades, reroll).
 """
 
-import random
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,24 +17,22 @@ from app.models.booster import Booster
 from app.models.character import Character, CharacterSet
 from app.models.reference import Rarity, Quality, Specialty, Jewelry
 from app.models.economy import Resource, ShopOffer, ShopPurchase
-from app.schemas.economy import ShopOfferResponse, ShopBuyRequest, ShopBuyResponse, ResourceCatalogItem
+from app.schemas.economy import (
+    ShopOfferResponse, ShopBuyRequest, ShopBuyResponse, ResourceCatalogItem,
+    RerollTokenOut, RerollUseRequest, RerollUseResponse,
+)
 from app.services.pack_service import PackService
 from app.services.card_view import build_card_response
 from app.services.daily_feature import get_todays_featured_offer_id
-from app.services.tier_order import rank
 from app.services.wallet import get_balance, apply_delta
-from app.services.power import roll_power
 from app.services.ranking import refresh_all_best_ranks
-from app.services import booster_inventory
+from app.services import booster_inventory, reroll_inventory
+from app.services.reroll import apply_reroll
 from app.services import premium as premium_svc
 from app.models.premium import Cosmetic
 
 router = APIRouter()
 pack_service = PackService()
-
-REROLL_MODELS = {
-    "rarity": Rarity, "quality": Quality, "specialty": Specialty, "jewelry": Jewelry,
-}
 
 
 async def _offer_response(
@@ -115,31 +112,6 @@ async def list_resources_catalog(
     return [ResourceCatalogItem(id=r.id, name=r.name) for r in rows]
 
 
-async def _recompute_probability(session: AsyncSession, card: UserCard) -> float:
-    """Recalcule drop_probability après un reroll (une ou plusieurs valeurs ont changé)."""
-    links = (await session.execute(
-        select(CharacterSet).where(CharacterSet.set_id == card.set_id)
-    )).scalars().all()
-    char_total = sum(l.weight for l in links) or 0
-    mine = next((l for l in links if l.character_id == card.character_id), None)
-    char_prob = (mine.weight / char_total) if (mine and char_total) else 0.0
-
-    async def frac(model, id_):
-        rows = (await session.execute(select(model))).scalars().all()
-        total = sum(r.weight for r in rows)
-        item = next((r for r in rows if r.id == id_), None)
-        return (item.weight / total) if (item and total) else 0.0
-
-    combined = (
-        char_prob
-        * await frac(Rarity, card.rarity_id)
-        * await frac(Quality, card.quality_id)
-        * await frac(Specialty, card.specialty_id)
-        * await frac(Jewelry, card.jewelry_id)
-    )
-    return round(combined, 12)
-
-
 @router.post(
     "/buy",
     response_model=ShopBuyResponse,
@@ -150,35 +122,45 @@ async def buy_offer(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Achète une offre du shop contre la ressource requise."""
+    """Achète une offre du shop contre la ressource requise, éventuellement par plusieurs."""
     offer = await session.get(ShopOffer, request.offer_id)
     if not offer or not offer.active:
         raise HTTPException(status_code=404, detail="Offre introuvable ou inactive.")
+
+    quantity = request.quantity
+    if quantity > 1 and not (
+        offer.kind in ("booster", "specific_card") or (offer.kind == "reroll" and request.to_inventory)
+    ):
+        raise HTTPException(status_code=400, detail="Cette offre ne s'achète qu'à l'unité.")
 
     if offer.resource_id == premium_svc.PREMIUM_RESOURCE_ID:
         await premium_svc.require_access(session, user)
 
     if offer.purchase_limit_per_day:
         done_today = await _purchases_today(session, user.id, offer.id)
-        if done_today >= offer.purchase_limit_per_day:
+        if done_today + quantity > offer.purchase_limit_per_day:
+            left = max(0, offer.purchase_limit_per_day - done_today)
             raise HTTPException(
                 status_code=400,
                 detail=f"Limite quotidienne atteinte pour « {offer.name} » "
-                       f"({done_today}/{offer.purchase_limit_per_day}).",
+                       f"({done_today}/{offer.purchase_limit_per_day}, encore {left} possible(s) aujourd'hui).",
             )
 
+    total_price = offer.price * quantity
     have = await get_balance(session, user, offer.resource_id)
-    if have < offer.price:
+    if have < total_price:
         resource = await session.get(Resource, offer.resource_id)
         raise HTTPException(
             status_code=400,
             detail=f"Pas assez de {resource.name if resource else offer.resource_id} "
-                   f"({have}/{offer.price}).",
+                   f"({have}/{total_price}).",
         )
 
     cards_out: list = []
+    packs_out: list = []
     previous_card = None
-    message = f"« {offer.name} » acheté !"
+    suffix = f" ×{quantity}" if quantity > 1 else ""
+    message = f"« {offer.name} »{suffix} acheté !"
 
     if offer.kind == "booster" and request.to_inventory:
         booster = await session.get(Booster, offer.booster_id) if offer.booster_id else None
@@ -186,21 +168,22 @@ async def buy_offer(
             raise HTTPException(status_code=500, detail="Booster de l'offre introuvable ou retiré.")
         await booster_inventory.grant_bonus(
             session, user.id, booster.id,
-            offer.force_min_rarity_id, offer.rarity_weight_multiplier, offer.name,
+            offer.force_min_rarity_id, offer.rarity_weight_multiplier, offer.name, quantity,
         )
-        message = f"« {offer.name} » ajouté à ton inventaire."
+        message = f"« {offer.name} »{suffix} ajouté à ton inventaire."
 
     elif offer.kind == "booster":
         booster = await session.get(Booster, offer.booster_id) if offer.booster_id else None
         if not booster or not booster.active:
             raise HTTPException(status_code=500, detail="Booster de l'offre introuvable ou retiré.")
         packs, new_cards = await pack_service.generate_and_persist_packs(
-            session, user.id, booster, quantity=1,
+            session, user.id, booster, quantity=quantity,
             force_min_rarity_id=offer.force_min_rarity_id,
             rarity_weight_multiplier=offer.rarity_weight_multiplier,
         )
-        user.packs_opened += 1
+        user.packs_opened += quantity
         user.total_cards += new_cards
+        packs_out = packs
         cards_out = packs[0] if packs else []
 
     elif offer.kind == "specific_card":
@@ -222,20 +205,28 @@ async def buy_offer(
         link = (await session.execute(
             select(CharacterSet).where(CharacterSet.character_id == character.id)
         )).scalars().first()
-        card = UserCard(
-            user_id=user.id,
-            character_id=offer.character_id,
-            set_id=link.set_id if link else "",
-            rarity_id=offer.rarity_id,
-            quality_id=offer.quality_id,
-            specialty_id=offer.specialty_id,
-            jewelry_id=offer.jewelry_id,
-            drop_probability=0.0,  # achat direct, pas un tirage aléatoire
-        )
-        session.add(card)
-        user.total_cards += 1
-        await session.flush()
-        cards_out = [await build_card_response(session, card)]
+        for _ in range(quantity):
+            card = UserCard(
+                user_id=user.id,
+                character_id=offer.character_id,
+                set_id=link.set_id if link else "",
+                rarity_id=offer.rarity_id,
+                quality_id=offer.quality_id,
+                specialty_id=offer.specialty_id,
+                jewelry_id=offer.jewelry_id,
+                drop_probability=0.0,  # achat direct, pas un tirage aléatoire
+            )
+            session.add(card)
+            await session.flush()
+            cards_out.append(await build_card_response(session, card))
+        user.total_cards += quantity
+
+    elif offer.kind == "reroll" and request.to_inventory:
+        if not (offer.reroll_rarity or offer.reroll_quality or offer.reroll_specialty
+                or offer.reroll_jewelry or offer.reroll_power):
+            raise HTTPException(status_code=500, detail="Offre de reroll mal configurée (aucun axe).")
+        await reroll_inventory.grant(session, user.id, offer, quantity)
+        message = f"« {offer.name} »{suffix} ajouté à ton inventaire."
 
     elif offer.kind == "reroll":
         if not request.card_id:
@@ -248,42 +239,7 @@ async def buy_offer(
         if not card:
             raise HTTPException(status_code=404, detail="Carte introuvable.")
         previous_card = await build_card_response(session, card)
-
-        axes = [
-            a for a, on in [
-                ("rarity", offer.reroll_rarity), ("quality", offer.reroll_quality),
-                ("specialty", offer.reroll_specialty), ("jewelry", offer.reroll_jewelry),
-            ] if on
-        ]
-        if not axes and not offer.reroll_power:
-            raise HTTPException(status_code=500, detail="Offre de reroll mal configurée (aucun axe).")
-
-        field_map = {"rarity": "rarity_id", "quality": "quality_id",
-                     "specialty": "specialty_id", "jewelry": "jewelry_id"}
-        for axis in axes:
-            model = REROLL_MODELS[axis]
-            items = (await session.execute(select(model))).scalars().all()
-            pool = items
-            if offer.reroll_mode == "guaranteed_min":
-                current_id = getattr(card, field_map[axis])
-                current_rank = rank(axis, current_id)
-                filtered = [i for i in items if rank(axis, i.id) >= current_rank]
-                if filtered:
-                    pool = filtered
-            weights = [i.weight for i in pool]
-            picked = random.choices(pool, weights=weights, k=1)[0]
-            setattr(card, field_map[axis], picked.id)
-
-        if axes or offer.reroll_power:
-            # Le retirage d'un autre axe change déjà la plage de puissance
-            # (nouvelle combinaison -> nouvelle probabilité) ; reroll_power
-            # seul retire juste un nouveau tirage dans la MÊME plage.
-            card.drop_probability = await _recompute_probability(session, card)
-            card.power = roll_power(
-                card.drop_probability, card.rarity_id, card.quality_id,
-                card.specialty_id, card.jewelry_id,
-            )
-        session.add(card)
+        await apply_reroll(session, card, offer)
         cards_out = [await build_card_response(session, card)]
 
     elif offer.kind == "cosmetic":
@@ -297,8 +253,9 @@ async def buy_offer(
     else:
         raise HTTPException(status_code=500, detail=f"Type d'offre inconnu: {offer.kind}")
 
-    new_balance = await apply_delta(session, user, offer.resource_id, -offer.price)
-    session.add(ShopPurchase(user_id=user.id, offer_id=offer.id))
+    new_balance = await apply_delta(session, user, offer.resource_id, -total_price)
+    for _ in range(quantity):
+        session.add(ShopPurchase(user_id=user.id, offer_id=offer.id))
     await refresh_all_best_ranks(session)
 
     await session.commit()
@@ -308,5 +265,30 @@ async def buy_offer(
         resource_id=offer.resource_id,
         new_balance=new_balance,
         cards=cards_out,
+        packs=packs_out,
         previous_card=previous_card,
     )
+
+
+@router.get("/rerolls", response_model=list[RerollTokenOut])
+async def list_reroll_tokens(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Rerolls achetés et gardés en inventaire."""
+    return await reroll_inventory.list_owned(session, user.id)
+
+
+@router.post(
+    "/rerolls/{token_id}/use",
+    response_model=RerollUseResponse,
+    dependencies=[Depends(rate_limit(30, 60))],
+)
+async def use_reroll_token(
+    token_id: int,
+    request: RerollUseRequest,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+):
+    """Utilise un reroll de l'inventaire sur une carte possédée."""
+    return await reroll_inventory.use(session, user, token_id, request.card_id)

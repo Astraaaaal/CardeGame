@@ -72,15 +72,40 @@ class ShopOfferResponse(BaseModel):
 class ShopBuyRequest(BaseModel):
     offer_id: str
     card_id: str | None = None  # requis pour kind="upgrade" et "reroll"
-    to_inventory: bool = False  # kind="booster" : garder le booster (avec son bonus) au lieu de l'ouvrir
+    # kind="booster" / "reroll" : garder dans l'inventaire (avec bonus / règles) au lieu d'utiliser tout de suite
+    to_inventory: bool = False
+    # ×N : boosters, cartes précises et rerolls mis en inventaire uniquement
+    quantity: int = Field(default=1, ge=1, le=10)
 
 
 class ShopBuyResponse(BaseModel):
     message: str
     resource_id: str
     new_balance: int
-    cards: list[CardResponse] = []  # booster (plusieurs) / specific_card / upgrade / reroll (une)
+    cards: list[CardResponse] = []  # booster (1er pack) / specific_card (×N) / reroll (une)
+    packs: list[list[CardResponse]] = []  # booster ouvert : un pack par exemplaire acheté
     previous_card: CardResponse | None = None  # reroll : la carte telle qu'elle était avant
+
+
+class RerollTokenOut(BaseModel):
+    id: int
+    offer_id: str | None
+    label: str
+    quantity: int
+    axes: list[str]
+    reroll_power: bool
+    reroll_mode: str | None
+
+
+class RerollUseRequest(BaseModel):
+    card_id: str
+
+
+class RerollUseResponse(BaseModel):
+    message: str
+    previous_card: CardResponse
+    card: CardResponse
+    token: RerollTokenOut
 
 
 # ── Admin ──

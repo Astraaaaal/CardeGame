@@ -11,7 +11,7 @@ import type { Card } from "@/types/card";
 import { CosmeticPreview, COSMETIC_KIND_LABEL } from "@/components/cosmetics/CosmeticVisuals";
 
 type RerollItem = Extract<RewardItem, { kind: "reroll" }>;
-type StackItem = Extract<RewardItem, { kind: "resource" | "booster" }>;
+type StackItem = Extract<RewardItem, { kind: "resource" | "booster" | "reroll_token" }>;
 
 const AXIS_LABEL: Record<TierAxis, string> = { rarity: "Rareté", quality: "Qualité", specialty: "Spécialité", jewelry: "Bijou" };
 const axisValue = (card: Card, axis: TierAxis) => ({
@@ -73,6 +73,15 @@ function RewardRow({ item, resourceName, boosterName }: {
             </div>
         );
     }
+    if (item.kind === "reroll_token") {
+        return (
+            <div className="flex items-center gap-3 bg-accent/10 border border-accent/30 rounded-xl px-4 py-3">
+                <span className="text-xl">🎲</span>
+                <span className="text-white font-bold text-lg">×{item.quantity}</span>
+                <span className="text-white/70 text-sm">{item.name}</span>
+            </div>
+        );
+    }
     return (
         <div className="flex items-center gap-3 bg-gold/10 border border-gold/30 rounded-xl px-4 py-3">
             <span className="text-xl">🎴</span>
@@ -102,7 +111,7 @@ export default function RewardPopup() {
     const boosterName = (id: string) => boosters?.find((b) => b.id === id)?.name ?? "Booster";
 
     const cards = batch?.items.filter((i): i is Extract<RewardItem, { kind: "card" }> => i.kind === "card") ?? [];
-    const others = batch?.items.filter((i): i is StackItem => i.kind === "resource" || i.kind === "booster") ?? [];
+    const others = batch?.items.filter((i): i is StackItem => i.kind === "resource" || i.kind === "booster" || i.kind === "reroll_token") ?? [];
     const rerolls = batch?.items.filter((i): i is RerollItem => i.kind === "reroll") ?? [];
     const cosmetics = batch?.items.filter((i): i is Extract<RewardItem, { kind: "cosmetic" }> => i.kind === "cosmetic") ?? [];
 
@@ -150,6 +159,15 @@ export default function RewardPopup() {
                         <Button variant="gold" className="w-full mt-5" onClick={dismiss}>
                             Super !
                         </Button>
+                        {batch.action && (
+                            <Button
+                                variant="secondary"
+                                className="w-full mt-2"
+                                onClick={() => { const action = batch.action!; dismiss(); action.onClick(); }}
+                            >
+                                {batch.action.label}
+                            </Button>
+                        )}
                     </motion.div>
                 </motion.div>
             )}

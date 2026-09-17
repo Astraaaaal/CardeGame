@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { boostersApi } from "@/api/boosters";
@@ -10,6 +11,9 @@ import ResourceIcon from "@/components/ui/ResourceIcon";
 import BottomNav from "@/components/layout/BottomNav";
 import { premiumApi } from "@/api/premium";
 import { CosmeticPreview, COSMETIC_KIND_LABEL } from "@/components/cosmetics/CosmeticVisuals";
+import { useRerollTokens, useRerollTokenUse } from "@/hooks/useRerollTokens";
+
+const AXIS_LABEL: Record<string, string> = { rarity: "rareté", quality: "qualité", specialty: "spécialité", jewelry: "bijou" };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
@@ -28,6 +32,9 @@ export default function Inventory() {
     const openOwned = useOpenOwnedBoosters();
     const { data: boosters, isLoading } = useQuery({ queryKey: ["booster-inventory"], queryFn: boostersApi.getInventory });
     const { data: cosmetics } = useQuery({ queryKey: ["my-cosmetics"], queryFn: premiumApi.myCosmetics });
+    const { data: rerollTokens } = useRerollTokens();
+    const [rerollError, setRerollError] = useState("");
+    const rerollToken = useRerollTokenUse("/inventory", setRerollError);
     const equippedIds = [cosmetics?.equipped_avatar_frame_id, cosmetics?.equipped_showcase_background_id];
 
     const resources = [
@@ -94,6 +101,32 @@ export default function Inventory() {
                         </>
                     )}
                 </Section>
+
+                {!!rerollTokens?.length && (
+                    <Section title="Rerolls">
+                        {rerollError && <p className="text-red-400 text-xs">{rerollError}</p>}
+                        {rerollTokens.map((t) => (
+                            <div key={t.id} className="flex items-center gap-3 bg-accent/10 border border-accent/30 rounded-xl px-4 py-3">
+                                <span className="text-xl">🎲</span>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-white text-sm font-semibold truncate">{t.label}</p>
+                                    <p className="text-white/50 text-xs truncate">
+                                        {[...t.axes.map((a) => AXIS_LABEL[a]), ...(t.reroll_power ? ["puissance"] : [])].join(" + ")}
+                                        {" — "}{t.reroll_mode === "guaranteed_min" ? "garanti égal ou mieux" : "aléatoire"}
+                                    </p>
+                                    <p className="text-white/40 text-xs">×{t.quantity}</p>
+                                </div>
+                                <Button
+                                    variant="gold" size="sm"
+                                    loading={rerollToken.pendingTokenId === t.id}
+                                    onClick={() => { setRerollError(""); rerollToken.start(t.id); }}
+                                >
+                                    Utiliser
+                                </Button>
+                            </div>
+                        ))}
+                    </Section>
+                )}
 
                 {!!cosmetics?.owned.length && (
                     <Section title="Cosmétiques">

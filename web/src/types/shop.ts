@@ -30,6 +30,7 @@ export interface ShopOffer {
     reroll_quality: boolean;
     reroll_specialty: boolean;
     reroll_jewelry: boolean;
+    reroll_power: boolean;
     reroll_mode: "random" | "guaranteed_min" | null;
     cosmetic_id: string | null;
     cosmetic_name: string | null;
@@ -40,6 +41,26 @@ export interface ShopBuyResponse {
     resource_id: string;
     new_balance: number;
     cards: Card[];
+    /** Booster ouvert : un pack par exemplaire acheté. */
+    packs: Card[][];
     /** Reroll : la carte telle qu'elle était avant. */
     previous_card: Card | null;
+}
+
+/** Reroll acheté et gardé en inventaire (règles figées à l'achat). */
+export interface RerollToken {
+    id: number;
+    offer_id: string | null;
+    label: string;
+    quantity: number;
+    axes: ("rarity" | "quality" | "specialty" | "jewelry")[];
+    reroll_power: boolean;
+    reroll_mode: "random" | "guaranteed_min" | null;
+}
+
+export interface RerollUseResponse {
+    message: string;
+    previous_card: Card;
+    card: Card;
+    token: RerollToken;
 }

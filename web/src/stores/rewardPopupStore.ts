@@ -9,11 +9,15 @@ export type RewardItem =
     | { kind: "card"; card: Card }
     | { kind: "cosmetic"; cosmetic: Cosmetic }
     /** Reroll : caractéristiques retirées, avant → après (+ puissance). */
-    | { kind: "reroll"; before: Card; after: Card; axes: TierAxis[] };
+    | { kind: "reroll"; before: Card; after: Card; axes: TierAxis[] }
+    /** Reroll gardé en inventaire. */
+    | { kind: "reroll_token"; name: string; quantity: number };
 
 export interface RewardBatch {
     title: string;
     items: RewardItem[];
+    /** Bouton secondaire (ex. « Relancer encore ») : ferme le récapitulatif puis exécute l'action. */
+    action?: { label: string; onClick: () => void };
 }
 
 /** File de récapitulatifs "ce que tu viens d'obtenir" (cf. RewardPopup). */
