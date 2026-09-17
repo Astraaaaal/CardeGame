@@ -133,6 +133,9 @@ _STATEMENTS = [
     # Cadeaux : boosters à bonus (bonus conservé) et rerolls de l'inventaire.
     "ALTER TABLE messages ADD COLUMN IF NOT EXISTS reward_booster_bonus JSON",
     "ALTER TABLE messages ADD COLUMN IF NOT EXISTS reward_reroll JSON",
+    # Carte précise du shop : puissance tirée à l'achat ou fixée par l'admin.
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power_mode VARCHAR(10) NOT NULL DEFAULT 'rolled'",
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power INTEGER",
 ]
 
 # Boosters offerts à certains paliers de niveau (en plus des pièces) —

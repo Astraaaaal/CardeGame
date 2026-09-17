@@ -641,6 +641,26 @@ function ShopOfferForm({
                             </select>
                         </div>
                     </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label className={labelCls}>Puissance</label>
+                            <select className={inputCls} value={f.card_power_mode ?? "rolled"}
+                                onChange={(e) => setF({ ...f, card_power_mode: e.target.value as AdminShopOffer["card_power_mode"] })}>
+                                <option value="rolled">Tirée à l'achat</option>
+                                <option value="fixed">Fixe</option>
+                            </select>
+                        </div>
+                        {f.card_power_mode === "fixed" && (
+                            <div>
+                                <label className={labelCls}>Valeur</label>
+                                <input type="number" min={1} className={inputCls} value={f.card_power ?? ""}
+                                    onChange={(e) => setF({ ...f, card_power: e.target.value ? Number(e.target.value) : null })} />
+                            </div>
+                        )}
+                    </div>
+                    <p className="text-white/40 text-[11px]">
+                        Tirée : selon la vraie probabilité de la combinaison. Fixe : limitée au maximum possible pour cette combinaison.
+                    </p>
                 </div>
             )}
 

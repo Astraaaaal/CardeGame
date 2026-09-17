@@ -27,7 +27,7 @@ from app.services.daily_feature import get_todays_featured_offer_id
 from app.services.wallet import get_balance, apply_delta
 from app.services.ranking import refresh_all_best_ranks
 from app.services import booster_inventory, reroll_inventory
-from app.services.reroll import apply_reroll
+from app.services.reroll import apply_reroll, assign_bought_card_power
 from app.services import premium as premium_svc
 from app.models.premium import Cosmetic
 
@@ -67,6 +67,7 @@ async def _offer_response(
         reroll_power=o.reroll_power,
         reroll_mode=o.reroll_mode,
         cosmetic_id=o.cosmetic_id, cosmetic_name=await name_of(Cosmetic, o.cosmetic_id),
+        card_power_mode=o.card_power_mode, card_power=o.card_power,
     )
 
 
@@ -214,8 +215,8 @@ async def buy_offer(
                 quality_id=offer.quality_id,
                 specialty_id=offer.specialty_id,
                 jewelry_id=offer.jewelry_id,
-                drop_probability=0.0,  # achat direct, pas un tirage aléatoire
             )
+            await assign_bought_card_power(session, card, offer)
             session.add(card)
             await session.flush()
             cards_out.append(await build_card_response(session, card))

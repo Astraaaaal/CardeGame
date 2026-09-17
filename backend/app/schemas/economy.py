@@ -67,6 +67,8 @@ class ShopOfferResponse(BaseModel):
     reroll_mode: str | None = None
     cosmetic_id: str | None = None
     cosmetic_name: str | None = None
+    card_power_mode: str = "rolled"
+    card_power: int | None = None
 
 
 class ShopBuyRequest(BaseModel):
@@ -140,6 +142,9 @@ class ShopOfferIn(BaseModel):
 
     cosmetic_id: str | None = None
 
+    card_power_mode: str = Field(default="rolled", pattern=r"^(rolled|fixed)$")
+    card_power: int | None = Field(default=None, ge=1)
+
 
 class ShopOfferPatch(BaseModel):
     """Édition d'une offre existante — mêmes champs que ShopOfferIn, tous
@@ -171,6 +176,9 @@ class ShopOfferPatch(BaseModel):
     reroll_mode: str | None = Field(default=None, pattern=r"^(random|guaranteed_min)$")
 
     cosmetic_id: str | None = None
+
+    card_power_mode: str | None = Field(default=None, pattern=r"^(rolled|fixed)$")
+    card_power: int | None = Field(default=None, ge=1)
 
 
 class ResourceIn(BaseModel):

@@ -73,6 +73,10 @@ class ShopOffer(SQLModel, table=True):
     quality_id: Optional[str] = Field(default=None, foreign_key="qualities.id", max_length=20)
     specialty_id: Optional[str] = Field(default=None, foreign_key="specialties.id", max_length=20)
     jewelry_id: Optional[str] = Field(default=None, foreign_key="jewelries.id", max_length=20)
+    # Puissance de la carte vendue : "rolled" = tirée à l'achat selon la vraie
+    # probabilité de la combinaison, "fixed" = card_power (plafonnée au maximum possible).
+    card_power_mode: str = Field(default="rolled", max_length=10)
+    card_power: Optional[int] = Field(default=None)
 
     # kind = reroll (axes concernés + mode)
     reroll_rarity: bool = Field(default=False)

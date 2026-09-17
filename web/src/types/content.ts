@@ -70,6 +70,9 @@ export interface AdminShopOffer {
     reroll_power: boolean;
     reroll_mode: "random" | "guaranteed_min" | null;
     cosmetic_id: string | null;
+    /** Carte précise : puissance tirée à l'achat ou fixe. */
+    card_power_mode: "rolled" | "fixed";
+    card_power: number | null;
     cosmetic_name?: string | null;
 }
 

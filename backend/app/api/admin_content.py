@@ -464,6 +464,8 @@ async def create_shop_offer(body: ShopOfferIn, session: AsyncSession = Depends(g
             400, "Personnage, rareté, qualité, spécialité et jewelry sont requis "
                  "pour une offre de type 'specific_card'.",
         )
+    if body.kind == "specific_card" and body.card_power_mode == "fixed" and not body.card_power:
+        raise HTTPException(400, "Indique la puissance fixe de la carte.")
     if body.kind == "reroll":
         if not any([body.reroll_rarity, body.reroll_quality, body.reroll_specialty, body.reroll_jewelry, body.reroll_power]):
             raise HTTPException(400, "Choisis au moins un axe à retirer pour une offre de type 'reroll'.")
@@ -502,6 +504,10 @@ async def update_shop_offer(
             raise HTTPException(400, "Choisis au moins un axe à retirer pour une offre de type 'reroll'.")
         if not data.get("reroll_mode", o.reroll_mode):
             raise HTTPException(400, "Choisis un mode de reroll (aléatoire ou garanti égal/mieux).")
+
+    if kind == "specific_card" and data.get("card_power_mode", o.card_power_mode) == "fixed" \
+            and not data.get("card_power", o.card_power):
+        raise HTTPException(400, "Indique la puissance fixe de la carte.")
 
     for k, v in data.items():
         setattr(o, k, v)

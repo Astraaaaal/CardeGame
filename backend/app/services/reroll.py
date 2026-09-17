@@ -89,3 +89,28 @@ async def apply_reroll(session: AsyncSession, card: UserCard, rules) -> None:
         # redescend au maximum possible si la nouvelle combinaison est plus commune.
         card.power = max_power
     session.add(card)
+
+
+async def assign_bought_card_power(session: AsyncSession, card: UserCard, offer=None) -> None:
+    """Carte obtenue sans tirage (achat d'une carte précise) : vraie probabilité
+    de la combinaison, puis puissance fixée par l'offre (plafonnée au maximum
+    possible) ou tirée dans la plage. Ne commit pas."""
+    card.drop_probability = await _recompute_probability(session, card)
+    max_power = power_range(
+        card.drop_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id,
+    )
+    if offer is not None and offer.card_power_mode == "fixed" and offer.card_power:
+        card.power = min(offer.card_power, max_power) if max_power else offer.card_power
+    else:
+        card.power = roll_power(
+            card.drop_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id,
+        )
+
+
+async def backfill_missing_powers(session: AsyncSession) -> int:
+    """Cartes déjà achetées sans puissance : leur en tire une. Ne commit pas."""
+    cards = (await session.execute(select(UserCard).where(UserCard.power.is_(None)))).scalars().all()
+    for card in cards:
+        await assign_bought_card_power(session, card)
+        session.add(card)
+    return len(cards)
