@@ -7,7 +7,7 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
-import GiftItemPicker, { type GiftItem } from "./GiftItemPicker";
+import InventoryItemPicker, { type InventoryItem } from "@/components/inventory/InventoryItemPicker";
 import type { Card } from "@/types/card";
 import { errMsg } from "@/utils/errors";
 
@@ -40,7 +40,7 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
     const [subject, setSubject] = useState(initialState?.subject ?? "Cadeau");
     const [body, setBody] = useState(initialState?.body ?? "");
     const [pickedCard, setPickedCard] = useState<{ id: string; preview: Card } | null>(initialState?.pickedCard ?? null);
-    const [pickedItem, setPickedItem] = useState<GiftItem | null>(null);
+    const [pickedItem, setPickedItem] = useState<InventoryItem | null>(null);
     const [itemPickerOpen, setItemPickerOpen] = useState(false);
     const [err, setErr] = useState("");
 
@@ -164,7 +164,7 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
             </Modal>
 
             {itemPickerOpen && (
-                <GiftItemPicker
+                <InventoryItemPicker
                     onPick={(item) => { setPickedItem(item); setItemPickerOpen(false); }}
                     onClose={() => setItemPickerOpen(false)}
                 />

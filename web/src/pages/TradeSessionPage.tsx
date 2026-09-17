@@ -11,7 +11,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import CardImage from "@/components/card/CardImage";
 import CardDetail from "@/components/card/CardDetail";
 import ResourceIcon from "@/components/ui/ResourceIcon";
-import AddResourceModal from "@/components/trade/AddResourceModal";
+import InventoryItemPicker, { type InventoryItem } from "@/components/inventory/InventoryItemPicker";
 import FloatingActionBar from "@/components/ui/FloatingActionBar";
 import { errMsg } from "@/utils/errors";
 import { TRADE_PULSE_KEY } from "@/hooks/useTradePulse";
@@ -44,6 +44,24 @@ function ItemChip({ item, onRemove, onOpenDetail }: { item: TradeSessionItem; on
             </div>
         );
     }
+    if (item.item_type !== "resource") {
+        return (
+            <div className="relative bg-black/30 border border-white/10 rounded-xl px-2 py-4 flex flex-col items-center justify-center gap-1 aspect-[5/7]">
+                {onRemove && (
+                    <button
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-xs leading-none flex items-center justify-center"
+                        onClick={onRemove}
+                    >
+                        ×
+                    </button>
+                )}
+                <span className="text-xl">{item.item_type === "booster" ? "🎴" : "🎲"}</span>
+                <span className="text-white text-sm font-bold">×{item.amount}</span>
+                <span className="text-white/60 text-[10px] text-center leading-tight">{item.name}</span>
+                {item.label && <span className="text-gold text-[10px] text-center leading-tight">{item.label}</span>}
+            </div>
+        );
+    }
     return (
         <div className="relative bg-black/30 border border-white/10 rounded-xl px-3 py-4 flex flex-col items-center justify-center gap-1 aspect-[5/7]">
             {onRemove && (
@@ -66,7 +84,7 @@ export default function TradeSessionPage() {
     const id = Number(sessionId);
     const navigate = useNavigate();
     const qc = useQueryClient();
-    const [addResourceOpen, setAddResourceOpen] = useState(false);
+    const [itemPickerOpen, setItemPickerOpen] = useState(false);
     const [err, setErr] = useState("");
     const [detailCard, setDetailCard] = useState<Card | null>(null);
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
@@ -102,10 +120,13 @@ export default function TradeSessionPage() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sessionId]);
-    const addResource = useMutation({
-        mutationFn: ({ resourceId, amount }: { resourceId: string; amount: number }) =>
-            tradeSessionsApi.addResource(id, resourceId, amount),
-        onSuccess: (data) => { qc.setQueryData(["trade-session", id], data); setAddResourceOpen(false); setErr(""); },
+    const addItem = useMutation({
+        mutationFn: (item: InventoryItem) => {
+            if (item.kind === "resource") return tradeSessionsApi.addResource(id, item.resourceId, item.amount);
+            if (item.kind === "booster") return tradeSessionsApi.addBooster(id, item.boosterId, item.bonusId, item.amount);
+            return tradeSessionsApi.addReroll(id, item.tokenId, item.amount);
+        },
+        onSuccess: (data) => { qc.setQueryData(["trade-session", id], data); setItemPickerOpen(false); setErr(""); },
         onError: (e) => setErr(errMsg(e)),
     });
     const removeItem = useMutation({
@@ -156,9 +177,6 @@ export default function TradeSessionPage() {
     }
 
     const myCardIds = new Set(trade.my_items.filter((i) => i.item_type === "card").map((i) => i.card!.id));
-    const myResourceAmounts = Object.fromEntries(
-        trade.my_items.filter((i) => i.item_type === "resource").map((i) => [i.resource_id!, i.amount!])
-    );
 
     const finished = !ACTIVE.has(trade.status);
 
@@ -233,7 +251,7 @@ export default function TradeSessionPage() {
                                 <button
                                     className="aspect-[5/7] rounded-xl border-2 border-dashed border-white/15 hover:border-accent/50 flex items-center justify-center text-white/30 hover:text-accent text-3xl"
                                     onClick={() => {
-                                        setAddResourceOpen(false);
+                                        setItemPickerOpen(false);
                                         requestSelection({
                                             max: Math.max(1, MAX_ITEMS_PER_SIDE - trade.my_items.length),
                                             title: "Choisis une carte à échanger",
@@ -248,7 +266,7 @@ export default function TradeSessionPage() {
                                 </button>
                                 <button
                                     className="aspect-[5/7] rounded-xl border-2 border-dashed border-white/15 hover:border-accent/50 flex items-center justify-center text-white/30 hover:text-accent text-3xl"
-                                    onClick={() => setAddResourceOpen(true)}
+                                    onClick={() => setItemPickerOpen(true)}
                                 >
                                     +
                                 </button>
@@ -332,11 +350,12 @@ export default function TradeSessionPage() {
                 )}
             </div>
 
-            {addResourceOpen && (
-                <AddResourceModal
-                    current={myResourceAmounts}
-                    onPick={(resourceId, amount) => addResource.mutate({ resourceId, amount })}
-                    onClose={() => setAddResourceOpen(false)}
+            {itemPickerOpen && (
+                <InventoryItemPicker
+                    title="Ajoute à l'échange"
+                    confirmLabel="Ajouter à l'échange"
+                    onPick={(item) => addItem.mutate(item)}
+                    onClose={() => setItemPickerOpen(false)}
                 />
             )}
 

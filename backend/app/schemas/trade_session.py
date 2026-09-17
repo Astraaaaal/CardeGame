@@ -3,7 +3,7 @@ Schemas — session d'échange en direct.
 """
 
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.card import CardResponse
 
@@ -11,11 +11,14 @@ from app.schemas.card import CardResponse
 class TradeSessionItemOut(BaseModel):
     id: int
     owner_id: int
-    item_type: str  # "card" | "resource"
+    item_type: str  # "card" | "resource" | "booster" | "reroll"
     card: CardResponse | None = None
     resource_id: str | None = None
     resource_name: str | None = None
     amount: int | None = None
+    booster_id: str | None = None
+    name: str | None = None  # booster ou reroll
+    label: str | None = None  # bonus du booster / règles du reroll
 
 
 class TradeSessionOut(BaseModel):
@@ -49,3 +52,14 @@ class AddResourceItemBody(BaseModel):
 
 class SetReadyBody(BaseModel):
     ready: bool
+
+
+class AddBoosterItemBody(BaseModel):
+    booster_id: str
+    bonus_id: int | None = None
+    amount: int = Field(ge=1)
+
+
+class AddRerollItemBody(BaseModel):
+    reroll_token_id: int
+    amount: int = Field(ge=1)

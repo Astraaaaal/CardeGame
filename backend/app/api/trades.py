@@ -11,6 +11,7 @@ from app.core.ratelimit import rate_limit
 from app.models.user import User
 from app.schemas.trade_session import (
     TradeSessionOut, AddCardItemBody, AddResourceItemBody, SetReadyBody,
+    AddBoosterItemBody, AddRerollItemBody,
 )
 from app.services import trade_session as svc
 from app.services.ranking import refresh_all_best_ranks
@@ -55,6 +56,36 @@ async def add_resource(
 ):
     trade = await svc.get_session_or_404(session, session_id, user.id)
     await svc.add_resource_item(session, trade, user.id, body.resource_id, body.amount)
+    return await svc.build_out(session, trade, user.id)
+
+
+@router.post(
+    "/{session_id}/items/boosters", response_model=TradeSessionOut,
+    dependencies=[Depends(rate_limit(60, 60))],
+)
+async def add_booster(
+    session_id: int,
+    body: AddBoosterItemBody,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    trade = await svc.get_session_or_404(session, session_id, user.id)
+    await svc.add_booster_item(session, trade, user.id, body.booster_id, body.bonus_id, body.amount)
+    return await svc.build_out(session, trade, user.id)
+
+
+@router.post(
+    "/{session_id}/items/rerolls", response_model=TradeSessionOut,
+    dependencies=[Depends(rate_limit(60, 60))],
+)
+async def add_reroll(
+    session_id: int,
+    body: AddRerollItemBody,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    trade = await svc.get_session_or_404(session, session_id, user.id)
+    await svc.add_reroll_item(session, trade, user.id, body.reroll_token_id, body.amount)
     return await svc.build_out(session, trade, user.id)
 
 

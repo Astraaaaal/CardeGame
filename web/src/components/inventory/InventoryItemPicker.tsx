@@ -9,13 +9,13 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import { PREMIUM_RESOURCE_ID } from "@/components/shop/PremiumTab";
 
-/** Objet (hors carte) choisi pour un cadeau. */
-export type GiftItem =
+/** Objet de l'inventaire (hors carte) : cadeau ou échange. */
+export type InventoryItem =
     | { kind: "resource"; resourceId: string; name: string; amount: number }
     | { kind: "booster"; boosterId: string; bonusId: number | null; name: string; amount: number }
     | { kind: "reroll"; tokenId: number; name: string; amount: number };
 
-type Option = { key: string; label: string; sublabel?: string | null; available: number; icon: React.ReactNode; toItem: (amount: number) => GiftItem };
+type Option = { key: string; label: string; sublabel?: string | null; available: number; icon: React.ReactNode; toItem: (amount: number) => InventoryItem };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
@@ -26,8 +26,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     );
 }
 
-/** Choix de ce qu'on offre en dehors d'une carte : ressources, boosters (bonus conservé) et rerolls. */
-export default function GiftItemPicker({ onPick, onClose }: { onPick: (item: GiftItem) => void; onClose: () => void }) {
+/** Choix d'un objet de l'inventaire hors carte : ressources, boosters (bonus
+ * conservé) et rerolls (règles conservées). Sert aux cadeaux et aux échanges. */
+export default function InventoryItemPicker({ title = "Choisis quoi offrir", confirmLabel = "Choisir", onPick, onClose }: {
+    title?: string;
+    confirmLabel?: string;
+    onPick: (item: InventoryItem) => void;
+    onClose: () => void;
+}) {
     const { user } = useAuthStore();
     const { data: boosters, isLoading: boostersLoading } = useQuery({ queryKey: ["booster-inventory"], queryFn: boostersApi.getInventory });
     const { data: tokens, isLoading: tokensLoading } = useRerollTokens();
@@ -77,7 +83,7 @@ export default function GiftItemPicker({ onPick, onClose }: { onPick: (item: Gif
                         </Button>
                     </div>
                     <Button variant="primary" className="w-full" onClick={() => onPick(selected.toItem(amount))}>
-                        Choisir
+                        {confirmLabel}
                     </Button>
                 </div>
             </Modal>
@@ -100,7 +106,7 @@ export default function GiftItemPicker({ onPick, onClose }: { onPick: (item: Gif
 
     const empty = !resources.length && !boosterOptions.length && !rerollOptions.length;
     return (
-        <Modal open onClose={onClose} title="Choisis quoi offrir">
+        <Modal open onClose={onClose} title={title}>
             {boostersLoading || tokensLoading ? (
                 <LoadingSpinner text="Chargement..." />
             ) : empty ? (

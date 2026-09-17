@@ -14,7 +14,7 @@ from app.models.user import User
 from app.services.card_view import build_card_response
 from app.services import activity
 from app.services.ranking import refresh_all_best_ranks
-from app.services.reroll import apply_reroll, reroll_axes
+from app.services.reroll import apply_reroll, reroll_axes  # noqa: F401 (reroll_axes réexporté pour trade_session)
 
 _RULE_FIELDS = ("reroll_rarity", "reroll_quality", "reroll_specialty", "reroll_jewelry", "reroll_power", "reroll_mode")
 

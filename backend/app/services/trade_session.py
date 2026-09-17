@@ -13,6 +13,9 @@ from app.models.user import User
 from app.models.card import UserCard
 from app.models.character import Character
 from app.models.economy import Resource
+from app.models.booster import Booster
+from app.models.booster_inventory import UserBonusBooster, UserBoosterInventory
+from app.models.reroll_inventory import UserRerollToken
 from app.models.trade_session import (
     TradeSession, TradeSessionItem,
     STATUS_NEGOTIATING, STATUS_CONFIRMING, STATUS_COMPLETED, STATUS_CANCELLED, STATUS_EXPIRED,
@@ -21,9 +24,12 @@ from app.models.trade_session import (
 from app.schemas.trade_session import TradeSessionOut, TradeSessionItemOut
 from app.services.card_view import build_card_response
 from app.services.wallet import get_balance, apply_delta, COINS_ID
-from app.services import quest_progress
+from app.services import booster_inventory, quest_progress, reroll_inventory
 from app.services.presence import is_online as _is_online
 from app.services.premium import ensure_tradeable
+
+
+_AXIS_LABEL = {"rarity": "rareté", "quality": "qualité", "specialty": "spécialité", "jewelry": "bijou"}
 
 
 def _side(trade: TradeSession, user_id: int) -> str:
@@ -222,6 +228,105 @@ async def add_resource_item(
     return item
 
 
+async def _owned_booster_quantity(
+    session: AsyncSession, owner_id: int, booster_id: str, bonus_id: int | None,
+) -> int:
+    if bonus_id is not None:
+        row = await session.get(UserBonusBooster, bonus_id)
+        ok = row and row.user_id == owner_id and row.booster_id == booster_id
+        return row.quantity if ok else 0
+    row = await session.get(UserBoosterInventory, (owner_id, booster_id))
+    return row.quantity if row else 0
+
+
+async def _count_items(session: AsyncSession, trade: TradeSession, owner_id: int) -> int:
+    return len((await session.execute(
+        select(TradeSessionItem).where(
+            TradeSessionItem.session_id == trade.id, TradeSessionItem.owner_id == owner_id,
+        )
+    )).scalars().all())
+
+
+async def add_booster_item(
+    session: AsyncSession, trade: TradeSession, owner_id: int,
+    booster_id: str, bonus_id: int | None, amount: int,
+) -> TradeSessionItem:
+    """Des boosters non ouverts, avec leur bonus s'ils en ont un."""
+    await _require_negotiating(trade)
+    _side(trade, owner_id)
+    if amount <= 0:
+        raise HTTPException(400, "La quantité doit être positive.")
+    if not await session.get(Booster, booster_id):
+        raise HTTPException(404, "Booster introuvable.")
+    owned = await _owned_booster_quantity(session, owner_id, booster_id, bonus_id)
+    if amount > owned:
+        raise HTTPException(400, f"Tu ne possèdes que {owned} exemplaire(s) de ce booster.")
+
+    existing = (await session.execute(
+        select(TradeSessionItem).where(
+            TradeSessionItem.session_id == trade.id, TradeSessionItem.owner_id == owner_id,
+            TradeSessionItem.item_type == "booster", TradeSessionItem.booster_id == booster_id,
+            TradeSessionItem.bonus_id.is_(None) if bonus_id is None else TradeSessionItem.bonus_id == bonus_id,
+        )
+    )).scalar_one_or_none()
+    if existing:
+        existing.amount = amount
+        item = existing
+    else:
+        if await _count_items(session, trade, owner_id) >= MAX_ITEMS_PER_SIDE:
+            raise HTTPException(400, f"Maximum {MAX_ITEMS_PER_SIDE} objets par échange.")
+        item = TradeSessionItem(
+            session_id=trade.id, owner_id=owner_id, item_type="booster",
+            booster_id=booster_id, bonus_id=bonus_id, amount=amount,
+        )
+    session.add(item)
+    _reset_ready(trade)
+    _touch(trade)
+    session.add(trade)
+    await session.commit()
+    await session.refresh(item)
+    return item
+
+
+async def add_reroll_item(
+    session: AsyncSession, trade: TradeSession, owner_id: int, token_id: int, amount: int,
+) -> TradeSessionItem:
+    """Des rerolls de l'inventaire, avec les règles figées à leur achat."""
+    await _require_negotiating(trade)
+    _side(trade, owner_id)
+    if amount <= 0:
+        raise HTTPException(400, "La quantité doit être positive.")
+    token = await session.get(UserRerollToken, token_id)
+    if not token or token.user_id != owner_id:
+        raise HTTPException(404, "Reroll introuvable.")
+    if amount > token.quantity:
+        raise HTTPException(400, f"Tu ne possèdes que {token.quantity} exemplaire(s) de ce reroll.")
+
+    existing = (await session.execute(
+        select(TradeSessionItem).where(
+            TradeSessionItem.session_id == trade.id, TradeSessionItem.owner_id == owner_id,
+            TradeSessionItem.item_type == "reroll", TradeSessionItem.reroll_token_id == token_id,
+        )
+    )).scalar_one_or_none()
+    if existing:
+        existing.amount = amount
+        item = existing
+    else:
+        if await _count_items(session, trade, owner_id) >= MAX_ITEMS_PER_SIDE:
+            raise HTTPException(400, f"Maximum {MAX_ITEMS_PER_SIDE} objets par échange.")
+        item = TradeSessionItem(
+            session_id=trade.id, owner_id=owner_id, item_type="reroll",
+            reroll_token_id=token_id, amount=amount,
+        )
+    session.add(item)
+    _reset_ready(trade)
+    _touch(trade)
+    session.add(trade)
+    await session.commit()
+    await session.refresh(item)
+    return item
+
+
 async def remove_item(session: AsyncSession, trade: TradeSession, owner_id: int, item_id: int) -> None:
     await _require_negotiating(trade)
     item = await session.get(TradeSessionItem, item_id)
@@ -313,6 +418,16 @@ async def _execute_trade(session: AsyncSession, trade: TradeSession) -> list[str
                         name = char.name
                 removed_messages.append(f"{name} n'est plus disponible et a été retirée de l'échange.")
                 invalid_items.append(item)
+        elif item.item_type == "booster":
+            owned = await _owned_booster_quantity(session, item.owner_id, item.booster_id, item.bonus_id)
+            if owned < (item.amount or 0):
+                removed_messages.append("Boosters plus disponibles — retirés de l'échange.")
+                invalid_items.append(item)
+        elif item.item_type == "reroll":
+            token = await session.get(UserRerollToken, item.reroll_token_id)
+            if not token or token.user_id != item.owner_id or token.quantity < (item.amount or 0):
+                removed_messages.append("Rerolls plus disponibles — retirés de l'échange.")
+                invalid_items.append(item)
         else:
             owner = await session.get(User, item.owner_id)
             balance = await get_balance(session, owner, item.resource_id)
@@ -347,6 +462,22 @@ async def _execute_trade(session: AsyncSession, trade: TradeSession) -> list[str
                 cards_from_a += 1
             else:
                 cards_from_b += 1
+        elif item.item_type == "booster":
+            if item.bonus_id is not None:
+                row = await booster_inventory.consume_bonus(session, item.owner_id, item.bonus_id, item.amount)
+                await booster_inventory.grant_bonus(
+                    session, other_id, item.booster_id, row.force_min_rarity_id,
+                    row.rarity_weight_multiplier, row.label or "", item.amount,
+                )
+            else:
+                await booster_inventory.consume(session, item.owner_id, item.booster_id, item.amount)
+                await booster_inventory.grant(session, other_id, item.booster_id, item.amount)
+        elif item.item_type == "reroll":
+            token = await reroll_inventory.consume(session, item.owner_id, item.reroll_token_id, item.amount)
+            await reroll_inventory.grant_rules(
+                session, other_id, token.offer_id, token.label,
+                reroll_inventory.rules_of(token), item.amount,
+            )
         else:
             owner = user_a if item.owner_id == trade.user_a_id else user_b
             receiver = user_b if item.owner_id == trade.user_a_id else user_a
@@ -383,6 +514,24 @@ async def build_out(session: AsyncSession, trade: TradeSession, viewer_id: int, 
             return TradeSessionItemOut(
                 id=item.id, owner_id=item.owner_id, item_type="card",
                 card=await build_card_response(session, card) if card else None,
+            )
+        if item.item_type == "booster":
+            booster = await session.get(Booster, item.booster_id)
+            bonus = await session.get(UserBonusBooster, item.bonus_id) if item.bonus_id else None
+            return TradeSessionItemOut(
+                id=item.id, owner_id=item.owner_id, item_type="booster", booster_id=item.booster_id,
+                name=booster.name if booster else item.booster_id,
+                label=(bonus.label or None) if bonus else None, amount=item.amount,
+            )
+        if item.item_type == "reroll":
+            token = await session.get(UserRerollToken, item.reroll_token_id)
+            axes = [_AXIS_LABEL.get(a, a) for a in (reroll_inventory.reroll_axes(token) if token else [])]
+            if token and token.reroll_power:
+                axes.append("puissance")
+            rules = " + ".join(axes) + (" — garanti" if token and token.reroll_mode == "guaranteed_min" else "")
+            return TradeSessionItemOut(
+                id=item.id, owner_id=item.owner_id, item_type="reroll",
+                name=token.label if token else "Reroll", label=rules or None, amount=item.amount,
             )
         resource_name = "Pièces" if item.resource_id == COINS_ID else (
             (await session.get(Resource, item.resource_id)).name

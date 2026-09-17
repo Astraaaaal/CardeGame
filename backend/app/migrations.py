@@ -134,6 +134,10 @@ _STATEMENTS = [
     "ALTER TABLE messages ADD COLUMN IF NOT EXISTS reward_booster_bonus JSON",
     "ALTER TABLE messages ADD COLUMN IF NOT EXISTS reward_reroll JSON",
     "ALTER TABLE messages ADD COLUMN IF NOT EXISTS reward_items JSON",
+    # Échanges : boosters non ouverts et rerolls proposables.
+    "ALTER TABLE trade_session_items ADD COLUMN IF NOT EXISTS booster_id VARCHAR(30)",
+    "ALTER TABLE trade_session_items ADD COLUMN IF NOT EXISTS bonus_id INTEGER",
+    "ALTER TABLE trade_session_items ADD COLUMN IF NOT EXISTS reroll_token_id INTEGER",
     # Carte précise du shop : puissance tirée à l'achat ou fixée par l'admin.
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power_mode VARCHAR(10) NOT NULL DEFAULT 'rolled'",
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power INTEGER",

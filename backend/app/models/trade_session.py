@@ -45,8 +45,12 @@ class TradeSession(SQLModel, table=True):
 
 class TradeSessionItem(SQLModel, table=True):
     """Un objet posé par l'un des deux joueurs dans une session en cours.
-    `item_type` = "card" (une carte précise, cf. user_card_id) ou "resource"
-    (une quantité d'une ressource — "coins" y compris, cf. wallet.py)."""
+    `item_type` :
+    - "card"     : une carte précise (user_card_id)
+    - "resource" : une quantité d'une ressource ("coins" compris, cf. wallet.py)
+    - "booster"  : des boosters non ouverts (booster_id + amount, bonus_id si
+                   ce sont des boosters à bonus, cf. booster_inventory.py)
+    - "reroll"   : des rerolls de l'inventaire (reroll_token_id + amount)"""
     __tablename__ = "trade_session_items"
 
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -62,4 +66,8 @@ class TradeSessionItem(SQLModel, table=True):
         default=None, sa_column=Column(String, ForeignKey("user_cards.id", ondelete="SET NULL")),
     )
     resource_id: Optional[str] = Field(default=None, foreign_key="resources.id", max_length=30)
+    # Quantité : ressource, boosters ou rerolls.
     amount: Optional[int] = Field(default=None)
+    booster_id: Optional[str] = Field(default=None, max_length=30)
+    bonus_id: Optional[int] = Field(default=None)
+    reroll_token_id: Optional[int] = Field(default=None)

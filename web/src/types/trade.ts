@@ -5,11 +5,16 @@ export type TradeSessionStatus = "negotiating" | "confirming" | "completed" | "c
 export interface TradeSessionItem {
     id: number;
     owner_id: number;
-    item_type: "card" | "resource";
+    item_type: "card" | "resource" | "booster" | "reroll";
     card: Card | null;
     resource_id: string | null;
     resource_name: string | null;
     amount: number | null;
+    booster_id: string | null;
+    /** Booster ou reroll : son nom. */
+    name: string | null;
+    /** Bonus du booster ou règles du reroll. */
+    label: string | null;
 }
 
 export interface TradeSession {

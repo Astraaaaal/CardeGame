@@ -82,3 +82,39 @@ async def test_trade_expires_when_a_player_is_gone_for_five_minutes(session):
     assert await ts.get_active_session_for(session, alice.id) is None
     await session.refresh(trade)
     assert trade.status == ts.STATUS_EXPIRED
+
+
+async def test_trade_swaps_boosters_with_bonus_and_rerolls(session):
+    from app.models.booster import Booster
+    from app.services import booster_inventory, reroll_inventory
+
+    alice = await make_user(session, "alice")
+    bob = await make_user(session, "bob")
+    session.add(Booster(id="booster_T", name="Booster test", set_id="s", price=1, resource_id="coins"))
+    await booster_inventory.grant_bonus(session, alice.id, "booster_T", "epic", 2.0, "Offre épique", 4)
+    rules = {"reroll_rarity": True, "reroll_quality": False, "reroll_specialty": False,
+             "reroll_jewelry": False, "reroll_power": False, "reroll_mode": "guaranteed_min"}
+    await reroll_inventory.grant_rules(session, bob.id, None, "Reroll rareté", rules, 3)
+    await session.commit()
+    [alice_booster] = await booster_inventory.list_owned(session, alice.id)
+    [bob_token] = await reroll_inventory.list_owned(session, bob.id)
+
+    trade = await ts.create_session(session, alice.id, bob.id)
+    await ts.add_booster_item(session, trade, alice.id, "booster_T", alice_booster["bonus_id"], 3)
+    await ts.add_reroll_item(session, trade, bob.id, bob_token["id"], 2)
+
+    out = await ts.build_out(session, trade, alice.id)
+    assert [(i.item_type, i.amount, i.label) for i in out.my_items] == [("booster", 3, "Offre épique")]
+    assert [(i.item_type, i.amount) for i in out.other_items] == [("reroll", 2)]
+
+    await ts.set_ready(session, trade, alice.id, True)
+    await ts.set_ready(session, trade, bob.id, True)
+    assert await ts.confirm(session, trade, alice.id) == []
+    assert await ts.confirm(session, trade, bob.id) == []
+
+    await session.refresh(trade)
+    assert trade.status == ts.STATUS_COMPLETED
+    assert [(o["quantity"], o["bonus_label"]) for o in await booster_inventory.list_owned(session, alice.id)] == [(1, "Offre épique")]
+    assert [(o["quantity"], o["bonus_label"]) for o in await booster_inventory.list_owned(session, bob.id)] == [(3, "Offre épique")]
+    assert [(t["quantity"], t["axes"]) for t in await reroll_inventory.list_owned(session, alice.id)] == [(2, ["rarity"])]
+    assert [t["quantity"] for t in await reroll_inventory.list_owned(session, bob.id)] == [1]
