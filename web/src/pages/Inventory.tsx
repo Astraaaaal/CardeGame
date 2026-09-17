@@ -65,18 +65,21 @@ export default function Inventory() {
                                 </p>
                             )}
                             {boosters.map((b) => (
-                                <div key={b.booster_id} className="flex items-center gap-3 bg-gold/10 border border-gold/30 rounded-xl px-4 py-3">
+                                <div key={`${b.booster_id}-${b.bonus_id ?? "base"}`} className="flex items-center gap-3 bg-gold/10 border border-gold/30 rounded-xl px-4 py-3">
                                     <span className="text-xl">🎴</span>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-white text-sm font-semibold truncate">{b.booster_name}</p>
+                                        {b.bonus_label && <p className="text-gold text-xs truncate">{b.bonus_label}</p>}
                                         <p className="text-white/40 text-xs">×{b.quantity}</p>
                                     </div>
                                     <Button
                                         variant="gold" size="sm"
                                         disabled={tradePending}
-                                        loading={openOwned.isPending && openOwned.variables?.booster_id === b.booster_id}
+                                        loading={openOwned.isPending
+                                            && openOwned.variables?.booster_id === b.booster_id
+                                            && (openOwned.variables?.bonus_id ?? null) === b.bonus_id}
                                         onClick={() => openOwned.mutate(
-                                            { booster_id: b.booster_id, quantity: b.quantity },
+                                            { booster_id: b.booster_id, quantity: b.quantity, bonus_id: b.bonus_id },
                                             { onSuccess: () => navigate("/opening") },
                                         )}
                                     >

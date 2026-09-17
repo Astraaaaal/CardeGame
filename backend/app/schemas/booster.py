@@ -29,6 +29,17 @@ class PackOpenRequest(BaseModel):
 class OpenOwnedRequest(BaseModel):
     booster_id: str
     quantity: int = 1
+    bonus_id: int | None = None  # booster à bonus (cf. UserBonusBooster)
+
+
+class BuyToInventoryResponse(BaseModel):
+    booster_id: str
+    booster_name: str
+    quantity: int
+    total_cost: int
+    resource_id: str
+    resource_name: str
+    new_balance: int
 
 
 class OwnedBoosterOut(BaseModel):
@@ -36,6 +47,8 @@ class OwnedBoosterOut(BaseModel):
     booster_name: str
     booster_cover_url: str | None = None
     quantity: int
+    bonus_id: int | None = None
+    bonus_label: str | None = None
 
 
 class PackOpenResponse(BaseModel):

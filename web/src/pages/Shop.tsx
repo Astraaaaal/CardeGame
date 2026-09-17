@@ -32,15 +32,32 @@ function BoostersTab() {
     const openMutation = usePackOpening();
     const openOwnedMutation = useOpenOwnedBoosters();
     const tradePending = useHasPendingTradeProposal();
+    const qc = useQueryClient();
+    const [buyError, setBuyError] = useState("");
 
     const { data: inventory } = useQuery({ queryKey: ["booster-inventory"], queryFn: boostersApi.getInventory });
 
     const [selected, setSelected] = useState<Booster | null>(null);
     const [quantity, setQuantity] = useState<Quantity>(1);
 
-    const handleOpenOwned = (boosterId: string, ownedQuantity: number) => {
+    const buyToInventory = useMutation({
+        mutationFn: ({ booster, qty }: { booster: Booster; qty: Quantity }) =>
+            boostersApi.buyToInventory({ booster_id: booster.id, quantity: qty }),
+        onSuccess: (res) => {
+            qc.invalidateQueries({ queryKey: ["player"] });
+            qc.invalidateQueries({ queryKey: ["booster-inventory"] });
+            setSelected(null);
+            showRewards({
+                title: "Ajouté à l'inventaire",
+                items: [{ kind: "booster", boosterId: res.booster_id, quantity: res.quantity, name: res.booster_name }],
+            });
+        },
+        onError: (e) => setBuyError(errMsg(e)),
+    });
+
+    const handleOpenOwned = (boosterId: string, ownedQuantity: number, bonusId: number | null) => {
         openOwnedMutation.mutate(
-            { booster_id: boosterId, quantity: ownedQuantity },
+            { booster_id: boosterId, quantity: ownedQuantity, bonus_id: bonusId },
             { onSuccess: () => navigate("/opening") },
         );
     };
@@ -76,16 +93,19 @@ function BoostersTab() {
                     </h3>
                     {tradePending && <TradePendingNotice />}
                     {inventory.map((o) => (
-                        <div key={o.booster_id} className="flex items-center justify-between bg-gold/10 border border-gold/30 rounded-xl px-4 py-3">
+                        <div key={`${o.booster_id}-${o.bonus_id ?? "base"}`} className="flex items-center justify-between bg-gold/10 border border-gold/30 rounded-xl px-4 py-3">
                             <div>
                                 <p className="text-white font-semibold text-sm">{o.booster_name}</p>
+                                {o.bonus_label && <p className="text-gold text-xs">{o.bonus_label}</p>}
                                 <p className="text-white/40 text-xs">×{o.quantity} possédé{o.quantity > 1 ? "s" : ""}</p>
                             </div>
                             <Button
                                 variant="gold" size="sm"
                                 disabled={tradePending}
-                                loading={openOwnedMutation.isPending && openOwnedMutation.variables?.booster_id === o.booster_id}
-                                onClick={() => handleOpenOwned(o.booster_id, o.quantity)}
+                                loading={openOwnedMutation.isPending
+                                    && openOwnedMutation.variables?.booster_id === o.booster_id
+                                    && (openOwnedMutation.variables?.bonus_id ?? null) === o.bonus_id}
+                                onClick={() => handleOpenOwned(o.booster_id, o.quantity, o.bonus_id)}
                             >
                                 Ouvrir
                             </Button>
@@ -110,7 +130,7 @@ function BoostersTab() {
                 </div>
             )}
 
-            <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.name}>
+            <Modal open={!!selected} onClose={() => { setSelected(null); setBuyError(""); }} title={selected?.name}>
                 <AnimatePresence>
                     {selected && (
                         <motion.div
@@ -152,8 +172,18 @@ function BoostersTab() {
                                 loading={openMutation.isPending}
                                 disabled={cantAfford || tradePending}
                             >
-                                Acheter et Ouvrir
+                                Acheter et ouvrir
                             </Button>
+                            <Button
+                                variant="secondary"
+                                className="w-full"
+                                loading={buyToInventory.isPending}
+                                disabled={cantAfford}
+                                onClick={() => { setBuyError(""); buyToInventory.mutate({ booster: selected, qty: quantity }); }}
+                            >
+                                Acheter → inventaire
+                            </Button>
+                            {buyError && <p className="text-red-400 text-xs text-center">{buyError}</p>}
 
                             {tradePending && <TradePendingNotice />}
                             {cantAfford && (
@@ -209,11 +239,29 @@ function ResourcesTab() {
     const tradePending = useHasPendingTradeProposal();
 
     const buy = useMutation({
-        mutationFn: ({ offer, cardId }: { offer: ShopOffer; cardId?: string }) =>
-            shopApi.buy(offer.id, cardId),
-        onSuccess: (res, { offer }) => {
+        mutationFn: ({ offer, cardId, toInventory }: { offer: ShopOffer; cardId?: string; toInventory?: boolean }) =>
+            shopApi.buy(offer.id, cardId, toInventory),
+        onSuccess: (res, { offer, toInventory }) => {
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["collection"] });
+            if (toInventory) {
+                qc.invalidateQueries({ queryKey: ["booster-inventory"] });
+                showRewards({
+                    title: "Ajouté à l'inventaire",
+                    items: [{ kind: "booster", boosterId: offer.booster_id ?? "", quantity: 1, name: offer.name }],
+                });
+                setFeedback({ offerId: offer.id, text: res.message, ok: true });
+                return;
+            }
+            if (offer.kind === "reroll" && res.previous_card && res.cards[0]) {
+                const axes = ([
+                    ["rarity", offer.reroll_rarity], ["quality", offer.reroll_quality],
+                    ["specialty", offer.reroll_specialty], ["jewelry", offer.reroll_jewelry],
+                ] as const).filter(([, on]) => on).map(([axis]) => axis);
+                showRewards({ title: offer.name, items: [{ kind: "reroll", before: res.previous_card, after: res.cards[0], axes }] });
+                setFeedback({ offerId: offer.id, text: res.message, ok: true });
+                return;
+            }
             if (offer.kind === "booster" && res.cards.length > 0) {
                 // Même écran de révélation que l'achat classique d'un booster —
                 // sinon les cartes obtenues apparaissent silencieusement dans la
@@ -294,11 +342,22 @@ function ResourcesTab() {
                                     size="sm"
                                     className="w-full"
                                     disabled={limitReached || blockedByTrade}
-                                    loading={buy.isPending && buy.variables?.offer.id === o.id}
+                                    loading={buy.isPending && buy.variables?.offer.id === o.id && !buy.variables?.toInventory}
                                     onClick={() => handleBuy(o)}
                                 >
-                                    {limitReached ? "Limite atteinte" : "Acheter"}
+                                    {limitReached ? "Limite atteinte" : o.kind === "booster" ? "Acheter et ouvrir" : "Acheter"}
                                 </Button>
+                                {o.kind === "booster" && !limitReached && (
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        className="w-full mt-2"
+                                        loading={buy.isPending && buy.variables?.offer.id === o.id && !!buy.variables?.toInventory}
+                                        onClick={() => { setFeedback(null); buy.mutate({ offer: o, toInventory: true }); }}
+                                    >
+                                        Acheter → inventaire
+                                    </Button>
+                                )}
                                 {blockedByTrade && <div className="mt-2"><TradePendingNotice /></div>}
                                 {feedback?.offerId === o.id && (
                                     <p className={`text-xs mt-2 ${feedback.ok ? "text-green-400" : "text-red-400"}`}>

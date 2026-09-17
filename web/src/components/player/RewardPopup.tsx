@@ -6,9 +6,60 @@ import { useRewardPopupStore, type RewardItem } from "@/stores/rewardPopupStore"
 import Button from "@/components/ui/Button";
 import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
+import { FULL_TIER_ORDER, type TierAxis } from "@/utils/cardTiers";
+import type { Card } from "@/types/card";
+
+type RerollItem = Extract<RewardItem, { kind: "reroll" }>;
+type StackItem = Extract<RewardItem, { kind: "resource" | "booster" }>;
+
+const AXIS_LABEL: Record<TierAxis, string> = { rarity: "Rareté", quality: "Qualité", specialty: "Spécialité", jewelry: "Bijou" };
+const axisValue = (card: Card, axis: TierAxis) => ({
+    rarity: [card.rarity_id, card.rarity_name],
+    quality: [card.quality_id, card.quality_name],
+    specialty: [card.specialty_id, card.specialty_name],
+    jewelry: [card.jewelry_id, card.jewelry_name],
+}[axis]);
+
+/** Vert si mieux, rouge si moins bien, neutre si identique. */
+const trendClass = (delta: number) => (delta > 0 ? "text-green-400" : delta < 0 ? "text-red-400" : "text-white");
+
+function RerollSummary({ item }: { item: RerollItem }) {
+    const rows = item.axes.map((axis) => {
+        const [beforeId, beforeName] = axisValue(item.before, axis);
+        const [afterId, afterName] = axisValue(item.after, axis);
+        const delta = FULL_TIER_ORDER[axis].indexOf(afterId) - FULL_TIER_ORDER[axis].indexOf(beforeId);
+        return { label: AXIS_LABEL[axis], before: beforeName, after: afterName, delta };
+    });
+    rows.push({
+        label: "Puissance",
+        before: `⚡${item.before.power ?? "—"}`,
+        after: `⚡${item.after.power ?? "—"}`,
+        delta: (item.after.power ?? 0) - (item.before.power ?? 0),
+    });
+
+    return (
+        <div className="flex gap-3 items-center">
+            <div className="w-20 shrink-0">
+                <CardImage card={item.after} size="sm" />
+            </div>
+            <div className="flex-1 space-y-1.5 text-sm">
+                {rows.map((r) => (
+                    <div key={r.label} className="grid grid-cols-[4.5rem_1fr] items-center gap-2">
+                        <span className="text-white/40 text-xs">{r.label}</span>
+                        <span className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-white/50">{r.before}</span>
+                            <span className="text-white/30">→</span>
+                            <span className={`font-bold ${trendClass(r.delta)}`}>{r.after}</span>
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 function RewardRow({ item, resourceName, boosterName }: {
-    item: Exclude<RewardItem, { kind: "card" }>;
+    item: StackItem;
     resourceName: (id: string) => string;
     boosterName: (id: string) => string;
 }) {
@@ -46,7 +97,8 @@ export default function RewardPopup() {
     const boosterName = (id: string) => boosters?.find((b) => b.id === id)?.name ?? "Booster";
 
     const cards = batch?.items.filter((i): i is Extract<RewardItem, { kind: "card" }> => i.kind === "card") ?? [];
-    const others = batch?.items.filter((i): i is Exclude<RewardItem, { kind: "card" }> => i.kind !== "card") ?? [];
+    const others = batch?.items.filter((i): i is StackItem => i.kind === "resource" || i.kind === "booster") ?? [];
+    const rerolls = batch?.items.filter((i): i is RerollItem => i.kind === "reroll") ?? [];
 
     return (
         <AnimatePresence mode="wait">
@@ -69,6 +121,7 @@ export default function RewardPopup() {
                         <h2 className="text-xl font-bold text-white text-center mb-4">{batch.title}</h2>
 
                         <div className="space-y-2 max-h-[55vh] overflow-y-auto">
+                            {rerolls.map((item, i) => <RerollSummary key={`r${i}`} item={item} />)}
                             {others.map((item, i) => (
                                 <RewardRow key={i} item={item} resourceName={resourceName} boosterName={boosterName} />
                             ))}

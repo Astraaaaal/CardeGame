@@ -31,9 +31,23 @@ export interface OwnedBooster {
     booster_name: string;
     booster_cover_url: string | null;
     quantity: number;
+    /** Booster acheté via une offre à bonus (rareté garantie, chances boostées). */
+    bonus_id: number | null;
+    bonus_label: string | null;
+}
+
+export interface BuyToInventoryResponse {
+    booster_id: string;
+    booster_name: string;
+    quantity: number;
+    total_cost: number;
+    resource_id: string;
+    resource_name: string;
+    new_balance: number;
 }
 
 export interface OpenOwnedRequest {
     booster_id: string;
     quantity: number;
+    bonus_id?: number | null;
 }

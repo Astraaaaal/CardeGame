@@ -12,8 +12,8 @@ export const shopApi = {
         return res.data;
     },
 
-    buy: async (offerId: string, cardId?: string): Promise<ShopBuyResponse> => {
-        const res = await api.post("/shop/buy", { offer_id: offerId, card_id: cardId });
+    buy: async (offerId: string, cardId?: string, toInventory = false): Promise<ShopBuyResponse> => {
+        const res = await api.post("/shop/buy", { offer_id: offerId, card_id: cardId, to_inventory: toInventory });
         return res.data;
     },
 

@@ -1,10 +1,13 @@
 import { create } from "zustand";
 import type { Card } from "@/types/card";
+import type { TierAxis } from "@/utils/cardTiers";
 
 export type RewardItem =
     | { kind: "resource"; resourceId: string; amount: number; name?: string | null }
     | { kind: "booster"; boosterId: string; quantity: number; name?: string | null }
-    | { kind: "card"; card: Card };
+    | { kind: "card"; card: Card }
+    /** Reroll : caractéristiques retirées, avant → après (+ puissance). */
+    | { kind: "reroll"; before: Card; after: Card; axes: TierAxis[] };
 
 export interface RewardBatch {
     title: string;
@@ -21,7 +24,9 @@ interface RewardPopupState {
 export const useRewardPopupStore = create<RewardPopupState>()((set) => ({
     queue: [],
     show: (batch) => {
-        const items = batch.items.filter((i) => i.kind === "card" || (i.kind === "resource" ? i.amount > 0 : i.quantity > 0));
+        const items = batch.items.filter((i) =>
+            i.kind === "resource" ? i.amount > 0 : i.kind === "booster" ? i.quantity > 0 : true
+        );
         if (items.length) set((s) => ({ queue: [...s.queue, { ...batch, items }] }));
     },
     dismiss: () => set((s) => ({ queue: s.queue.slice(1) })),

@@ -12,7 +12,9 @@ from app.core.ratelimit import rate_limit
 from app.models.user import User
 from app.models.booster import Booster, BoosterSet
 from app.models.economy import Resource
-from app.schemas.booster import BoosterResponse, PackOpenRequest, PackOpenResponse, OpenOwnedRequest, OwnedBoosterOut
+from app.schemas.booster import (
+    BoosterResponse, PackOpenRequest, PackOpenResponse, OpenOwnedRequest, OwnedBoosterOut, BuyToInventoryResponse,
+)
 from app.services.pack_service import PackService
 from app.services import booster_inventory
 from app.services.ranking import refresh_all_best_ranks
@@ -81,6 +83,22 @@ async def open_packs(
     return PackOpenResponse(**result)
 
 
+@router.post(
+    "/buy-to-inventory",
+    response_model=BuyToInventoryResponse,
+    dependencies=[Depends(rate_limit(20, 60))],
+)
+async def buy_to_inventory(
+    request: PackOpenRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Achète des boosters sans les ouvrir : même prix, crédités à l'inventaire."""
+    return BuyToInventoryResponse(**await booster_inventory.buy_to_inventory(
+        session, user, request.booster_id, request.quantity,
+    ))
+
+
 @router.get("/inventory", response_model=list[OwnedBoosterOut])
 async def list_owned_boosters(
     user: User = Depends(get_current_user),
@@ -101,7 +119,7 @@ async def open_owned_boosters(
     session: AsyncSession = Depends(get_session),
 ):
     """Ouvre des boosters déjà possédés (gratuit — même flux/animation qu'un achat)."""
-    result = await booster_inventory.open_owned(session, user, request.booster_id, request.quantity)
+    result = await booster_inventory.open_owned(session, user, request.booster_id, request.quantity, request.bonus_id)
     await refresh_all_best_ranks(session)
     await session.commit()
     return PackOpenResponse(**result)

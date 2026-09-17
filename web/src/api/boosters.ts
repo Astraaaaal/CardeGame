@@ -1,5 +1,7 @@
 import api from "./client";
-import type { Booster, PackOpenRequest, PackOpenResponse, OwnedBooster, OpenOwnedRequest } from "@/types/booster";
+import type {
+    Booster, PackOpenRequest, PackOpenResponse, OwnedBooster, OpenOwnedRequest, BuyToInventoryResponse,
+} from "@/types/booster";
 
 export const boostersApi = {
     list: async (): Promise<Booster[]> => {
@@ -9,6 +11,11 @@ export const boostersApi = {
 
     openPacks: async (data: PackOpenRequest): Promise<PackOpenResponse> => {
         const res = await api.post("/boosters/open", data);
+        return res.data;
+    },
+
+    buyToInventory: async (data: PackOpenRequest): Promise<BuyToInventoryResponse> => {
+        const res = await api.post("/boosters/buy-to-inventory", data);
         return res.data;
     },
 

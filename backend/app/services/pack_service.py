@@ -141,19 +141,11 @@ class PackService:
 
         return all_packs_response, total_new_cards
 
-    async def open_packs(
-        self,
-        session: AsyncSession,
-        user_id: int,
-        booster_id: str,
-        quantity: int,
-    ) -> dict:
-        """
-        Ouvre un ou plusieurs packs contre la monnaie du booster (`resource_id`,
-        "coins" par défaut) :
-        1. Vérifie le booster, 2. calcule le prix (réductions multi-pack),
-        3. vérifie/déduit la monnaie, 4. génère + persiste, 5. commit.
-        """
+    async def charge(
+        self, session: AsyncSession, user_id: int, booster_id: str, quantity: int,
+    ) -> tuple[Booster, User, int]:
+        """Vérifie que le booster est en vente, calcule le prix (réductions
+        multi-pack) et débite la monnaie du booster. Ne commit pas."""
         booster = await session.get(Booster, booster_id)
         if not booster:
             raise HTTPException(status_code=404, detail="Booster introuvable")
@@ -185,6 +177,22 @@ class PackService:
             )
 
         await apply_delta(session, user, booster.resource_id, -total_price)
+        return booster, user, total_price
+
+    async def open_packs(
+        self,
+        session: AsyncSession,
+        user_id: int,
+        booster_id: str,
+        quantity: int,
+    ) -> dict:
+        """
+        Ouvre un ou plusieurs packs contre la monnaie du booster (`resource_id`,
+        "coins" par défaut) :
+        1. Vérifie le booster, 2. calcule le prix (réductions multi-pack),
+        3. vérifie/déduit la monnaie, 4. génère + persiste, 5. commit.
+        """
+        booster, user, total_price = await self.charge(session, user_id, booster_id, quantity)
         user.packs_opened += quantity
 
         all_packs_response, total_new_cards = await self.generate_and_persist_packs(

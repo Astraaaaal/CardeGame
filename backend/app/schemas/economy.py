@@ -70,6 +70,7 @@ class ShopOfferResponse(BaseModel):
 class ShopBuyRequest(BaseModel):
     offer_id: str
     card_id: str | None = None  # requis pour kind="upgrade" et "reroll"
+    to_inventory: bool = False  # kind="booster" : garder le booster (avec son bonus) au lieu de l'ouvrir
 
 
 class ShopBuyResponse(BaseModel):
@@ -77,6 +78,7 @@ class ShopBuyResponse(BaseModel):
     resource_id: str
     new_balance: int
     cards: list[CardResponse] = []  # booster (plusieurs) / specific_card / upgrade / reroll (une)
+    previous_card: CardResponse | None = None  # reroll : la carte telle qu'elle était avant
 
 
 # ── Admin ──

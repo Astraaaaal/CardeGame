@@ -38,4 +38,6 @@ export interface ShopBuyResponse {
     resource_id: string;
     new_balance: number;
     cards: Card[];
+    /** Reroll : la carte telle qu'elle était avant. */
+    previous_card: Card | null;
 }

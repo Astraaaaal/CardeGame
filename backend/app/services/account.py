@@ -16,7 +16,7 @@ from app.models.token import RefreshToken
 from app.models.message import Message
 from app.models.achievement import UserAchievement
 from app.models.quest import QuestProgress, UserQuest
-from app.models.booster_inventory import UserBoosterInventory
+from app.models.booster_inventory import UserBoosterInventory, UserBonusBooster
 from app.models.trade_session import TradeSession, TradeSessionItem
 
 
@@ -31,6 +31,7 @@ async def delete_account(session: AsyncSession, user: User) -> None:
         await session.execute(delete(TradeSession).where(TradeSession.id.in_(sess_ids)))
 
     await session.execute(delete(UserBoosterInventory).where(UserBoosterInventory.user_id == user_id))
+    await session.execute(delete(UserBonusBooster).where(UserBonusBooster.user_id == user_id))
     await session.execute(delete(UserAchievement).where(UserAchievement.user_id == user_id))
     await session.execute(delete(QuestProgress).where(QuestProgress.user_id == user_id))
     await session.execute(delete(UserQuest).where(UserQuest.user_id == user_id))

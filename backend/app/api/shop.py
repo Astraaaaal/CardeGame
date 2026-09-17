@@ -26,6 +26,7 @@ from app.services.tier_order import rank
 from app.services.wallet import get_balance, apply_delta
 from app.services.power import roll_power
 from app.services.ranking import refresh_all_best_ranks
+from app.services import booster_inventory
 
 router = APIRouter()
 pack_service = PackService()
@@ -166,8 +167,20 @@ async def buy_offer(
         )
 
     cards_out: list = []
+    previous_card = None
+    message = f"« {offer.name} » acheté !"
 
-    if offer.kind == "booster":
+    if offer.kind == "booster" and request.to_inventory:
+        booster = await session.get(Booster, offer.booster_id) if offer.booster_id else None
+        if not booster or not booster.active:
+            raise HTTPException(status_code=500, detail="Booster de l'offre introuvable ou retiré.")
+        await booster_inventory.grant_bonus(
+            session, user.id, booster.id,
+            offer.force_min_rarity_id, offer.rarity_weight_multiplier, offer.name,
+        )
+        message = f"« {offer.name} » ajouté à ton inventaire."
+
+    elif offer.kind == "booster":
         booster = await session.get(Booster, offer.booster_id) if offer.booster_id else None
         if not booster or not booster.active:
             raise HTTPException(status_code=500, detail="Booster de l'offre introuvable ou retiré.")
@@ -224,6 +237,7 @@ async def buy_offer(
         )).scalar_one_or_none()
         if not card:
             raise HTTPException(status_code=404, detail="Carte introuvable.")
+        previous_card = await build_card_response(session, card)
 
         axes = [
             a for a, on in [
@@ -272,8 +286,9 @@ async def buy_offer(
     await session.commit()
 
     return ShopBuyResponse(
-        message=f"« {offer.name} » acheté !",
+        message=message,
         resource_id=offer.resource_id,
         new_balance=new_balance,
         cards=cards_out,
+        previous_card=previous_card,
     )
