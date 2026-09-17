@@ -59,6 +59,8 @@ export default function PremiumTab() {
     const buy = useMutation({
         mutationFn: (offer: ShopOffer) => shopApi.buy(offer.id, undefined, offer.kind === "booster"),
         onSuccess: (res, offer) => {
+            qc.invalidateQueries({ queryKey: ["shop-offers"] });
+            qc.invalidateQueries({ queryKey: ["premium-cosmetics"] });
             qc.invalidateQueries({ queryKey: ["premium-status"] });
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["collection"] });
@@ -151,6 +153,7 @@ export default function PremiumTab() {
                         {catalog.map((o) => {
                             const cosmetic = cosmetics?.find((c) => c.id === o.cosmetic_id);
                             const cantAfford = status.shards < o.price;
+                            const limitReached = !!o.purchase_limit_per_day && o.purchases_today >= o.purchase_limit_per_day;
                             return (
                                 <div key={o.id} className="bg-game-surface rounded-2xl p-3 border border-white/10 flex flex-col gap-2">
                                     <div className="h-16 flex items-center justify-center">
@@ -160,13 +163,16 @@ export default function PremiumTab() {
                                         <p className="text-white text-sm font-semibold leading-tight">{o.name}</p>
                                         {cosmetic && <p className="text-white/40 text-[11px]">{COSMETIC_KIND_LABEL[cosmetic.kind]}</p>}
                                     </div>
+                                    {o.purchase_limit_per_day && (
+                                        <p className="text-white/40 text-[11px]">{o.purchases_today}/{o.purchase_limit_per_day} aujourd'hui</p>
+                                    )}
                                     <Button
                                         variant="primary" size="sm" className="w-full mt-auto"
-                                        disabled={cantAfford}
+                                        disabled={cantAfford || limitReached}
                                         loading={buy.isPending && buy.variables?.id === o.id}
                                         onClick={() => { setFeedback(null); buy.mutate(o); }}
                                     >
-                                        ✦ {o.price.toLocaleString("fr-FR")}
+                                        {limitReached ? "Limite atteinte" : `✦ ${o.price.toLocaleString("fr-FR")}`}
                                     </Button>
                                     {feedback?.key === o.id && (
                                         <p className={`text-[11px] ${feedback.ok ? "text-green-400" : "text-red-400"}`}>{feedback.text}</p>
