@@ -6,7 +6,7 @@ import { collectionApi } from "@/api/collection";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import CardImage from "./CardImage";
+import { CardWithEffects } from "./CardEffects";
 import { errMsg } from "@/utils/errors";
 import { showRewards } from "@/stores/rewardPopupStore";
 
@@ -136,9 +136,7 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                         transition={{ duration: 0.18 }}
                     >
                         {/* Carte */}
-                        <div className="w-56 shrink-0">
-                            <CardImage card={displayCard} size="lg" />
-                        </div>
+                        <CardWithEffects card={displayCard} className="w-56 shrink-0" />
 
                         {/* Info panel */}
                         <div className="bg-game-surface rounded-2xl p-4 w-full border border-white/10 flex-1 min-h-0 overflow-y-auto overscroll-contain">
