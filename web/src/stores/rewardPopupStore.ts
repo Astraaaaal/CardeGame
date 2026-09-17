@@ -1,11 +1,13 @@
 import { create } from "zustand";
 import type { Card } from "@/types/card";
 import type { TierAxis } from "@/utils/cardTiers";
+import type { Cosmetic } from "@/types/premium";
 
 export type RewardItem =
     | { kind: "resource"; resourceId: string; amount: number; name?: string | null }
     | { kind: "booster"; boosterId: string; quantity: number; name?: string | null }
     | { kind: "card"; card: Card }
+    | { kind: "cosmetic"; cosmetic: Cosmetic }
     /** Reroll : caractéristiques retirées, avant → après (+ puissance). */
     | { kind: "reroll"; before: Card; after: Card; axes: TierAxis[] };
 

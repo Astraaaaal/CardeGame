@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     EMAIL_SENDER_ADDRESS: str = "no-reply@cardegame.local"
     EMAIL_SENDER_NAME: str = "CardeGame"
 
+    # ── Paiements (Stripe) — vide = achats en euros refusés ──
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+
     # ── CORS ── (JSON en variable d'env : '["https://mon-site.fr"]')
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 

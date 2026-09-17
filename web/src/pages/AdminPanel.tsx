@@ -22,6 +22,8 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 import AdminMessagesComposer from "@/components/admin/AdminMessagesComposer";
 import AdminProgressionEditor from "@/components/admin/AdminProgressionEditor";
 import AdminBugReports from "@/components/admin/AdminBugReports";
+import AdminPremium from "@/components/admin/AdminPremium";
+import { adminPremiumApi } from "@/api/admin";
 
 const inputCls =
     "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
@@ -478,6 +480,7 @@ const OFFER_KINDS: { value: AdminShopOffer["kind"]; label: string }[] = [
     { value: "booster", label: "Booster" },
     { value: "specific_card", label: "Carte précise" },
     { value: "reroll", label: "Reroll (retirage)" },
+    { value: "cosmetic", label: "Cosmétique (boutique premium)" },
 ];
 
 function ShopOfferForm({
@@ -506,6 +509,9 @@ function ShopOfferForm({
         onError: (e) => setErr(errMsg(e)),
     });
 
+    const { data: cosmetics } = useQuery({
+        queryKey: ["admin", "cosmetics"], queryFn: adminPremiumApi.listCosmetics, enabled: f.kind === "cosmetic",
+    });
     const rarities = tuning?.rarities ?? [];
     const qualities = tuning?.qualities ?? [];
     const specialties = tuning?.specialties ?? [];
@@ -574,6 +580,20 @@ function ShopOfferForm({
                                 onChange={(e) => setF({ ...f, rarity_weight_multiplier: e.target.value ? +e.target.value : undefined })} />
                         </div>
                     </div>
+                </div>
+            )}
+
+            {f.kind === "cosmetic" && (
+                <div>
+                    <label className={labelCls}>Cosmétique débloqué</label>
+                    <select className={inputCls} value={f.cosmetic_id ?? ""}
+                        onChange={(e) => setF({ ...f, cosmetic_id: e.target.value || null })}>
+                        <option value="">— choisir —</option>
+                        {(cosmetics ?? []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <p className="text-white/40 text-xs mt-1">
+                        Choisis la ressource « Éclats » pour la vendre dans l'onglet Premium.
+                    </p>
                 </div>
             )}
 
@@ -824,7 +844,7 @@ function SettingsPanel() {
 
 /* ─────────────────────────────── Panneau ────────────────────────────── */
 
-type Tab ="characters" | "boosters" | "sets" | "types" | "resources" | "offers" | "messages" | "progression" | "settings" | "bugReports";
+type Tab ="characters" | "boosters" | "sets" | "types" | "resources" | "offers" | "premium" | "messages" | "progression" | "settings" | "bugReports";
 
 function Panel() {
     const navigate = useNavigate();
@@ -960,7 +980,7 @@ function Panel() {
             </header>
 
             <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
-                {(["characters", "boosters", "sets", "types", "resources", "offers", "messages", "progression", "settings", "bugReports"] as Tab[]).map((t) => (
+                {(["characters", "boosters", "sets", "types", "resources", "offers", "premium", "messages", "progression", "settings", "bugReports"] as Tab[]).map((t) => (
                     <button
                         key={t}
                         className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${tab === t ? "bg-accent text-white" : "bg-white/10 text-white/50 hover:bg-white/20"
@@ -969,7 +989,7 @@ function Panel() {
                     >
                         {{
                             characters: "Personnages", boosters: "Boosters", sets: "Sets",
-                            types: "Types", resources: "Ressources", offers: "Offres shop",
+                            types: "Types", resources: "Ressources", offers: "Offres shop", premium: "Premium",
                             messages: "Messagerie", progression: "Progression", settings: "Réglages", bugReports: "Signalements",
                         }[t]}
                     </button>
@@ -1013,6 +1033,7 @@ function Panel() {
                 {tab === "progression" && <AdminProgressionEditor resources={resources} boosters={boostersQ.data ?? []} />}
                 {tab === "settings" && <SettingsPanel />}
                 {tab === "bugReports" && <AdminBugReports />}
+                {tab === "premium" && <AdminPremium />}
 
                 {tab === "sets" &&
                     (setsQ.isLoading ? <p className="text-white/40 text-sm">…</p> :

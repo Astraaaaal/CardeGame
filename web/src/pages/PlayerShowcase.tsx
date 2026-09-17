@@ -12,6 +12,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import { errMsg } from "@/utils/errors";
 import type { Card } from "@/types/card";
 import { showRewards } from "@/stores/rewardPopupStore";
+import { FramedAvatar, showcaseBackgroundStyle } from "@/components/cosmetics/CosmeticVisuals";
 
 export default function PlayerShowcase() {
     const navigate = useNavigate();
@@ -68,7 +69,7 @@ export default function PlayerShowcase() {
                 <span className="w-14" />
             </header>
 
-            <main className="flex-1 px-4 py-6 max-w-sm mx-auto w-full">
+            <main className="flex-1 px-4 py-6 max-w-sm mx-auto w-full" style={showcaseBackgroundStyle(data?.showcase_background)}>
                 {isLoading || !data ? (
                     <LoadingSpinner text="Chargement..." />
                 ) : (
@@ -80,7 +81,7 @@ export default function PlayerShowcase() {
                         )}
 
                         <div className="flex flex-col items-center gap-2">
-                            <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-accent bg-black/30 flex items-center justify-center">
+                            <FramedAvatar frame={data.avatar_frame} size={96}>
                                 {data.avatar ? (
                                     <img
                                         src={`/characters/${data.avatar.image_url}`}
@@ -90,7 +91,7 @@ export default function PlayerShowcase() {
                                 ) : (
                                     <span className="text-4xl text-white/20">?</span>
                                 )}
-                            </div>
+                            </FramedAvatar>
                             <h2 className="text-white font-bold text-lg">{data.display_name}</h2>
                             <p className="text-white/40 text-xs">@{data.username}</p>
                             <div className="grid grid-cols-3 gap-2 w-full mt-2">

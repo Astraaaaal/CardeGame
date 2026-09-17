@@ -5,6 +5,7 @@ Schemas — vitrine publique du joueur (avatar, cartes mises en avant, cartes à
 from typing import Literal
 from pydantic import BaseModel, Field
 from app.schemas.card import CardResponse
+from app.schemas.premium import CosmeticOut
 
 
 class AvatarInfo(BaseModel):
@@ -47,6 +48,8 @@ class ShowcaseResponse(BaseModel):
     achievements: list[ShowcaseAchievement] = []  # 0 à 3, emplacements vides omis
     # Emplacements bruts (3, None = vide) — pour que l'éditeur conserve l'ordre.
     achievement_slots: list[str | None] = [None, None, None]
+    avatar_frame: CosmeticOut | None = None
+    showcase_background: CosmeticOut | None = None
 
 
 class UpdateShowcaseRequest(BaseModel):

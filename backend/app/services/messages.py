@@ -20,6 +20,7 @@ from app.services.wallet import get_balance, apply_delta, COINS_ID
 from app.services.gift_policy import can_send_gift
 from app.services import quest_progress
 from app.services import booster_inventory
+from app.services.premium import ensure_tradeable
 
 MAX_RECIPIENTS_PER_SEND = 200
 
@@ -156,6 +157,7 @@ async def send_gift(
             raise HTTPException(400, "Ressource ou quantité invalide.")
         if resource_id != COINS_ID and not await session.get(Resource, resource_id):
             raise HTTPException(404, "Ressource introuvable.")
+        await ensure_tradeable(session, resource_id)
         balance = await get_balance(session, sender, resource_id)
         if amount > balance:
             raise HTTPException(400, f"Solde insuffisant ({balance}).")

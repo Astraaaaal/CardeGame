@@ -16,3 +16,7 @@ class GameConfig(SQLModel, table=True):
     id: int = Field(default=1, primary_key=True)
     daily_base_reward: int = Field(default=500)
     daily_streak_bonus: int = Field(default=100)
+    # Boutique premium : fermée par défaut. Les pseudos listés (séparés par
+    # des virgules) y ont accès même fermée, pour tester.
+    premium_shop_enabled: bool = Field(default=False)
+    premium_testers: str = Field(default="")

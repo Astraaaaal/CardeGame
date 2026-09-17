@@ -21,6 +21,8 @@ class Resource(SQLModel, table=True):
     # Pour "coins", crédité directement sur User.coins ; pour les autres,
     # une ligne UserResource n'est créée que si > 0.
     starting_amount: int = Field(default=0)
+    # Faux pour la monnaie premium : ni échange, ni cadeau, ni prix en vitrine.
+    tradeable: bool = Field(default=True)
 
 
 class UserResource(SQLModel, table=True):
@@ -82,6 +84,9 @@ class ShopOffer(SQLModel, table=True):
     # puissance puisque la plage change avec la combinaison).
     reroll_power: bool = Field(default=False)
     reroll_mode: Optional[str] = Field(default=None, max_length=20)  # random | guaranteed_min
+
+    # kind = "cosmetic" : cosmétique débloqué à l'achat (cf. app/models/premium.py).
+    cosmetic_id: Optional[str] = Field(default=None, max_length=40)
 
 
 class ShopPurchase(SQLModel, table=True):

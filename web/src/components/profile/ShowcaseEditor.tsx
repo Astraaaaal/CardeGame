@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { showcaseApi } from "@/api/showcase";
 import { progressionApi } from "@/api/progression";
+import { premiumApi } from "@/api/premium";
+import { FramedAvatar, CosmeticPreview } from "@/components/cosmetics/CosmeticVisuals";
 import { useAuthStore } from "@/stores/authStore";
 import { useCollection } from "@/hooks/useCollection";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
@@ -70,6 +72,9 @@ const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_pro
     const { data: collection } = useCollection({ sort_by: "rarity" });
     const { data: achievementList } = useQuery({ queryKey: ["achievements"], queryFn: progressionApi.getAchievements });
     const unlockedAchievements = (achievementList ?? []).filter((a) => a.unlocked_at);
+    const { data: myCosmetics } = useQuery({ queryKey: ["my-cosmetics"], queryFn: premiumApi.myCosmetics });
+    const ownedFrames = (myCosmetics?.owned ?? []).filter((c) => c.kind === "avatar_frame");
+    const ownedBackgrounds = (myCosmetics?.owned ?? []).filter((c) => c.kind === "showcase_background");
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
     const consumeResultIfPurpose = useCardSelectionStore((s) => s.consumeResultIfPurpose);
 
@@ -77,6 +82,9 @@ const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_pro
     const [avatarImg, setAvatarImg] = useState<string | null>(null);
     const [slots, setSlots] = useState<(string | null)[]>([null, null, null]);
     const [achievementSlots, setAchievementSlots] = useState<(string | null)[]>([null, null, null]);
+    // undefined = pas encore initialisé depuis le serveur (ni restauré après une sélection de carte).
+    const [frameId, setFrameId] = useState<string | null | undefined>(undefined);
+    const [backgroundId, setBackgroundId] = useState<string | null | undefined>(undefined);
     const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
     const [pickedPreviews, setPickedPreviews] = useState<Record<string, Card>>({});
 
@@ -103,6 +111,8 @@ const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_pro
         setAvatarImg(result.context?.avatarImg || null);
         setSlots([0, 1, 2].map((i) => (i === slotIndex ? picked?.id ?? null : result.context?.[`slot${i}`] || null)));
         setAchievementSlots([0, 1, 2].map((i) => result.context?.[`achievement${i}`] || null));
+        setFrameId(result.context?.frameId || null);
+        setBackgroundId(result.context?.backgroundId || null);
         if (picked) setPickedPreviews((p) => ({ ...p, [picked.id]: picked.preview }));
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -115,6 +125,12 @@ const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_pro
         setSlots([0, 1, 2].map((i) => showcase.cards[i]?.id ?? null));
         setAchievementSlots(showcase.achievement_slots);
     }, [showcase]);
+
+    useEffect(() => {
+        if (!myCosmetics) return;
+        setFrameId((v) => (v === undefined ? myCosmetics.equipped_avatar_frame_id : v));
+        setBackgroundId((v) => (v === undefined ? myCosmetics.equipped_showcase_background_id : v));
+    }, [myCosmetics]);
 
     // Fusionne la collection actuelle + les cartes déjà en vitrine + une carte
     // qu'on vient de choisir via la sélection : une carte choisie il y a
@@ -145,13 +161,20 @@ const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_pro
                 achievement0: achievementSlots[0] ?? "",
                 achievement1: achievementSlots[1] ?? "",
                 achievement2: achievementSlots[2] ?? "",
+                frameId: frameId ?? "",
+                backgroundId: backgroundId ?? "",
             },
         });
         navigate("/collection");
     };
 
     const save = useMutation({
-        mutationFn: () => showcaseApi.update(avatarId, slots, achievementSlots),
+        mutationFn: async () => {
+            if (frameId !== undefined && backgroundId !== undefined) {
+                qc.setQueryData(["my-cosmetics"], await premiumApi.equip(frameId, backgroundId));
+            }
+            return showcaseApi.update(avatarId, slots, achievementSlots);
+        },
         onSuccess: (updated) => qc.setQueryData(["showcase", user?.id], updated),
     });
 
@@ -163,19 +186,49 @@ const ShowcaseEditor = forwardRef<EditorSaveHandle>(function ShowcaseEditor(_pro
         <div className="space-y-6">
             <div className="bg-game-surface rounded-2xl border border-white/10 p-4">
                 <h3 className="text-white font-bold text-sm mb-3">Avatar</h3>
-                <button
-                    className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/10 hover:border-accent
-                               bg-black/30 flex items-center justify-center transition-colors"
-                    onClick={() => setAvatarPickerOpen(true)}
-                >
-                    {avatarImg ? (
-                        <img src={`/characters/${avatarImg}`} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                        <span className="text-3xl text-white/20">?</span>
-                    )}
+                <button className="hover:opacity-80 transition-opacity" onClick={() => setAvatarPickerOpen(true)}>
+                    <FramedAvatar frame={ownedFrames.find((c) => c.id === frameId)} size={80}>
+                        {avatarImg ? (
+                            <img src={`/characters/${avatarImg}`} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="text-3xl text-white/20">?</span>
+                        )}
+                    </FramedAvatar>
                 </button>
                 <p className="text-white/30 text-xs mt-2">Clique pour choisir un personnage possédé.</p>
             </div>
+
+            {(ownedFrames.length > 0 || ownedBackgrounds.length > 0) && (
+                <div className="bg-game-surface rounded-2xl border border-white/10 p-4 space-y-3">
+                    <h3 className="text-white font-bold text-sm">Cosmétiques</h3>
+                    {([
+                        ["Cadre d'avatar", ownedFrames, frameId, setFrameId],
+                        ["Fond de vitrine", ownedBackgrounds, backgroundId, setBackgroundId],
+                    ] as const).map(([label, owned, selected, setSelected]) => owned.length > 0 && (
+                        <div key={label}>
+                            <p className="text-white/50 text-xs mb-1.5">{label}</p>
+                            <div className="flex gap-2 flex-wrap">
+                                <button
+                                    className={`px-3 py-2 rounded-lg border text-xs ${!selected ? "border-accent text-white" : "border-white/10 text-white/50"}`}
+                                    onClick={() => setSelected(null)}
+                                >
+                                    Aucun
+                                </button>
+                                {owned.map((c) => (
+                                    <button
+                                        key={c.id}
+                                        title={c.name}
+                                        className={`p-1.5 rounded-lg border ${selected === c.id ? "border-accent" : "border-white/10"}`}
+                                        onClick={() => setSelected(c.id)}
+                                    >
+                                        <CosmeticPreview cosmetic={c} size={40} />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             <div className="bg-game-surface rounded-2xl border border-white/10 p-4">
                 <h3 className="text-white font-bold text-sm mb-3">Cartes mises en avant (3 max)</h3>

@@ -60,6 +60,9 @@ class User(SQLModel, table=True):
     showcase_achievement_1_id: Optional[str] = Field(default=None, max_length=50)
     showcase_achievement_2_id: Optional[str] = Field(default=None, max_length=50)
     showcase_achievement_3_id: Optional[str] = Field(default=None, max_length=50)
+    # Cosmétiques équipés (cf. app/models/premium.py).
+    equipped_avatar_frame_id: Optional[str] = Field(default=None, max_length=40)
+    equipped_showcase_background_id: Optional[str] = Field(default=None, max_length=40)
 
     # Paramètres sociaux — contrôlent qui peut t'envoyer une demande d'ami ou
     # d'échange, et si une nouvelle demande d'échange déclenche un popup.

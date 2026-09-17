@@ -13,6 +13,7 @@ import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
 import ActiveTradeBanner from "@/components/trade/ActiveTradeBanner";
 import BottomNav from "@/components/layout/BottomNav";
+import { FramedAvatar } from "@/components/cosmetics/CosmeticVisuals";
 
 export default function MainMenu() {
   const navigate = useNavigate();
@@ -69,7 +70,7 @@ export default function MainMenu() {
           title="Vitrine et statistiques"
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-full overflow-hidden bg-black/30 border border-white/10 shrink-0 flex items-center justify-center">
+            <FramedAvatar frame={showcase?.avatar_frame} size={36}>
               {showcase?.avatar ? (
                 <img
                   src={`/characters/${showcase.avatar.image_url}`}
@@ -79,7 +80,7 @@ export default function MainMenu() {
               ) : (
                 <span className="text-white/20 text-sm">?</span>
               )}
-            </div>
+            </FramedAvatar>
             <span className="text-white font-bold text-lg truncate">{user?.display_name || "Joueur"}</span>
           </div>
           <StreakBadge streak={user?.login_streak ?? 0} />

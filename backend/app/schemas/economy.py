@@ -65,6 +65,8 @@ class ShopOfferResponse(BaseModel):
     reroll_jewelry: bool = False
     reroll_power: bool = False
     reroll_mode: str | None = None
+    cosmetic_id: str | None = None
+    cosmetic_name: str | None = None
 
 
 class ShopBuyRequest(BaseModel):
@@ -85,7 +87,7 @@ class ShopBuyResponse(BaseModel):
 
 class ShopOfferIn(BaseModel):
     id: str = Field(min_length=1, max_length=30, pattern=r"^[a-z0-9_.\-]+$")
-    kind: str = Field(pattern=r"^(booster|specific_card|reroll)$")
+    kind: str = Field(pattern=r"^(booster|specific_card|reroll|cosmetic)$")
     name: str = Field(min_length=1, max_length=100)
     description: str = ""
     active: bool = True
@@ -110,6 +112,8 @@ class ShopOfferIn(BaseModel):
     reroll_jewelry: bool = False
     reroll_power: bool = False
     reroll_mode: str | None = Field(default=None, pattern=r"^(random|guaranteed_min)$")
+
+    cosmetic_id: str | None = None
 
 
 class ShopOfferPatch(BaseModel):
@@ -140,6 +144,8 @@ class ShopOfferPatch(BaseModel):
     reroll_jewelry: bool | None = None
     reroll_power: bool | None = None
     reroll_mode: str | None = Field(default=None, pattern=r"^(random|guaranteed_min)$")
+
+    cosmetic_id: str | None = None
 
 
 class ResourceIn(BaseModel):

@@ -20,6 +20,8 @@ import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import { useHasPendingTradeProposal } from "@/hooks/useTradePulse";
 import { showRewards } from "@/stores/rewardPopupStore";
 import BottomNav from "@/components/layout/BottomNav";
+import PremiumTab, { PREMIUM_RESOURCE_ID } from "@/components/shop/PremiumTab";
+import { premiumApi } from "@/api/premium";
 import { getResourceBalance } from "@/utils/resources";
 import { errMsg } from "@/utils/errors";
 
@@ -231,7 +233,9 @@ function ResourcesTab() {
     const navigate = useNavigate();
     const qc = useQueryClient();
     const { setPacks } = useGameStore();
-    const { data: offers, isLoading } = useQuery({ queryKey: ["shop-offers"], queryFn: shopApi.list });
+    const { data: allOffers, isLoading } = useQuery({ queryKey: ["shop-offers"], queryFn: shopApi.list });
+    // Les offres payées en éclats vivent dans l'onglet Premium.
+    const offers = allOffers?.filter((o) => o.resource_id !== PREMIUM_RESOURCE_ID);
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
     const consumeResultIfPurpose = useCardSelectionStore((s) => s.consumeResultIfPurpose);
     const [feedback, setFeedback] = useState<{ offerId: string; text: string; ok: boolean } | null>(null);
@@ -373,14 +377,21 @@ function ResourcesTab() {
     );
 }
 
-type Tab = "boosters" | "resources";
+type Tab = "boosters" | "resources" | "premium";
 
 export default function Shop() {
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const [tab, setTab] = useState<Tab>(() =>
-        useCardSelectionStore.getState().result?.context?.purpose === "reroll" ? "resources" : "boosters"
-    );
+    const [tab, setTab] = useState<Tab>(() => {
+        if (new URLSearchParams(window.location.search).has("premium")) return "premium";
+        return useCardSelectionStore.getState().result?.context?.purpose === "reroll" ? "resources" : "boosters";
+    });
+    const { data: premium } = useQuery({ queryKey: ["premium-status"], queryFn: premiumApi.status });
+    const tabs: { key: Tab; label: string }[] = [
+        { key: "boosters", label: "Boosters" },
+        { key: "resources", label: "Ressources" },
+        ...(premium?.access ? [{ key: "premium" as const, label: "✦ Premium" }] : []),
+    ];
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col">
@@ -393,10 +404,7 @@ export default function Shop() {
             </header>
 
             <div className="flex border-b border-white/5">
-                {([
-                    { key: "boosters", label: "Boosters" },
-                    { key: "resources", label: "Ressources" },
-                ] as const).map((t) => (
+                {tabs.map((t) => (
                     <button
                         key={t.key}
                         className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
@@ -410,7 +418,9 @@ export default function Shop() {
             </div>
 
             <main className="flex-1 px-4 py-6">
-                {tab === "boosters" ? <BoostersTab /> : <ResourcesTab />}
+                {tab === "boosters" && <BoostersTab />}
+                {tab === "resources" && <ResourcesTab />}
+                {tab === "premium" && premium?.access && <PremiumTab />}
             </main>
 
             <BottomNav />

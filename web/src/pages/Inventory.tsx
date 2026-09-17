@@ -8,6 +8,8 @@ import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import BottomNav from "@/components/layout/BottomNav";
+import { premiumApi } from "@/api/premium";
+import { CosmeticPreview, COSMETIC_KIND_LABEL } from "@/components/cosmetics/CosmeticVisuals";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
@@ -25,6 +27,8 @@ export default function Inventory() {
     const tradePending = useHasPendingTradeProposal();
     const openOwned = useOpenOwnedBoosters();
     const { data: boosters, isLoading } = useQuery({ queryKey: ["booster-inventory"], queryFn: boostersApi.getInventory });
+    const { data: cosmetics } = useQuery({ queryKey: ["my-cosmetics"], queryFn: premiumApi.myCosmetics });
+    const equippedIds = [cosmetics?.equipped_avatar_frame_id, cosmetics?.equipped_showcase_background_id];
 
     const resources = [
         { id: "coins", name: "Pièces", amount: user?.coins ?? 0 },
@@ -90,6 +94,25 @@ export default function Inventory() {
                         </>
                     )}
                 </Section>
+
+                {!!cosmetics?.owned.length && (
+                    <Section title="Cosmétiques">
+                        {cosmetics.owned.map((c) => (
+                            <div key={c.id} className="flex items-center gap-3 bg-game-surface border border-white/10 rounded-xl px-4 py-3">
+                                <CosmeticPreview cosmetic={c} size={40} />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-white text-sm font-semibold truncate">{c.name}</p>
+                                    <p className="text-white/40 text-xs">{COSMETIC_KIND_LABEL[c.kind]}</p>
+                                </div>
+                                {equippedIds.includes(c.id) ? (
+                                    <span className="text-green-400 text-xs shrink-0">Équipé</span>
+                                ) : (
+                                    <button className="text-accent text-xs shrink-0" onClick={() => navigate("/profile")}>Équiper</button>
+                                )}
+                            </div>
+                        ))}
+                    </Section>
+                )}
             </main>
 
             <BottomNav />

@@ -23,6 +23,7 @@ from app.services.card_view import build_card_response
 from app.services.wallet import get_balance, apply_delta, COINS_ID
 from app.services import quest_progress
 from app.services.presence import is_online as _is_online
+from app.services.premium import ensure_tradeable
 
 
 def _side(trade: TradeSession, user_id: int) -> str:
@@ -171,6 +172,7 @@ async def add_resource_item(
 
     if amount <= 0:
         raise HTTPException(400, "La quantité doit être positive.")
+    await ensure_tradeable(session, resource_id)
 
     owner = await session.get(User, owner_id)
     balance = await get_balance(session, owner, resource_id)

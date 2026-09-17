@@ -469,6 +469,10 @@ async def create_shop_offer(body: ShopOfferIn, session: AsyncSession = Depends(g
             raise HTTPException(400, "Choisis au moins un axe à retirer pour une offre de type 'reroll'.")
         if not body.reroll_mode:
             raise HTTPException(400, "Choisis un mode de reroll (aléatoire ou garanti égal/mieux).")
+    if body.kind == "cosmetic":
+        from app.models.premium import Cosmetic
+        if not body.cosmetic_id or not await session.get(Cosmetic, body.cosmetic_id):
+            raise HTTPException(400, "Choisis un cosmétique existant pour une offre de type 'cosmetic'.")
     if body.booster_id and not await session.get(Booster, body.booster_id):
         raise HTTPException(400, f"Le booster '{body.booster_id}' n'existe pas.")
     if body.force_min_rarity_id and not await session.get(Rarity, body.force_min_rarity_id):

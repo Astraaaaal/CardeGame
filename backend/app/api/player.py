@@ -28,6 +28,7 @@ from app.services.showcase_view import build_showcase_response, ACHIEVEMENT_SLOT
 from app.services.account import delete_account
 from app.services.player_stats import build_player_stats
 from app.services.ranking import refresh_all_best_ranks
+from app.services.premium import ensure_tradeable
 from app.services import account_email
 
 router = APIRouter()
@@ -241,6 +242,7 @@ async def update_trade_listings(
             raise HTTPException(400, "Une des cartes choisies ne t'appartient pas.")
         if not await session.get(Resource, slot_in.resource_id):
             raise HTTPException(400, f"La ressource '{slot_in.resource_id}' n'existe pas.")
+        await ensure_tradeable(session, slot_in.resource_id)
 
         if existing:
             existing.user_card_id = slot_in.user_card_id

@@ -118,10 +118,18 @@ _STATEMENTS = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_achievement_1_id VARCHAR(50)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_achievement_2_id VARCHAR(50)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_achievement_3_id VARCHAR(50)",
+    # E-mail, newsletter, cosmétiques équipés.
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(254)",
     "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS newsletter_opt_in BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS equipped_avatar_frame_id VARCHAR(40)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS equipped_showcase_background_id VARCHAR(40)",
+    # Boutique premium (fermée par défaut) et monnaie non échangeable.
+    "ALTER TABLE game_config ADD COLUMN IF NOT EXISTS premium_shop_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE game_config ADD COLUMN IF NOT EXISTS premium_testers VARCHAR NOT NULL DEFAULT ''",
+    "ALTER TABLE resources ADD COLUMN IF NOT EXISTS tradeable BOOLEAN NOT NULL DEFAULT TRUE",
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS cosmetic_id VARCHAR(40)",
 ]
 
 # Boosters offerts à certains paliers de niveau (en plus des pièces) —
@@ -154,8 +162,10 @@ _DEFAULT_TYPES = [
 _DEFAULT_RESOURCES = [
     ("coins", "Pièces", "Monnaie de base. Ne peut pas être supprimée."),
     ("dust", "Poussière", "Obtenue en recyclant des cartes. Dépensable au shop."),
+    ("shards", "Éclats", "Monnaie premium, achetée en euros. Liée au compte : ni échangeable ni offrable."),
 ]
-_PROTECTED_RESOURCES = {"coins"}
+_PROTECTED_RESOURCES = {"coins", "shards"}
+_NON_TRADEABLE_RESOURCES = {"shards"}
 
 # Paliers de niveau par défaut (level, power_required, reward_amount en
 # pièces) — calibré sur le roster actuel (1 personnage) : à retoucher depuis
@@ -265,14 +275,17 @@ async def apply_patches(conn: AsyncConnection) -> None:
             logger.warning("seed type %r: %s", type_id, exc)
 
     insert_resource = text(
-        "INSERT INTO resources (id, name, description, protected) "
-        "VALUES (:id, :name, :description, :protected) ON CONFLICT (id) DO NOTHING"
+        # Toutes les colonnes explicitement : sur une base neuve (create_all), les
+        # valeurs par défaut du modèle ne sont pas des DEFAULT SQL.
+        "INSERT INTO resources (id, name, description, protected, starting_amount, tradeable) "
+        "VALUES (:id, :name, :description, :protected, 0, :tradeable) ON CONFLICT (id) DO NOTHING"
     )
     for res_id, name, description in _DEFAULT_RESOURCES:
         try:
             await conn.execute(insert_resource, {
                 "id": res_id, "name": name, "description": description,
                 "protected": res_id in _PROTECTED_RESOURCES,
+                "tradeable": res_id not in _NON_TRADEABLE_RESOURCES,
             })
         except Exception as exc:  # noqa: BLE001
             logger.warning("seed resource %r: %s", res_id, exc)
@@ -285,6 +298,12 @@ async def apply_patches(conn: AsyncConnection) -> None:
             await conn.execute(force_protected, {"id": res_id})
         except Exception as exc:  # noqa: BLE001
             logger.warning("protected %r: %s", res_id, exc)
+
+    for res_id in _NON_TRADEABLE_RESOURCES:
+        try:
+            await conn.execute(text("UPDATE resources SET tradeable = FALSE WHERE id = :id"), {"id": res_id})
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("non tradeable %r: %s", res_id, exc)
 
     # Solde de départ historique des pièces (500) — ne stomp pas un réglage
     # déjà fait par un admin, même logique que les autres colonnes seedées.
@@ -370,8 +389,8 @@ async def apply_patches(conn: AsyncConnection) -> None:
     # les anciennes variables d'environnement DAILY_BASE_REWARD/DAILY_STREAK_BONUS.
     try:
         await conn.execute(text(
-            "INSERT INTO game_config (id, daily_base_reward, daily_streak_bonus) "
-            "VALUES (1, 500, 100) ON CONFLICT (id) DO NOTHING"
+            "INSERT INTO game_config (id, daily_base_reward, daily_streak_bonus, premium_shop_enabled, premium_testers) "
+            "VALUES (1, 500, 100, FALSE, '') ON CONFLICT (id) DO NOTHING"
         ))
     except Exception as exc:  # noqa: BLE001
         logger.warning("seed game_config: %s", exc)

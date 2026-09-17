@@ -17,6 +17,7 @@ import type {
     TuningEntry,
     TuningTable,
 } from "@/types/content";
+import type { Cosmetic, Grant, PremiumConfig, PremiumOrder, PremiumProduct } from "@/types/premium";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 const KEY_STORE = "admin_key";
@@ -208,3 +209,42 @@ export const adminBugReportsApi = {
     resolve: (id: number) => httpBugReports.post<AdminBugReport>(`/${id}/resolve`).then((r) => r.data),
     remove: (id: number) => httpBugReports.delete(`/${id}`).then(() => undefined),
 };
+
+// Boutique premium — route sœur de /api/admin/content.
+const httpPremium = axios.create({ baseURL: `${API_URL}/api/admin/premium` });
+httpPremium.interceptors.request.use((config) => {
+    config.headers.set("X-Admin-Key", adminKey.get());
+    return config;
+});
+
+export const adminPremiumApi = {
+    getConfig: () => httpPremium.get<PremiumConfig>("/config").then((r) => r.data),
+    updateConfig: (b: Partial<Pick<PremiumConfig, "premium_shop_enabled" | "premium_testers">>) =>
+        httpPremium.patch<PremiumConfig>("/config", b).then((r) => r.data),
+
+    listCosmetics: () => httpPremium.get<Cosmetic[]>("/cosmetics").then((r) => r.data),
+    createCosmetic: (b: Omit<Cosmetic, "active"> & { active?: boolean }) =>
+        httpPremium.post<Cosmetic>("/cosmetics", b).then((r) => r.data),
+    updateCosmetic: (id: string, b: Partial<Omit<Cosmetic, "id" | "kind">>) =>
+        httpPremium.patch<Cosmetic>(`/cosmetics/${id}`, b).then((r) => r.data),
+    deleteCosmetic: (id: string) => httpPremium.delete(`/cosmetics/${id}`).then(() => undefined),
+
+    listProducts: () => httpPremium.get<PremiumProduct[]>("/products").then((r) => r.data),
+    createProduct: (b: PremiumProductInput) => httpPremium.post<PremiumProduct>("/products", b).then((r) => r.data),
+    updateProduct: (id: string, b: Partial<Omit<PremiumProductInput, "id">>) =>
+        httpPremium.patch<PremiumProduct>(`/products/${id}`, b).then((r) => r.data),
+    deleteProduct: (id: string) => httpPremium.delete(`/products/${id}`).then(() => undefined),
+
+    listOrders: () => httpPremium.get<PremiumOrder[]>("/orders").then((r) => r.data),
+};
+
+export interface PremiumProductInput {
+    id: string;
+    name: string;
+    description: string;
+    price_cents: number;
+    grants: Grant[];
+    once_per_account: boolean;
+    active: boolean;
+    sort_order: number;
+}

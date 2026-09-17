@@ -1,4 +1,5 @@
 import type { Card } from "./card";
+import type { Cosmetic } from "./premium";
 
 export interface AvatarInfo {
     character_id: string;
@@ -40,6 +41,8 @@ export interface Showcase {
     best_global_rank: number | null;
     achievements: ShowcaseAchievement[];
     achievement_slots: (string | null)[];
+    avatar_frame: Cosmetic | null;
+    showcase_background: Cosmetic | null;
 }
 
 export interface TradeListingSlotIn {

@@ -16,6 +16,8 @@ from app.schemas.showcase import ShowcaseResponse, AvatarInfo, TradeListingOut, 
 from app.services.card_view import build_card_response
 from app.services.levels import get_all_tiers, get_total_power, current_level_for_power
 from app.services.ranking import current_global_rank
+from app.models.premium import Cosmetic, UserCosmetic
+from app.schemas.premium import CosmeticOut
 
 ACHIEVEMENT_SLOT_FIELDS = ("showcase_achievement_1_id", "showcase_achievement_2_id", "showcase_achievement_3_id")
 
@@ -70,6 +72,16 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
 
     level = current_level_for_power(await get_all_tiers(session), await get_total_power(session, target.id))
 
+    async def equipped(cosmetic_id: str | None) -> CosmeticOut | None:
+        # Re-vérifie la possession : un cosmétique retiré ne s'affiche plus.
+        if not cosmetic_id or not await session.get(UserCosmetic, (target.id, cosmetic_id)):
+            return None
+        c = await session.get(Cosmetic, cosmetic_id)
+        return CosmeticOut(
+            id=c.id, kind=c.kind, name=c.name, description=c.description, color_from=c.color_from,
+            color_to=c.color_to, animation=c.animation, image_url=c.image_url, active=c.active,
+        ) if c else None
+
     friendship_status = "self"
     if viewer_id is not None and viewer_id != target.id:
         rel = (await session.execute(
@@ -97,4 +109,6 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
         best_global_rank=target.best_global_rank,
         achievements=achievements,
         achievement_slots=achievement_slots,
+        avatar_frame=await equipped(target.equipped_avatar_frame_id),
+        showcase_background=await equipped(target.equipped_showcase_background_id),
     )

@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { shopApi } from "@/api/shop";
-import { useBoosters } from "@/hooks/useBoosters";
+import { boostersApi } from "@/api/boosters";
 import { useRewardPopupStore, type RewardItem } from "@/stores/rewardPopupStore";
 import Button from "@/components/ui/Button";
 import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import { FULL_TIER_ORDER, type TierAxis } from "@/utils/cardTiers";
 import type { Card } from "@/types/card";
+import { CosmeticPreview, COSMETIC_KIND_LABEL } from "@/components/cosmetics/CosmeticVisuals";
 
 type RerollItem = Extract<RewardItem, { kind: "reroll" }>;
 type StackItem = Extract<RewardItem, { kind: "resource" | "booster" }>;
@@ -90,7 +91,11 @@ export default function RewardPopup() {
     const { data: resources } = useQuery({
         queryKey: ["resources-catalog"], queryFn: shopApi.resources, enabled: !!batch, staleTime: 5 * 60 * 1000,
     });
-    const { data: boosters } = useBoosters();
+    // Chargé seulement quand un récapitulatif s'affiche : ce composant est monté
+    // sur toutes les pages, y compris la connexion (appel non authentifié → 401).
+    const { data: boosters } = useQuery({
+        queryKey: ["boosters"], queryFn: boostersApi.list, enabled: !!batch, staleTime: 5 * 60 * 1000,
+    });
 
     const resourceName = (id: string) =>
         resources?.find((r) => r.id === id)?.name ?? (id === "coins" ? "Pièces" : id);
@@ -99,6 +104,7 @@ export default function RewardPopup() {
     const cards = batch?.items.filter((i): i is Extract<RewardItem, { kind: "card" }> => i.kind === "card") ?? [];
     const others = batch?.items.filter((i): i is StackItem => i.kind === "resource" || i.kind === "booster") ?? [];
     const rerolls = batch?.items.filter((i): i is RerollItem => i.kind === "reroll") ?? [];
+    const cosmetics = batch?.items.filter((i): i is Extract<RewardItem, { kind: "cosmetic" }> => i.kind === "cosmetic") ?? [];
 
     return (
         <AnimatePresence mode="wait">
@@ -122,6 +128,15 @@ export default function RewardPopup() {
 
                         <div className="space-y-2 max-h-[55vh] overflow-y-auto">
                             {rerolls.map((item, i) => <RerollSummary key={`r${i}`} item={item} />)}
+                            {cosmetics.map(({ cosmetic }) => (
+                                <div key={cosmetic.id} className="flex items-center gap-3 bg-purple-500/10 border border-purple-400/30 rounded-xl px-4 py-3">
+                                    <CosmeticPreview cosmetic={cosmetic} size={44} />
+                                    <div>
+                                        <p className="text-white font-bold text-sm">{cosmetic.name}</p>
+                                        <p className="text-white/50 text-xs">{COSMETIC_KIND_LABEL[cosmetic.kind]} — à équiper depuis ta vitrine</p>
+                                    </div>
+                                </div>
+                            ))}
                             {others.map((item, i) => (
                                 <RewardRow key={i} item={item} resourceName={resourceName} boosterName={boosterName} />
                             ))}

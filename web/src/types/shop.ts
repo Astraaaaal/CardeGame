@@ -2,7 +2,7 @@ import type { Card } from "./card";
 
 export interface ShopOffer {
     id: string;
-    kind: "booster" | "specific_card" | "reroll";
+    kind: "booster" | "specific_card" | "reroll" | "cosmetic";
     name: string;
     description: string;
     resource_id: string;
@@ -31,6 +31,8 @@ export interface ShopOffer {
     reroll_specialty: boolean;
     reroll_jewelry: boolean;
     reroll_mode: "random" | "guaranteed_min" | null;
+    cosmetic_id: string | null;
+    cosmetic_name: string | null;
 }
 
 export interface ShopBuyResponse {

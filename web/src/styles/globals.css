@@ -34,3 +34,19 @@
     text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
   }
 }
+
+/* ── Cosmétiques (cadres d'avatar, fonds de vitrine) ── */
+@keyframes cosmetic-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes cosmetic-pulse {
+  0%, 100% { box-shadow: 0 0 6px var(--cosmetic-glow); }
+  50% { box-shadow: 0 0 22px var(--cosmetic-glow); }
+}
+@keyframes cosmetic-hue {
+  to { filter: hue-rotate(360deg); }
+}
+@keyframes cosmetic-pan {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}

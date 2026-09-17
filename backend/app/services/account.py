@@ -17,6 +17,7 @@ from app.models.message import Message
 from app.models.achievement import UserAchievement
 from app.models.quest import QuestProgress, UserQuest
 from app.models.booster_inventory import UserBoosterInventory, UserBonusBooster
+from app.models.premium import UserCosmetic, PremiumOrder
 from app.services import account_email
 from app.models.trade_session import TradeSession, TradeSessionItem
 
@@ -33,6 +34,9 @@ async def delete_account(session: AsyncSession, user: User) -> None:
 
     await session.execute(delete(UserBoosterInventory).where(UserBoosterInventory.user_id == user_id))
     await session.execute(delete(UserBonusBooster).where(UserBonusBooster.user_id == user_id))
+    await session.execute(delete(UserCosmetic).where(UserCosmetic.user_id == user_id))
+    # Commandes conservées pour la comptabilité, détachées du compte.
+    await session.execute(update(PremiumOrder).where(PremiumOrder.user_id == user_id).values(user_id=None))
     await account_email.purge_for_user(session, user)
     await session.execute(delete(UserAchievement).where(UserAchievement.user_id == user_id))
     await session.execute(delete(QuestProgress).where(QuestProgress.user_id == user_id))

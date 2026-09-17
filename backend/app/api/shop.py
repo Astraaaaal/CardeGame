@@ -27,6 +27,8 @@ from app.services.wallet import get_balance, apply_delta
 from app.services.power import roll_power
 from app.services.ranking import refresh_all_best_ranks
 from app.services import booster_inventory
+from app.services import premium as premium_svc
+from app.models.premium import Cosmetic
 
 router = APIRouter()
 pack_service = PackService()
@@ -67,6 +69,7 @@ async def _offer_response(
         reroll_specialty=o.reroll_specialty, reroll_jewelry=o.reroll_jewelry,
         reroll_power=o.reroll_power,
         reroll_mode=o.reroll_mode,
+        cosmetic_id=o.cosmetic_id, cosmetic_name=await name_of(Cosmetic, o.cosmetic_id),
     )
 
 
@@ -91,8 +94,12 @@ async def list_offers(
         select(ShopOffer).where(ShopOffer.active == True)  # noqa: E712
     )).scalars().all()
     featured_id = await get_todays_featured_offer_id(session)
+    premium_access = await premium_svc.has_access(session, user)
     out = []
     for o in offers:
+        # Offres payées en monnaie premium : réservées à la boutique premium (fermée sauf testeurs).
+        if o.resource_id == premium_svc.PREMIUM_RESOURCE_ID and not premium_access:
+            continue
         purchases = await _purchases_today(session, user.id, o.id) if o.purchase_limit_per_day else 0
         out.append(await _offer_response(session, o, featured_id, purchases))
     return out
@@ -147,6 +154,9 @@ async def buy_offer(
     offer = await session.get(ShopOffer, request.offer_id)
     if not offer or not offer.active:
         raise HTTPException(status_code=404, detail="Offre introuvable ou inactive.")
+
+    if offer.resource_id == premium_svc.PREMIUM_RESOURCE_ID:
+        await premium_svc.require_access(session, user)
 
     if offer.purchase_limit_per_day:
         done_today = await _purchases_today(session, user.id, offer.id)
@@ -275,6 +285,14 @@ async def buy_offer(
             )
         session.add(card)
         cards_out = [await build_card_response(session, card)]
+
+    elif offer.kind == "cosmetic":
+        cosmetic = await session.get(Cosmetic, offer.cosmetic_id) if offer.cosmetic_id else None
+        if not cosmetic:
+            raise HTTPException(status_code=500, detail="Cosmétique de l'offre introuvable.")
+        if not await premium_svc.grant_cosmetic(session, user.id, cosmetic.id):
+            raise HTTPException(status_code=409, detail="Tu possèdes déjà ce cosmétique.")
+        message = f"« {cosmetic.name} » débloqué !"
 
     else:
         raise HTTPException(status_code=500, detail=f"Type d'offre inconnu: {offer.kind}")

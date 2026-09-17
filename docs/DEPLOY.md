@@ -32,6 +32,28 @@ Sur le service `cardegame-api` → onglet **Environment** :
 | `BREVO_API_KEY` | clé API Brevo (SMTP & API → Clés API) — vide = e-mails écrits dans les logs |
 | `BREVO_NEWSLETTER_LIST_ID` | numéro de la liste Brevo des abonnés newsletter — vide/0 = pas de synchro |
 | `EMAIL_SENDER_ADDRESS` | adresse d'expédition **validée dans Brevo** (domaine authentifié) |
+| `STRIPE_SECRET_KEY` | clé Stripe — de préférence une **clé restreinte** (`rk_test_…` pour tester, `rk_live_…` en réel) avec la seule permission *Checkout Sessions : écriture* ; une clé secrète `sk_…` marche aussi — vide = achats refusés |
+| `STRIPE_WEBHOOK_SECRET` | secret du webhook Stripe (`whsec_…`), voir ci-dessous — vide = achats refusés |
+
+La boutique premium reste **fermée** tant qu'elle n'est pas activée dans le panel admin (onglet Premium) ;
+seuls les pseudos listés comme testeurs la voient avant.
+
+### Webhook Stripe
+
+Dashboard Stripe → **Développeurs → Webhooks → Ajouter une destination** (en mode test, puis à refaire en mode live) :
+
+- URL : `https://cardegame-api.onrender.com/api/premium/stripe-webhook`
+- Événements : `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+  `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`
+- Copier le **secret de signature** (`whsec_…`) dans `STRIPE_WEBHOOK_SECRET`.
+
+Une commande n'est créditée qu'à la réception de `checkout.session.completed` (montant et devise vérifiés) ;
+une page de paiement expire au bout de 30 min et la commande passe alors en « Échouée ».
+Un remboursement fait depuis Stripe passe la commande en « Remboursée » sans retirer le contenu crédité.
+
+En local : installer la [CLI Stripe](https://docs.stripe.com/stripe-cli), `stripe login`, puis
+`stripe listen --forward-to localhost:8000/api/premium/stripe-webhook` — le `whsec_…` affiché va dans `backend/.env`.
+Carte de test : `4242 4242 4242 4242`, date future, CVC quelconque.
 
 Save → l'API redéploie.
 

@@ -38,7 +38,7 @@ export interface AdminResource {
 
 export interface AdminShopOffer {
     id: string;
-    kind: "booster" | "specific_card" | "reroll";
+    kind: "booster" | "specific_card" | "reroll" | "cosmetic";
     name: string;
     description: string;
     active: boolean;
@@ -69,6 +69,8 @@ export interface AdminShopOffer {
     reroll_jewelry: boolean;
     reroll_power: boolean;
     reroll_mode: "random" | "guaranteed_min" | null;
+    cosmetic_id: string | null;
+    cosmetic_name?: string | null;
 }
 
 export interface DailyFeature {
