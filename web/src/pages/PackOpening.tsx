@@ -63,7 +63,8 @@ export default function PackOpening() {
 
   // Résumé final (après « Tout révéler » ou fin naturelle)
   if (!isRevealing) {
-    const allCards = packs.flat();
+    // Plus chanceuse d'abord (même critère que le tri « Chance » de la collection).
+    const allCards = packs.flat().sort((a, b) => (b.combined_rarity ?? 0) - (a.combined_rarity ?? 0));
 
     return (
       <div className="min-h-screen bg-game-bg flex flex-col items-center justify-center px-4 py-8">
@@ -136,7 +137,7 @@ export default function PackOpening() {
 
       {/* Card reveal */}
       <main className="flex-1 flex items-center justify-center px-4">
-        {card && <CardReveal card={card} onNext={handleNext} />}
+        {card && <CardReveal key={`${currentPackIndex}-${currentCardIndex}`} card={card} onNext={handleNext} />}
       </main>
     </div>
   );

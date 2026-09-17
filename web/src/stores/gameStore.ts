@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Card } from "@/types/card";
 import type { Booster } from "@/types/booster";
+import { orderPackForReveal } from "@/utils/cardTiers";
 
 interface GameState {
     // Pack opening state
@@ -31,7 +32,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     setPacks: (packs) =>
         set({
-            currentPacks: packs,
+            currentPacks: packs.map(orderPackForReveal),
             currentPackIndex: 0,
             currentCardIndex: 0,
             isRevealing: true,
