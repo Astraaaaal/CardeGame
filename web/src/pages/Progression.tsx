@@ -256,8 +256,8 @@ export default function Progression() {
             <div className="flex border-b border-white/5">
                 {([
                     { key: "road", label: "Route des niveaux" },
-                    { key: "achievements", label: "Achievements" },
                     { key: "quests", label: "Quêtes" },
+                    { key: "achievements", label: "Achievements" },
                 ] as const).map((t) => (
                     <button
                         key={t.key}
