@@ -262,6 +262,8 @@ export interface PremiumProductInput {
     price_cents: number;
     grants: Grant[];
     once_per_account: boolean;
+    limit_period: "none" | "day" | "week" | "month" | "account";
+    limit_count: number;
     active: boolean;
     sort_order: number;
 }

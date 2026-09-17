@@ -33,6 +33,8 @@ export interface PremiumProduct {
     currency: string;
     grants: GrantOut[];
     once_per_account: boolean;
+    limit_period: "none" | "day" | "week" | "month" | "account";
+    limit_count: number;
     already_purchased: boolean;
     active: boolean;
     sort_order: number;

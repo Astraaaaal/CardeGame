@@ -1,8 +1,17 @@
 import type { Card } from "./card";
 
+export type LimitPeriod = "none" | "day" | "week" | "month" | "account";
+
+export interface OfferGrant {
+    kind: "resource" | "booster" | "cosmetic";
+    id: string;
+    amount: number;
+    name: string;
+}
+
 export interface ShopOffer {
     id: string;
-    kind: "booster" | "specific_card" | "reroll" | "cosmetic";
+    kind: "booster" | "specific_card" | "reroll" | "cosmetic" | "bundle";
     name: string;
     description: string;
     resource_id: string;
@@ -10,6 +19,12 @@ export interface ShopOffer {
     price: number;
     purchase_limit_per_day: number | null;
     purchases_today: number;
+    /** Limite réglable : période, nombre autorisé, achats déjà faits. */
+    limit_period: LimitPeriod;
+    limit_count: number;
+    purchases_in_period: number;
+    /** Contenu d'un lot (kind = bundle). */
+    grants: OfferGrant[];
     is_daily_pool: boolean;
     featured_today: boolean;
     booster_id: string | null;

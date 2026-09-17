@@ -77,6 +77,8 @@ class PremiumProductIn(BaseModel):
     currency: Literal["eur"] = "eur"
     grants: list[GrantIn] = Field(min_length=1)
     once_per_account: bool = False
+    limit_period: Literal["none", "day", "week", "month", "account"] = "none"
+    limit_count: int = Field(default=1, ge=1)
     active: bool = True
     sort_order: int = 0
 
@@ -87,6 +89,8 @@ class PremiumProductPatch(BaseModel):
     price_cents: int | None = Field(default=None, ge=50)
     grants: list[GrantIn] | None = Field(default=None, min_length=1)
     once_per_account: bool | None = None
+    limit_period: Literal["none", "day", "week", "month", "account"] | None = None
+    limit_count: int | None = Field(default=None, ge=1)
     active: bool | None = None
     sort_order: int | None = None
 

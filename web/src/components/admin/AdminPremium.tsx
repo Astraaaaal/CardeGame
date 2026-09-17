@@ -4,6 +4,8 @@ import { adminApi, adminPremiumApi, type PremiumProductInput } from "@/api/admin
 import type { Cosmetic, CosmeticAnimation, CosmeticKind, Grant, PremiumProduct } from "@/types/premium";
 import { formatEuros } from "@/types/premium";
 import Button from "@/components/ui/Button";
+import LimitFields from "./LimitFields";
+import { LIMIT_PERIOD_LABEL } from "@/utils/purchaseLimits";
 import Modal from "@/components/ui/Modal";
 import Toggle from "@/components/ui/Toggle";
 import { CosmeticPreview, COSMETIC_KIND_LABEL } from "@/components/cosmetics/CosmeticVisuals";
@@ -182,8 +184,13 @@ function ProductForm({ initial, cosmetics, onDone }: {
             id: initial.id, name: initial.name, description: initial.description, price_cents: initial.price_cents,
             grants: initial.grants.map(({ kind, id, amount }) => ({ kind, id, amount })),
             once_per_account: initial.once_per_account, active: initial.active, sort_order: initial.sort_order,
+            limit_period: initial.limit_period, limit_count: initial.limit_count,
         }
-        : { id: "", name: "", description: "", price_cents: 499, grants: [{ kind: "resource", id: "shards", amount: 500 }], once_per_account: false, active: true, sort_order: 0 });
+        : {
+            id: "", name: "", description: "", price_cents: 499,
+            grants: [{ kind: "resource", id: "shards", amount: 500 }],
+            once_per_account: false, limit_period: "none" as const, limit_count: 1, active: true, sort_order: 0,
+        });
     const [err, setErr] = useState("");
     const m = useMutation({
         mutationFn: () => isNew ? adminPremiumApi.createProduct(f) : adminPremiumApi.updateProduct(f.id, f),
@@ -248,6 +255,11 @@ function ProductForm({ initial, cosmetics, onDone }: {
                     </button>
                 </div>
             </div>
+            <LimitFields
+                period={f.limit_period}
+                count={f.limit_count}
+                onChange={(limit) => setF({ ...f, ...limit, once_per_account: limit.limit_period === "account" && limit.limit_count === 1 })}
+            />
             <div>
                 <label className={labelCls}>Description</label>
                 <textarea className={inputCls} rows={2} value={f.description}
@@ -260,11 +272,6 @@ function ProductForm({ initial, cosmetics, onDone }: {
                         onChange={(e) => setF({ ...f, sort_order: +e.target.value })} />
                 </div>
                 <div className="space-y-1 pb-1">
-                    <label className="flex items-center gap-2 text-sm text-white/80">
-                        <input type="checkbox" checked={f.once_per_account}
-                            onChange={(e) => setF({ ...f, once_per_account: e.target.checked })} />
-                        Une fois par compte
-                    </label>
                     <label className="flex items-center gap-2 text-sm text-white/80">
                         <input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} />
                         Actif
@@ -315,7 +322,7 @@ export default function AdminPremium() {
                             </p>
                             <p className="text-white/40 text-xs truncate">
                                 {p.grants.map((g) => (g.kind === "cosmetic" ? g.name : `${g.amount} ${g.name}`)).join(" + ")}
-                                {p.once_per_account ? " · 1 fois/compte" : ""}
+                                {p.limit_period !== "none" ? ` · ${p.limit_count} ${LIMIT_PERIOD_LABEL[p.limit_period]}` : ""}
                             </p>
                         </button>
                         <button className="text-red-400/70 hover:text-red-400 text-sm px-2"

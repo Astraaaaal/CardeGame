@@ -26,7 +26,7 @@ from app.services.card_view import build_card_response
 from app.services.daily_feature import get_todays_featured_offer_id
 from app.services.wallet import get_balance, apply_delta
 from app.services.ranking import refresh_all_best_ranks
-from app.services import activity, booster_inventory, quest_progress, reroll_inventory
+from app.services import activity, booster_inventory, purchase_limits, quest_progress, reroll_inventory
 from app.services.reroll import apply_reroll, assign_bought_card_power
 from app.services import premium as premium_svc
 from app.models.premium import Cosmetic
@@ -51,6 +51,9 @@ async def _offer_response(
         price=o.price,
         purchase_limit_per_day=o.purchase_limit_per_day,
         purchases_today=purchases_today,
+        limit_period=_limit_period(o), limit_count=_limit_count(o),
+        purchases_in_period=purchases_today,
+        grants=[{**g, "name": await _grant_name(session, g["kind"], g["id"])} for g in (o.grants or [])],
         is_daily_pool=o.is_daily_pool,
         featured_today=(featured_id is not None and o.id == featured_id),
         booster_id=o.booster_id,
@@ -71,15 +74,36 @@ async def _offer_response(
     )
 
 
-async def _purchases_today(session: AsyncSession, user_id: int, offer_id: str) -> int:
-    start = datetime.combine(date.today(), datetime.min.time())
-    return (await session.execute(
-        select(func.count()).select_from(ShopPurchase).where(
-            ShopPurchase.user_id == user_id,
-            ShopPurchase.offer_id == offer_id,
-            ShopPurchase.purchased_at >= start,
-        )
-    )).scalar_one()
+async def _grant_name(session: AsyncSession, kind: str, item_id: str) -> str:
+    if kind == "resource" and item_id == "coins":
+        return "Pièces"
+    model = {"resource": Resource, "booster": Booster, "cosmetic": Cosmetic}.get(kind)
+    row = await session.get(model, item_id) if model else None
+    return row.name if row else item_id
+
+
+async def _purchases_in_period(session: AsyncSession, user_id: int, offer: ShopOffer) -> int:
+    """Achats déjà faits sur la période de la limite de cette offre."""
+    query = select(func.count()).select_from(ShopPurchase).where(
+        ShopPurchase.user_id == user_id, ShopPurchase.offer_id == offer.id,
+    )
+    start = purchase_limits.window_start(_limit_period(offer))
+    if start is not None:
+        query = query.where(ShopPurchase.purchased_at >= start)
+    return (await session.execute(query)).scalar_one()
+
+
+def _limit_period(offer: ShopOffer) -> str:
+    """Période effective : les anciennes offres n'ont qu'une limite par jour."""
+    if offer.limit_period != purchase_limits.PERIOD_NONE:
+        return offer.limit_period
+    return purchase_limits.PERIOD_DAY if offer.purchase_limit_per_day else purchase_limits.PERIOD_NONE
+
+
+def _limit_count(offer: ShopOffer) -> int:
+    if offer.limit_period != purchase_limits.PERIOD_NONE:
+        return offer.limit_count
+    return offer.purchase_limit_per_day or 0
 
 
 @router.get("/", response_model=list[ShopOfferResponse])
@@ -98,7 +122,8 @@ async def list_offers(
         # Offres payées en monnaie premium : réservées à la boutique premium (fermée sauf testeurs).
         if o.resource_id == premium_svc.PREMIUM_RESOURCE_ID and not premium_access:
             continue
-        purchases = await _purchases_today(session, user.id, o.id) if o.purchase_limit_per_day else 0
+        limited = _limit_period(o) != purchase_limits.PERIOD_NONE
+        purchases = await _purchases_in_period(session, user.id, o) if limited else 0
         out.append(await _offer_response(session, o, featured_id, purchases))
     return out
 
@@ -130,21 +155,24 @@ async def buy_offer(
 
     quantity = request.quantity
     if quantity > 1 and not (
-        offer.kind in ("booster", "specific_card") or (offer.kind == "reroll" and request.to_inventory)
+        offer.kind in ("booster", "specific_card", "bundle") or (offer.kind == "reroll" and request.to_inventory)
     ):
         raise HTTPException(status_code=400, detail="Cette offre ne s'achète qu'à l'unité.")
 
     if offer.resource_id == premium_svc.PREMIUM_RESOURCE_ID:
         await premium_svc.require_access(session, user)
 
-    if offer.purchase_limit_per_day:
-        done_today = await _purchases_today(session, user.id, offer.id)
-        if done_today + quantity > offer.purchase_limit_per_day:
-            left = max(0, offer.purchase_limit_per_day - done_today)
+    period = _limit_period(offer)
+    if period != purchase_limits.PERIOD_NONE:
+        allowed = _limit_count(offer)
+        done = await _purchases_in_period(session, user.id, offer)
+        if done + quantity > allowed:
+            left = max(0, allowed - done)
+            when = purchase_limits.label(period)
             raise HTTPException(
                 status_code=400,
-                detail=f"Limite quotidienne atteinte pour « {offer.name} » "
-                       f"({done_today}/{offer.purchase_limit_per_day}, encore {left} possible(s) aujourd'hui).",
+                detail=f"Limite atteinte pour « {offer.name} » ({done}/{allowed} {when}, "
+                       f"encore {left} possible(s)).",
             )
 
     total_price = offer.price * quantity
@@ -243,6 +271,12 @@ async def buy_offer(
         await apply_reroll(session, card, offer)
         await activity.track_reroll(session, user, previous_card.rarity_id, card)
         cards_out = [await build_card_response(session, card)]
+
+    elif offer.kind == "bundle":
+        if not offer.grants:
+            raise HTTPException(status_code=500, detail="Lot vide (aucun contenu configuré).")
+        for _ in range(quantity):
+            await premium_svc.apply_grants(session, user, offer.grants)
 
     elif offer.kind == "cosmetic":
         cosmetic = await session.get(Cosmetic, offer.cosmetic_id) if offer.cosmetic_id else None

@@ -23,6 +23,7 @@ import BottomNav from "@/components/layout/BottomNav";
 import PremiumTab, { PREMIUM_RESOURCE_ID } from "@/components/shop/PremiumTab";
 import { premiumApi } from "@/api/premium";
 import { getResourceBalance } from "@/utils/resources";
+import { LIMIT_WHEN_LABEL } from "@/utils/purchaseLimits";
 import { errMsg } from "@/utils/errors";
 import { useRerollTokens, useRerollTokenUse, REROLL_TOKEN_PURPOSE } from "@/hooks/useRerollTokens";
 
@@ -211,6 +212,10 @@ function TradePendingNotice() {
 }
 
 function offerPreview(o: ShopOffer): string {
+    if (o.kind === "bundle") {
+        return o.grants.map((g) => (g.kind === "cosmetic" ? g.name : `${g.amount.toLocaleString("fr-FR")} ${g.name}`)).join(" + ")
+            || "Lot vide";
+    }
     if (o.kind === "booster") {
         const bits = ["Ouvre 1 pack"];
         if (o.force_min_rarity_name) bits.push(`min. ${o.force_min_rarity_name} garanti`);
@@ -233,7 +238,8 @@ function offerPreview(o: ShopOffer): string {
 const QUANTITIES: Quantity[] = [1, 5, 10];
 
 /** Offres achetables par ×5 / ×10 : les rerolls seulement vers l'inventaire. */
-const isMultiBuyable = (o: ShopOffer) => o.kind === "booster" || o.kind === "specific_card" || o.kind === "reroll";
+const isMultiBuyable = (o: ShopOffer) =>
+    o.kind === "booster" || o.kind === "specific_card" || o.kind === "reroll" || o.kind === "bundle";
 
 function ResourcesTab() {
     const navigate = useNavigate();
@@ -281,6 +287,20 @@ function ResourcesTab() {
                     ["specialty", offer.reroll_specialty], ["jewelry", offer.reroll_jewelry],
                 ] as const).filter(([, on]) => on).map(([axis]) => axis);
                 showRewards({ title: offer.name, items: [{ kind: "reroll", before: res.previous_card, after: res.cards[0], axes }] });
+                setFeedback({ offerId: offer.id, text: res.message, ok: true });
+                return;
+            }
+            if (offer.kind === "bundle") {
+                showRewards({
+                    title: quantity > 1 ? `${offer.name} ×${quantity}` : offer.name,
+                    items: offer.grants.map((g) => (
+                        g.kind === "resource"
+                            ? { kind: "resource" as const, resourceId: g.id, amount: g.amount * quantity, name: g.name }
+                            : { kind: "booster" as const, boosterId: g.id, quantity: g.amount * quantity, name: g.name }
+                    )),
+                });
+                qc.invalidateQueries({ queryKey: ["my-cosmetics"] });
+                qc.invalidateQueries({ queryKey: ["booster-inventory"] });
                 setFeedback({ offerId: offer.id, text: res.message, ok: true });
                 return;
             }
@@ -340,13 +360,12 @@ function ResourcesTab() {
             ) : (
                 <div className="space-y-3 max-w-sm mx-auto">
                     {offers.map((o) => {
-                        const limitReached = !!o.purchase_limit_per_day
-                            && o.purchases_today >= o.purchase_limit_per_day;
+                        const limited = o.limit_period !== "none";
+                        const limitReached = limited && o.purchases_in_period >= o.limit_count;
                         const blockedByTrade = tradePending && o.kind === "booster";
                         const balance = getResourceBalance(user, o.resource_id);
-                        const remainingToday = o.purchase_limit_per_day
-                            ? o.purchase_limit_per_day - o.purchases_today : Infinity;
-                        const canBuy = (n: number) => o.price * n <= balance && n <= remainingToday;
+                        const remaining = limited ? o.limit_count - o.purchases_in_period : Infinity;
+                        const canBuy = (n: number) => o.price * n <= balance && n <= remaining;
                         const multi = isMultiBuyable(o);
                         const chosen = quantities[o.id] ?? 1;
                         // Quantité choisie devenue impossible (achat entre-temps) : retour à ×1.
@@ -370,9 +389,9 @@ function ResourcesTab() {
                                 {o.description && (
                                     <p className="text-white/40 text-xs mb-2">{o.description}</p>
                                 )}
-                                {o.purchase_limit_per_day && (
+                                {limited && (
                                     <p className="text-white/40 text-xs mb-2">
-                                        {o.purchases_today}/{o.purchase_limit_per_day} aujourd'hui
+                                        {o.purchases_in_period}/{o.limit_count} {LIMIT_WHEN_LABEL[o.limit_period]}
                                     </p>
                                 )}
 

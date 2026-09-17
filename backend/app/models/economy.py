@@ -4,6 +4,7 @@ Modèles économie secondaire — ressources (recyclage), shop.
 
 from datetime import date, datetime
 from typing import Optional
+from sqlalchemy import JSON, Column
 from sqlmodel import SQLModel, Field
 
 
@@ -41,6 +42,10 @@ class ShopOffer(SQLModel, table=True):
     - "specific_card"    : donne directement une carte avec la combinaison fixée
     - "reroll"           : re-tire au hasard un ou plusieurs axes d'une carte
                             déjà possédée (rareté/qualité/spécialité/jewelry)
+    - "cosmetic"         : débloque un cosmétique (cf. app/models/premium.py)
+    - "bundle"           : un lot de plusieurs contenus (`grants`), même format
+                            que les produits premium : ressources (Éclats
+                            compris), boosters, cosmétiques
     Les colonnes non pertinentes pour un `kind` donné restent NULL.
     """
     __tablename__ = "shop_offers"
@@ -75,6 +80,15 @@ class ShopOffer(SQLModel, table=True):
     jewelry_id: Optional[str] = Field(default=None, foreign_key="jewelries.id", max_length=20)
     # Puissance de la carte vendue : "rolled" = tirée à l'achat selon la vraie
     # probabilité de la combinaison, "fixed" = card_power (plafonnée au maximum possible).
+    # kind = bundle : contenu du lot, liste de {"kind", "id", "amount"}.
+    grants: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, default=list))
+
+    # Limite d'achat : période (cf. app/services/purchase_limits.py) et nombre
+    # autorisé sur cette période. `purchase_limit_per_day` reste renseignée
+    # pour les offres créées avant cette option.
+    limit_period: str = Field(default="none", max_length=10)
+    limit_count: int = Field(default=1)
+
     card_power_mode: str = Field(default="rolled", max_length=10)
     card_power: Optional[int] = Field(default=None)
 

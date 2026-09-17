@@ -59,6 +59,11 @@ class PremiumProduct(SQLModel, table=True):
     price_cents: int = Field(default=0)
     currency: str = Field(default="eur", max_length=3)
     grants: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False, default=list))
+    # Limite d'achat : période (cf. app/services/purchase_limits.py) et nombre
+    # autorisé sur cette période. `once_per_account` (historique) est reprise
+    # en "account" par la migration.
+    limit_period: str = Field(default="none", max_length=10)
+    limit_count: int = Field(default=1)
     once_per_account: bool = Field(default=False)
     active: bool = Field(default=True)
     sort_order: int = Field(default=0)

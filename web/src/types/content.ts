@@ -38,7 +38,7 @@ export interface AdminResource {
 
 export interface AdminShopOffer {
     id: string;
-    kind: "booster" | "specific_card" | "reroll" | "cosmetic";
+    kind: "booster" | "specific_card" | "reroll" | "cosmetic" | "bundle";
     name: string;
     description: string;
     active: boolean;
@@ -71,6 +71,10 @@ export interface AdminShopOffer {
     reroll_mode: "random" | "guaranteed_min" | null;
     cosmetic_id: string | null;
     /** Carte précise : puissance tirée à l'achat ou fixe. */
+    limit_period: "none" | "day" | "week" | "month" | "account";
+    limit_count: number;
+    /** Contenu d'un lot (kind = bundle). */
+    grants: { kind: "resource" | "booster" | "cosmetic"; id: string; amount: number }[];
     card_power_mode: "rolled" | "fixed";
     card_power: number | null;
     cosmetic_name?: string | null;

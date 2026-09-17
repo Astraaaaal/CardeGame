@@ -20,6 +20,9 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import AdminMessagesComposer from "@/components/admin/AdminMessagesComposer";
+import GrantsEditor from "@/components/admin/GrantsEditor";
+import LimitFields from "@/components/admin/LimitFields";
+import { LIMIT_PERIOD_LABEL } from "@/utils/purchaseLimits";
 import AdminProgressionEditor from "@/components/admin/AdminProgressionEditor";
 import AdminBugReports from "@/components/admin/AdminBugReports";
 import AdminPremium from "@/components/admin/AdminPremium";
@@ -480,7 +483,8 @@ const OFFER_KINDS: { value: AdminShopOffer["kind"]; label: string }[] = [
     { value: "booster", label: "Booster" },
     { value: "specific_card", label: "Carte précise" },
     { value: "reroll", label: "Reroll (retirage)" },
-    { value: "cosmetic", label: "Cosmétique (boutique premium)" },
+    { value: "cosmetic", label: "Cosmétique" },
+    { value: "bundle", label: "Lot (plusieurs contenus)" },
 ];
 
 function ShopOfferForm({
@@ -500,6 +504,7 @@ function ShopOfferForm({
             id: "", name: "", description: "", kind: "booster",
             resource_id: resources[0]?.id ?? "", price: 10,
             booster_id: boosters[0]?.id,
+            limit_period: "none", limit_count: 1, grants: [],
         }
     );
     const [err, setErr] = useState("");
@@ -510,7 +515,8 @@ function ShopOfferForm({
     });
 
     const { data: cosmetics } = useQuery({
-        queryKey: ["admin", "cosmetics"], queryFn: adminPremiumApi.listCosmetics, enabled: f.kind === "cosmetic",
+        queryKey: ["admin", "cosmetics"], queryFn: adminPremiumApi.listCosmetics,
+        enabled: f.kind === "cosmetic" || f.kind === "bundle",
     });
     const rarities = tuning?.rarities ?? [];
     const qualities = tuning?.qualities ?? [];
@@ -692,20 +698,31 @@ function ShopOfferForm({
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3">
+            {f.kind === "bundle" && (
                 <div>
-                    <label className={labelCls}>Limite d'achat / jour / joueur</label>
-                    <input type="number" min="1" className={inputCls}
-                        value={f.purchase_limit_per_day ?? ""}
-                        placeholder="illimité"
-                        onChange={(e) => setF({ ...f, purchase_limit_per_day: e.target.value ? +e.target.value : undefined })} />
+                    <label className={labelCls}>Contenu du lot</label>
+                    <GrantsEditor
+                        grants={f.grants ?? []}
+                        options={{
+                            resources: resources.map((r) => ({ id: r.id, name: r.name })),
+                            boosters: boosters.map((b) => ({ id: b.id, name: b.name })),
+                            cosmetics: (cosmetics ?? []).map((c) => ({ id: c.id, name: c.name })),
+                        }}
+                        onChange={(grants) => setF({ ...f, grants })}
+                    />
                 </div>
-                <label className="flex items-center gap-2 text-sm text-white/80 mt-5">
-                    <input type="checkbox" checked={!!f.is_daily_pool}
-                        onChange={(e) => setF({ ...f, is_daily_pool: e.target.checked })} />
-                    Dans la rotation "du jour"
-                </label>
-            </div>
+            )}
+
+            <LimitFields
+                period={f.limit_period ?? "none"}
+                count={f.limit_count ?? 1}
+                onChange={(limit) => setF({ ...f, ...limit })}
+            />
+            <label className="flex items-center gap-2 text-sm text-white/80">
+                <input type="checkbox" checked={!!f.is_daily_pool}
+                    onChange={(e) => setF({ ...f, is_daily_pool: e.target.checked })} />
+                Dans la rotation "du jour"
+            </label>
 
             <div>
                 <label className={labelCls}>Description</label>
@@ -1167,7 +1184,8 @@ function Panel() {
                                     </p>
                                     <p className="text-white/40 text-xs truncate">
                                         {o.kind} — {o.price} {o.resource_name}
-                                        {o.purchase_limit_per_day ? ` — limite ${o.purchase_limit_per_day}/j` : ""}
+                                        {o.limit_period !== "none" ? ` — limite ${o.limit_count} ${LIMIT_PERIOD_LABEL[o.limit_period]}` : ""}
+                                        {o.kind === "bundle" ? ` — ${o.grants.length} contenu(s)` : ""}
                                         {o.is_daily_pool ? " — pool du jour" : ""}
                                         {o.kind === "booster" && o.force_min_rarity_name ? ` — min. ${o.force_min_rarity_name}` : ""}
                                         {o.kind === "booster" && o.rarity_weight_multiplier ? ` — x${o.rarity_weight_multiplier} rare+` : ""}

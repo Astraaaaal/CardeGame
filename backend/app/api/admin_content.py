@@ -24,6 +24,7 @@ from app.schemas.content import (
     CharacterIn, CharacterPatch, CharacterOut, CharacterSetLink,
     TypeIn, TypePatch, TypeOut,
 )
+from app.services import premium as premium_svc
 from app.schemas.economy import ResourceIn, ResourcePatch, ShopOfferIn, ShopOfferPatch, DailyFeatureIn, DailyFeatureOut
 from app.schemas.progression_admin import LevelTierPatch, AchievementDefPatch, QuestDefPatch
 from app.schemas.game_config import GameConfigPatch
@@ -464,6 +465,10 @@ async def create_shop_offer(body: ShopOfferIn, session: AsyncSession = Depends(g
             400, "Personnage, rareté, qualité, spécialité et jewelry sont requis "
                  "pour une offre de type 'specific_card'.",
         )
+    if body.kind == "bundle":
+        if not body.grants:
+            raise HTTPException(400, "Choisis au moins un contenu pour une offre de type « lot ».")
+        await premium_svc.validate_grants(session, body.grants)
     if body.kind == "specific_card" and body.card_power_mode == "fixed" and not body.card_power:
         raise HTTPException(400, "Indique la puissance fixe de la carte.")
     if body.kind == "reroll":
@@ -505,6 +510,11 @@ async def update_shop_offer(
         if not data.get("reroll_mode", o.reroll_mode):
             raise HTTPException(400, "Choisis un mode de reroll (aléatoire ou garanti égal/mieux).")
 
+    if kind == "bundle":
+        grants = data.get("grants", o.grants)
+        if not grants:
+            raise HTTPException(400, "Choisis au moins un contenu pour une offre de type « lot ».")
+        await premium_svc.validate_grants(session, grants)
     if kind == "specific_card" and data.get("card_power_mode", o.card_power_mode) == "fixed" \
             and not data.get("card_power", o.card_power):
         raise HTTPException(400, "Indique la puissance fixe de la carte.")

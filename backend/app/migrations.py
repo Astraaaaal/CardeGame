@@ -8,6 +8,8 @@ Chaque étape doit pouvoir être rejouée sans risque à chaque démarrage.
 
 import logging
 
+import json
+
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
@@ -138,6 +140,17 @@ _STATEMENTS = [
     "ALTER TABLE trade_session_items ADD COLUMN IF NOT EXISTS booster_id VARCHAR(30)",
     "ALTER TABLE trade_session_items ADD COLUMN IF NOT EXISTS bonus_id INTEGER",
     "ALTER TABLE trade_session_items ADD COLUMN IF NOT EXISTS reroll_token_id INTEGER",
+    # Limites d'achat réglables (jour / semaine / mois / une fois par compte)
+    # et offres « lot » (plusieurs contenus).
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS grants JSON NOT NULL DEFAULT '[]'::json",
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS limit_period VARCHAR(10) NOT NULL DEFAULT 'none'",
+    "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS limit_count INTEGER NOT NULL DEFAULT 1",
+    "UPDATE shop_offers SET limit_period = 'day', limit_count = purchase_limit_per_day "
+    "WHERE purchase_limit_per_day IS NOT NULL AND limit_period = 'none'",
+    "ALTER TABLE premium_products ADD COLUMN IF NOT EXISTS limit_period VARCHAR(10) NOT NULL DEFAULT 'none'",
+    "ALTER TABLE premium_products ADD COLUMN IF NOT EXISTS limit_count INTEGER NOT NULL DEFAULT 1",
+    "UPDATE premium_products SET limit_period = 'account', limit_count = 1 "
+    "WHERE once_per_account = TRUE AND limit_period = 'none'",
     # Carte précise du shop : puissance tirée à l'achat ou fixée par l'admin.
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power_mode VARCHAR(10) NOT NULL DEFAULT 'rolled'",
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power INTEGER",
@@ -295,6 +308,17 @@ _DEFAULT_QUESTS = [
     ("w_friend_request_3", "Réseau grandissant", "Envoie 3 demandes d'ami cette semaine.", "weekly", "friend_requests_sent", 3, "coins", 150),
 ]
 
+# Paliers d'Éclats vendus en euros (argent réel -> Éclats uniquement) :
+# id, nom, prix en centimes, Éclats crédités. Modifiables depuis l'admin.
+_DEFAULT_SHARD_PACKS = [
+    ("shards_099", "Poignée d'Éclats", 99, 90),
+    ("shards_499", "Petit sac d'Éclats", 499, 550),
+    ("shards_999", "Sac d'Éclats", 999, 1_150),
+    ("shards_1999", "Grand sac d'Éclats", 1_999, 2_400),
+    ("shards_4999", "Coffre d'Éclats", 4_999, 6_250),
+    ("shards_9999", "Trésor d'Éclats", 9_999, 13_000),
+]
+
 # Valeurs de recyclage par défaut, par table et par id. Appliquées uniquement
 # si la valeur est encore à 0 (ne stomp pas un réglage déjà fait par un admin).
 _RECYCLE_DEFAULTS: dict[str, dict[str, int]] = {
@@ -427,6 +451,22 @@ async def apply_patches(conn: AsyncConnection) -> None:
             })
         except Exception as exc:  # noqa: BLE001
             logger.warning("seed quest %r: %s", q_id, exc)
+
+    insert_pack = text(
+        "INSERT INTO premium_products (id, name, description, price_cents, currency, grants, "
+        " once_per_account, limit_period, limit_count, active, sort_order) "
+        "VALUES (:id, :name, '', :price_cents, 'eur', CAST(:grants AS JSON), FALSE, 'none', 1, TRUE, :sort_order) "
+        "ON CONFLICT (id) DO NOTHING"
+    )
+    for order, (pack_id, name, price_cents, shards) in enumerate(_DEFAULT_SHARD_PACKS):
+        try:
+            await conn.execute(insert_pack, {
+                "id": pack_id, "name": name, "price_cents": price_cents,
+                "grants": json.dumps([{"kind": "resource", "id": "shards", "amount": shards}]),
+                "sort_order": order,
+            })
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("seed shard pack %r: %s", pack_id, exc)
 
     for table, values in _RECYCLE_DEFAULTS.items():
         update = text(

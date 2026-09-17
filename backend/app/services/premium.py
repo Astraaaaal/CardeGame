@@ -7,7 +7,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import func, select
 
 from app.models.booster import Booster
 from app.models.economy import Resource
@@ -18,6 +18,7 @@ from app.models.premium import (
 )
 from app.models.user import User
 from app.services import booster_inventory
+from app.services import purchase_limits
 from app.services.wallet import apply_delta
 
 PREMIUM_RESOURCE_ID = "shards"
@@ -79,18 +80,33 @@ async def apply_grants(session: AsyncSession, user: User, grants: list[dict]) ->
             await grant_cosmetic(session, user.id, item_id)
 
 
+def product_limit(product: PremiumProduct) -> tuple[str, int]:
+    """Période et nombre autorisé ; reprend l'ancien « une fois par compte »."""
+    if product.limit_period != purchase_limits.PERIOD_NONE:
+        return product.limit_period, max(1, product.limit_count)
+    if product.once_per_account:
+        return purchase_limits.PERIOD_ACCOUNT, 1
+    return purchase_limits.PERIOD_NONE, 0
+
+
 async def create_order(session: AsyncSession, user: User, product_id: str) -> PremiumOrder:
     await require_access(session, user)
     product = await session.get(PremiumProduct, product_id)
     if not product or not product.active:
         raise HTTPException(404, "Produit introuvable.")
-    if product.once_per_account:
-        already = (await session.execute(select(PremiumOrder.id).where(
+    period, allowed = product_limit(product)
+    if period != purchase_limits.PERIOD_NONE:
+        query = select(func.count()).select_from(PremiumOrder).where(
             PremiumOrder.user_id == user.id, PremiumOrder.product_id == product.id,
             PremiumOrder.status == ORDER_PAID,
-        ))).first()
-        if already:
-            raise HTTPException(409, "Cette offre n'est achetable qu'une fois par compte.")
+        )
+        start = purchase_limits.window_start(period)
+        if start is not None:
+            query = query.where(PremiumOrder.paid_at >= start)
+        done = (await session.execute(query)).scalar_one()
+        if done >= allowed:
+            when = purchase_limits.label(period)
+            raise HTTPException(409, f"Limite atteinte pour cette offre ({done}/{allowed} {when}).")
     order = PremiumOrder(
         user_id=user.id, product_id=product.id, product_name=product.name,
         amount_cents=product.price_cents, currency=product.currency, grants=list(product.grants),

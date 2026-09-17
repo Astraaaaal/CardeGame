@@ -3,6 +3,8 @@ Schemas — ressources, recyclage, shop.
 """
 
 from datetime import date
+from typing import Literal
+
 from pydantic import BaseModel, Field
 from app.schemas.card import CardResponse
 
@@ -42,6 +44,12 @@ class ShopOfferResponse(BaseModel):
     price: int
     purchase_limit_per_day: int | None = None
     purchases_today: int = 0  # renseigné uniquement dans la liste joueur
+    # Limite réglable : période (none | day | week | month | account) et nombre
+    # autorisé, avec les achats déjà faits sur la période en cours.
+    limit_period: str = "none"
+    limit_count: int = 1
+    purchases_in_period: int = 0
+    grants: list[dict] = []  # kind = bundle
     is_daily_pool: bool = False
     featured_today: bool = False  # cette offre est LE booster du jour
     # aperçu, selon le kind
@@ -114,7 +122,7 @@ class RerollUseResponse(BaseModel):
 
 class ShopOfferIn(BaseModel):
     id: str = Field(min_length=1, max_length=30, pattern=r"^[a-z0-9_.\-]+$")
-    kind: str = Field(pattern=r"^(booster|specific_card|reroll|cosmetic)$")
+    kind: str = Field(pattern=r"^(booster|specific_card|reroll|cosmetic|bundle)$")
     name: str = Field(min_length=1, max_length=100)
     description: str = ""
     active: bool = True
@@ -122,6 +130,9 @@ class ShopOfferIn(BaseModel):
     price: int = Field(ge=0)
     purchase_limit_per_day: int | None = Field(default=None, ge=1)
     is_daily_pool: bool = False
+    limit_period: Literal["none", "day", "week", "month", "account"] = "none"
+    limit_count: int = Field(default=1, ge=1)
+    grants: list[dict] = []
 
     booster_id: str | None = None
     force_min_rarity_id: str | None = None
@@ -157,6 +168,9 @@ class ShopOfferPatch(BaseModel):
     price: int | None = Field(default=None, ge=0)
     purchase_limit_per_day: int | None = Field(default=None, ge=1)
     is_daily_pool: bool | None = None
+    limit_period: Literal["none", "day", "week", "month", "account"] | None = None
+    limit_count: int | None = Field(default=None, ge=1)
+    grants: list[dict] | None = None
 
     booster_id: str | None = None
     force_min_rarity_id: str | None = None

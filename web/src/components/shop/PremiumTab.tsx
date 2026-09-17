@@ -10,6 +10,7 @@ import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { CosmeticPreview, COSMETIC_KIND_LABEL } from "@/components/cosmetics/CosmeticVisuals";
 import { errMsg } from "@/utils/errors";
+import { LIMIT_WHEN_LABEL, LIMIT_PERIOD_LABEL } from "@/utils/purchaseLimits";
 
 export const PREMIUM_RESOURCE_ID = "shards";
 
@@ -117,7 +118,12 @@ export default function PremiumTab() {
                                         <li key={i}>• {g.kind === "cosmetic" ? g.name : `${g.amount.toLocaleString("fr-FR")} × ${g.name}`}</li>
                                     ))}
                                 </ul>
-                                {p.once_per_account && (
+                                {p.limit_period !== "none" && (
+                                    <p className="text-white/40 text-[11px]">
+                                        {p.limit_count} {LIMIT_PERIOD_LABEL[p.limit_period]}
+                                    </p>
+                                )}
+                                {p.once_per_account && p.limit_period === "none" && (
                                     <p className="text-amber-300/80 text-xs mb-2">
                                         {p.already_purchased ? "Déjà acheté (une fois par compte)." : "Achetable une seule fois par compte."}
                                     </p>
@@ -153,7 +159,8 @@ export default function PremiumTab() {
                         {catalog.map((o) => {
                             const cosmetic = cosmetics?.find((c) => c.id === o.cosmetic_id);
                             const cantAfford = status.shards < o.price;
-                            const limitReached = !!o.purchase_limit_per_day && o.purchases_today >= o.purchase_limit_per_day;
+                            const limited = o.limit_period !== "none";
+                            const limitReached = limited && o.purchases_in_period >= o.limit_count;
                             return (
                                 <div key={o.id} className="bg-game-surface rounded-2xl p-3 border border-white/10 flex flex-col gap-2">
                                     <div className="h-16 flex items-center justify-center">
@@ -162,9 +169,16 @@ export default function PremiumTab() {
                                     <div className="min-h-[2.5rem]">
                                         <p className="text-white text-sm font-semibold leading-tight">{o.name}</p>
                                         {cosmetic && <p className="text-white/40 text-[11px]">{COSMETIC_KIND_LABEL[cosmetic.kind]}</p>}
+                                        {o.kind === "bundle" && (
+                                            <p className="text-white/40 text-[11px] leading-tight">
+                                                {o.grants.map((g) => (g.kind === "cosmetic" ? g.name : `${g.amount.toLocaleString("fr-FR")} ${g.name}`)).join(" + ")}
+                                            </p>
+                                        )}
                                     </div>
-                                    {o.purchase_limit_per_day && (
-                                        <p className="text-white/40 text-[11px]">{o.purchases_today}/{o.purchase_limit_per_day} aujourd'hui</p>
+                                    {limited && (
+                                        <p className="text-white/40 text-[11px]">
+                                            {o.purchases_in_period}/{o.limit_count} {LIMIT_WHEN_LABEL[o.limit_period]}
+                                        </p>
                                     )}
                                     <Button
                                         variant="primary" size="sm" className="w-full mt-auto"
