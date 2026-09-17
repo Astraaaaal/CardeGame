@@ -79,5 +79,4 @@ async def test_pulse_reports_unseen_requests_then_active_trade(session):
     trade = await tr.accept_trade_request(session, req.id, bob.id)
     alice_pulse = await tr.build_pulse(session, alice)
     assert alice_pulse.active_session_id == trade.id
-    assert alice_pulse.active_other_display_name == "bob"
     assert alice_pulse.outgoing_ids == []

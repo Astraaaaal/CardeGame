@@ -11,7 +11,6 @@ import CoinDisplay from "@/components/player/CoinDisplay";
 import WalletMenu from "@/components/player/WalletMenu";
 import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
-import ActiveTradeBanner from "@/components/trade/ActiveTradeBanner";
 import BottomNav from "@/components/layout/BottomNav";
 import { FramedAvatar } from "@/components/cosmetics/CosmeticVisuals";
 
@@ -113,8 +112,6 @@ export default function MainMenu() {
           )}
         </button>
       </div>
-
-      <ActiveTradeBanner />
 
       {user && (!user.email || !user.email_verified) && (
         <button

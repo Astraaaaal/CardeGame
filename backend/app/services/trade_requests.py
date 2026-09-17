@@ -67,10 +67,6 @@ async def accept_trade_request(session: AsyncSession, request_id: int, user_id: 
 
 async def build_pulse(session: AsyncSession, user: User) -> TradePulseOut:
     trade = await get_active_session_for(session, user.id)
-    other_name = None
-    if trade:
-        other = await session.get(User, trade.user_b_id if trade.user_a_id == user.id else trade.user_a_id)
-        other_name = other.display_name if other else None
 
     rows = (await session.execute(
         select(TradeRequest).where(
@@ -86,7 +82,6 @@ async def build_pulse(session: AsyncSession, user: User) -> TradePulseOut:
 
     return TradePulseOut(
         active_session_id=trade.id if trade else None,
-        active_other_display_name=other_name,
         incoming_unseen=[
             TradeRequestOut(
                 id=r.id, user_id=r.requester_id, username=requesters[r.requester_id].username,

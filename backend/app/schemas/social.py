@@ -59,7 +59,6 @@ class TradePulseOut(BaseModel):
     """État condensé interrogé en continu par le client (échange lancé,
     nouvelles demandes à afficher, listes à rafraîchir)."""
     active_session_id: int | None = None
-    active_other_display_name: str | None = None
     incoming_unseen: list[TradeRequestOut] = []
     incoming_ids: list[int] = []
     outgoing_ids: list[int] = []

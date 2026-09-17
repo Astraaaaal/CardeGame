@@ -41,7 +41,6 @@ export interface TradeRequestsResponse {
 
 export interface TradePulse {
     active_session_id: number | null;
-    active_other_display_name: string | null;
     incoming_unseen: TradeRequestItem[];
     incoming_ids: number[];
     outgoing_ids: number[];
