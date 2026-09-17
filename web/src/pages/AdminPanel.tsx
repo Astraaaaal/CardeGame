@@ -1016,7 +1016,8 @@ function Panel() {
                 ))}
             </div>
 
-            {tab !== "messages" && tab !== "progression" && tab !== "settings" && tab !== "bugReports" && (
+            {/* Le « + Nouveau » ne vaut que pour les onglets de contenu listé. */}
+                {!["messages", "progression", "settings", "bugReports", "premium"].includes(tab) && (
                 <div className="px-4 pb-2">
                     <input
                         type="search"
@@ -1029,7 +1030,8 @@ function Panel() {
             )}
 
             <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-2">
-                {tab !== "messages" && tab !== "progression" && tab !== "settings" && tab !== "bugReports" && (
+                {/* Le « + Nouveau » ne vaut que pour les onglets de contenu listé. */}
+                {!["messages", "progression", "settings", "bugReports", "premium"].includes(tab) && (
                     <Button
                         variant="secondary"
                         size="sm"

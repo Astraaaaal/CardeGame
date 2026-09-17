@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 
-const MAX_DEG = 20;
+const MAX_DEG = 14;
 // Marge autour de la carte où l'inclinaison réagit encore : elle commence à
 // suivre le curseur avant qu'il n'arrive sur la carte, et ne retombe pas dès
 // qu'il en effleure le bord.

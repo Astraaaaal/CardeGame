@@ -87,7 +87,11 @@ export function CosmeticPreview({ cosmetic, size = 56 }: { cosmetic: Cosmetic; s
     if (cosmetic.kind === "avatar_frame") {
         return (
             <FramedAvatar frame={cosmetic} size={size}>
-                <span className="text-white/30 text-lg">?</span>
+                {/* Silhouette d'avatar : le cadre s'aperçoit mieux qu'avec un « ? ». */}
+                <svg viewBox="0 0 24 24" className="w-2/3 h-2/3 text-white/25" fill="currentColor" aria-hidden>
+                    <circle cx="12" cy="9" r="4" />
+                    <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8z" />
+                </svg>
             </FramedAvatar>
         );
     }

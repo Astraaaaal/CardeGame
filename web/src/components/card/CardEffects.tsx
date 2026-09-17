@@ -81,7 +81,7 @@ export function DiagonalSheen() {
         <motion.div
             className="absolute -inset-1/2 pointer-events-none mix-blend-screen"
             style={{
-                background: "linear-gradient(115deg, transparent 46%, rgba(255,255,255,.55) 50%, transparent 54%)",
+                background: "linear-gradient(138deg, transparent 46%, rgba(255,255,255,.55) 50%, transparent 54%)",
                 backgroundSize: "300% 300%",
             }}
             animate={{ backgroundPosition: ["100% 100%", "0% 0%"] }}
