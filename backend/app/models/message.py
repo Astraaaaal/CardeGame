@@ -6,7 +6,7 @@ ressource, envoyés par ce même mécanisme de boîte de réception).
 
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import Column, ForeignKey, String
+from sqlalchemy import JSON, Column, ForeignKey, String
 from sqlmodel import SQLModel, Field
 
 
@@ -27,6 +27,9 @@ class Message(SQLModel, table=True):
     - reward_booster_id + reward_booster_qty : booster(s) non ouvert(s)
       (cadeau joueur uniquement) ; déjà débités de l'inventaire de
       l'expéditeur, crédités à celui du destinataire à la récupération.
+      reward_booster_bonus (optionnel) : bonus d'un booster acheté via une offre
+      {force_min_rarity_id, rarity_weight_multiplier, label}, conservé.
+    - reward_reroll : rerolls de l'inventaire {label, offer_id, règles, quantity}.
     """
     __tablename__ = "messages"
 
@@ -45,6 +48,8 @@ class Message(SQLModel, table=True):
     )
     reward_booster_id: Optional[str] = Field(default=None, foreign_key="boosters.id", max_length=30)
     reward_booster_qty: Optional[int] = Field(default=None)
+    reward_booster_bonus: Optional[dict] = Field(default=None, sa_column=Column(JSON, nullable=True))
+    reward_reroll: Optional[dict] = Field(default=None, sa_column=Column(JSON, nullable=True))
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     read_at: Optional[datetime] = Field(default=None)

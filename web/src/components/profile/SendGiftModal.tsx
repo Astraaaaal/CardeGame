@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { messagesApi } from "@/api/messages";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
-import AddResourceModal from "@/components/trade/AddResourceModal";
-import AddBoosterModal from "@/components/trade/AddBoosterModal";
+import GiftItemPicker, { type GiftItem } from "./GiftItemPicker";
 import type { Card } from "@/types/card";
 import { errMsg } from "@/utils/errors";
 
@@ -35,15 +34,14 @@ interface SendGiftModalProps {
 export default function SendGiftModal({ presetUsername, returnTo, origin, initialState, onClose, onSent }: SendGiftModalProps) {
     const navigate = useNavigate();
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
+    const qc = useQueryClient();
 
     const [username, setUsername] = useState(initialState?.username ?? presetUsername ?? "");
     const [subject, setSubject] = useState(initialState?.subject ?? "Cadeau");
     const [body, setBody] = useState(initialState?.body ?? "");
     const [pickedCard, setPickedCard] = useState<{ id: string; preview: Card } | null>(initialState?.pickedCard ?? null);
-    const [pickedResource, setPickedResource] = useState<{ id: string; amount: number } | null>(null);
-    const [pickedBooster, setPickedBooster] = useState<{ id: string; name: string; quantity: number } | null>(null);
-    const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
-    const [boosterPickerOpen, setBoosterPickerOpen] = useState(false);
+    const [pickedItem, setPickedItem] = useState<GiftItem | null>(null);
+    const [itemPickerOpen, setItemPickerOpen] = useState(false);
     const [err, setErr] = useState("");
 
     const send = useMutation({
@@ -53,22 +51,29 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
                     username: username.trim(), subject, body, item_type: "card", user_card_id: pickedCard.id,
                 });
             }
-            if (pickedBooster) {
+            const item = pickedItem!;
+            const base = { username: username.trim(), subject, body, amount: item.amount };
+            if (item.kind === "booster") {
                 return messagesApi.sendGift({
-                    username: username.trim(), subject, body, item_type: "booster",
-                    booster_id: pickedBooster.id, amount: pickedBooster.quantity,
+                    ...base, item_type: "booster", booster_id: item.boosterId, bonus_id: item.bonusId ?? undefined,
                 });
             }
-            return messagesApi.sendGift({
-                username: username.trim(), subject, body, item_type: "resource",
-                resource_id: pickedResource!.id, amount: pickedResource!.amount,
-            });
+            if (item.kind === "reroll") {
+                return messagesApi.sendGift({ ...base, item_type: "reroll", reroll_token_id: item.tokenId });
+            }
+            return messagesApi.sendGift({ ...base, item_type: "resource", resource_id: item.resourceId });
         },
-        onSuccess: () => { onSent?.(); onClose(); },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["player"] });
+            qc.invalidateQueries({ queryKey: ["booster-inventory"] });
+            qc.invalidateQueries({ queryKey: ["reroll-tokens"] });
+            onSent?.();
+            onClose();
+        },
         onError: (e) => setErr(errMsg(e)),
     });
 
-    const canSend = !!username.trim() && (!!pickedCard || !!pickedResource || !!pickedBooster);
+    const canSend = !!username.trim() && (!!pickedCard || !!pickedItem);
 
     const chooseCard = () => {
         requestSelection({
@@ -123,22 +128,19 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
                                 Retirer
                             </button>
                         </div>
-                    ) : pickedResource ? (
+                    ) : pickedItem ? (
                         <div className="flex items-center gap-3 bg-black/20 border border-white/5 rounded-lg p-3">
-                            <ResourceIcon resourceId={pickedResource.id} className="w-6 h-6" />
+                            {pickedItem.kind === "resource" ? (
+                                <ResourceIcon resourceId={pickedItem.resourceId} className="w-6 h-6" />
+                            ) : (
+                                <span className="text-xl">{pickedItem.kind === "booster" ? "🎴" : "🎲"}</span>
+                            )}
                             <span className="flex-1 text-white text-sm font-bold">
-                                {pickedResource.amount.toLocaleString("fr-FR")}
+                                {pickedItem.kind === "resource"
+                                    ? `${pickedItem.amount.toLocaleString("fr-FR")} ${pickedItem.name}`
+                                    : `${pickedItem.name} ×${pickedItem.amount}`}
                             </span>
-                            <button className="text-white/40 hover:text-red-400 text-xs" onClick={() => setPickedResource(null)}>
-                                Retirer
-                            </button>
-                        </div>
-                    ) : pickedBooster ? (
-                        <div className="flex items-center gap-3 bg-black/20 border border-white/5 rounded-lg p-3">
-                            <span className="flex-1 text-white text-sm font-bold">
-                                {pickedBooster.name} ×{pickedBooster.quantity}
-                            </span>
-                            <button className="text-white/40 hover:text-red-400 text-xs" onClick={() => setPickedBooster(null)}>
+                            <button className="text-white/40 hover:text-red-400 text-xs" onClick={() => setPickedItem(null)}>
                                 Retirer
                             </button>
                         </div>
@@ -147,11 +149,8 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
                             <Button variant="secondary" size="sm" className="flex-1" onClick={chooseCard}>
                                 Choisir une carte
                             </Button>
-                            <Button variant="secondary" size="sm" className="flex-1" onClick={() => setResourcePickerOpen(true)}>
-                                + Choisir une ressource
-                            </Button>
-                            <Button variant="secondary" size="sm" className="flex-1" onClick={() => setBoosterPickerOpen(true)}>
-                                Choisir un booster
+                            <Button variant="secondary" size="sm" className="flex-1" onClick={() => setItemPickerOpen(true)}>
+                                + Choisir un objet
                             </Button>
                         </div>
                     )}
@@ -164,17 +163,10 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
                 </div>
             </Modal>
 
-            {resourcePickerOpen && (
-                <AddResourceModal
-                    current={{}}
-                    onPick={(resourceId, amount) => { setPickedResource({ id: resourceId, amount }); setResourcePickerOpen(false); }}
-                    onClose={() => setResourcePickerOpen(false)}
-                />
-            )}
-            {boosterPickerOpen && (
-                <AddBoosterModal
-                    onPick={(boosterId, name, quantity) => { setPickedBooster({ id: boosterId, name, quantity }); setBoosterPickerOpen(false); }}
-                    onClose={() => setBoosterPickerOpen(false)}
+            {itemPickerOpen && (
+                <GiftItemPicker
+                    onPick={(item) => { setPickedItem(item); setItemPickerOpen(false); }}
+                    onClose={() => setItemPickerOpen(false)}
                 />
             )}
         </>

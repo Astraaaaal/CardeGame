@@ -62,6 +62,17 @@ async def consume(session: AsyncSession, user_id: int, booster_id: str, quantity
     session.add(row)
 
 
+async def consume_bonus(session: AsyncSession, user_id: int, bonus_id: int, quantity: int) -> UserBonusBooster:
+    """Retire des boosters à bonus du stock (cadeau). Ne commit pas."""
+    row = await session.get(UserBonusBooster, bonus_id)
+    if not row or row.user_id != user_id or row.quantity < quantity:
+        owned = row.quantity if row and row.user_id == user_id else 0
+        raise HTTPException(400, f"Tu ne possèdes que {owned} exemplaire(s) de ce booster.")
+    row.quantity -= quantity
+    session.add(row)
+    return row
+
+
 async def list_owned(session: AsyncSession, user_id: int) -> list[dict]:
     out = []
     rows = (await session.execute(

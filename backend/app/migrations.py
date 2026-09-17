@@ -130,6 +130,9 @@ _STATEMENTS = [
     "ALTER TABLE game_config ADD COLUMN IF NOT EXISTS premium_testers VARCHAR NOT NULL DEFAULT ''",
     "ALTER TABLE resources ADD COLUMN IF NOT EXISTS tradeable BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS cosmetic_id VARCHAR(40)",
+    # Cadeaux : boosters à bonus (bonus conservé) et rerolls de l'inventaire.
+    "ALTER TABLE messages ADD COLUMN IF NOT EXISTS reward_booster_bonus JSON",
+    "ALTER TABLE messages ADD COLUMN IF NOT EXISTS reward_reroll JSON",
 ]
 
 # Boosters offerts à certains paliers de niveau (en plus des pièces) —

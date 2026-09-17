@@ -16,6 +16,9 @@ export interface AppMessage {
     reward_booster_name: string | null;
     reward_booster_cover_url: string | null;
     reward_booster_qty: number | null;
+    reward_booster_label: string | null;
+    reward_reroll_label: string | null;
+    reward_reroll_qty: number | null;
     has_reward: boolean;
     created_at: string;
     read_at: string | null;

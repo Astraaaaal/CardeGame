@@ -30,8 +30,13 @@ function MessageRow({ message }: { message: AppMessage }) {
             if (m.claimed_at && !m.claim_error) {
                 const items: RewardItem[] = rewardItems(m);
                 if (m.reward_card) items.push({ kind: "card", card: m.reward_card });
+                if (m.reward_reroll_label && m.reward_reroll_qty) {
+                    items.push({ kind: "reroll_token", name: m.reward_reroll_label, quantity: m.reward_reroll_qty });
+                }
                 showRewards({ title: m.subject || "Cadeau", items });
             }
+            qc.invalidateQueries({ queryKey: ["booster-inventory"] });
+            qc.invalidateQueries({ queryKey: ["reroll-tokens"] });
             qc.setQueryData<AppMessage[]>(["messages"], (old) => old?.map((x) => x.id === m.id ? m : x));
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["collection"] });
@@ -97,6 +102,17 @@ function MessageRow({ message }: { message: AppMessage }) {
                             )}
                             <span className="text-white text-sm">
                                 {message.reward_booster_name} ×{message.reward_booster_qty}
+                                {message.reward_booster_label && (
+                                    <span className="block text-gold text-xs">{message.reward_booster_label}</span>
+                                )}
+                            </span>
+                        </div>
+                    )}
+                    {message.reward_reroll_label && message.reward_reroll_qty != null && (
+                        <div className="flex items-center gap-2 bg-black/20 rounded-lg p-3">
+                            <span className="text-lg">🎲</span>
+                            <span className="text-white text-sm">
+                                {message.reward_reroll_label} ×{message.reward_reroll_qty}
                             </span>
                         </div>
                     )}

@@ -20,18 +20,44 @@ _RULE_FIELDS = ("reroll_rarity", "reroll_quality", "reroll_specialty", "reroll_j
 
 async def grant(session: AsyncSession, user_id: int, offer: ShopOffer, quantity: int) -> None:
     """Crédite `quantity` rerolls avec les règles actuelles de l'offre. Ne commit pas."""
+    await grant_rules(session, user_id, offer.id, offer.name, rules_of(offer), quantity)
+
+
+def rules_of(source) -> dict:
+    """Règles d'un reroll (offre ou reroll possédé), sérialisables (cadeaux)."""
+    return {f: getattr(source, f) for f in _RULE_FIELDS}
+
+
+async def grant_rules(
+    session: AsyncSession, user_id: int, offer_id: str | None, label: str, rules: dict, quantity: int,
+) -> None:
+    """Crédite des rerolls aux règles données, cumulés avec un stock identique. Ne commit pas."""
+    def same(column, value):
+        return column.is_(None) if value is None else column == value
+
     query = select(UserRerollToken).where(
-        UserRerollToken.user_id == user_id, UserRerollToken.offer_id == offer.id,
-        *(getattr(UserRerollToken, f) == getattr(offer, f) for f in _RULE_FIELDS),
+        UserRerollToken.user_id == user_id, same(UserRerollToken.offer_id, offer_id),
+        *(same(getattr(UserRerollToken, f), rules.get(f)) for f in _RULE_FIELDS),
     )
     row = (await session.execute(query)).scalars().first()
     if not row:
         row = UserRerollToken(
-            user_id=user_id, offer_id=offer.id, label=offer.name, quantity=0,
-            **{f: getattr(offer, f) for f in _RULE_FIELDS},
+            user_id=user_id, offer_id=offer_id, label=label, quantity=0,
+            **{f: rules.get(f) for f in _RULE_FIELDS},
         )
     row.quantity += quantity
     session.add(row)
+
+
+async def consume(session: AsyncSession, user_id: int, token_id: int, quantity: int) -> UserRerollToken:
+    """Retire des rerolls du stock (cadeau). Ne commit pas."""
+    token = await session.get(UserRerollToken, token_id)
+    if not token or token.user_id != user_id or token.quantity < quantity:
+        owned = token.quantity if token and token.user_id == user_id else 0
+        raise HTTPException(400, f"Tu ne possèdes que {owned} exemplaire(s) de ce reroll.")
+    token.quantity -= quantity
+    session.add(token)
+    return token
 
 
 def to_out(row: UserRerollToken) -> dict:
