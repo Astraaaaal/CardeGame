@@ -70,3 +70,13 @@ export function orderPackForReveal(pack: Card[]): Card[] {
         .sort((a, b) => (a.combined_rarity ?? 0) - (b.combined_rarity ?? 0));
     return [...regular, ...highlights];
 }
+
+/** Carte au-dessus du tout-venant : rareté rare ou mieux, bijou argent ou mieux,
+ * qualité correcte ou mieux, ou spécialité autre que normale. Sert au reflet
+ * vertical (cf. CardEffects). */
+export function isPolishedCard(card: Card): boolean {
+    const atLeast = (axis: TierAxis, id: string) =>
+        FULL_TIER_ORDER[axis].indexOf(cardTierId(card, axis)) >= FULL_TIER_ORDER[axis].indexOf(id);
+    return atLeast("rarity", "rare") || atLeast("jewelry", "silver")
+        || atLeast("quality", "fair") || card.specialty_id !== "normal";
+}

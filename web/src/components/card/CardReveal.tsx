@@ -4,7 +4,13 @@ import type { Card } from "@/types/card";
 import { useProbabilities } from "@/hooks/useCollection";
 import { suspenseSteps, type SuspenseStep, type TierAxis } from "@/utils/cardTiers";
 import CardImage from "./CardImage";
-import { RarityHalo, JewelrySparkles, SpecialtyOverlay, QualityStars, RARITY_TEXT, type Tier } from "./CardEffects";
+import {
+    RarityHalo, JewelrySparkles, SpecialtyOverlay, QualityStars, TypeOutline, VerticalSheen,
+    RARITY_TEXT, type Tier,
+} from "./CardEffects";
+import TiltCard from "./TiltCard";
+import { useTypes, typeColor } from "@/hooks/useTypes";
+import { isPolishedCard } from "@/utils/cardTiers";
 
 interface CardRevealProps {
     card: Card;
@@ -31,6 +37,7 @@ export default function CardReveal({ card, onNext }: CardRevealProps) {
     const [revealedCount, setRevealedCount] = useState(0);
     const [flipped, setFlipped] = useState(false);
     const { data: tiers } = useProbabilities(true);
+    const { data: types } = useTypes();
     const shake = useAnimationControls();
 
     const revealed = steps.slice(0, revealedCount);
@@ -62,7 +69,7 @@ export default function CardReveal({ card, onNext }: CardRevealProps) {
 
     return (
         <div className="flex flex-col items-center justify-center gap-6 cursor-pointer select-none" onClick={handleClick}>
-            <div className="relative w-56 aspect-[5/7]" style={{ perspective: "1000px" }}>
+            <TiltCard className="relative w-56 aspect-[5/7]">
                 {rarity && <RarityHalo tier={rarity} />}
                 {jewelry && <JewelrySparkles tier={jewelry} />}
 
@@ -95,12 +102,18 @@ export default function CardReveal({ card, onNext }: CardRevealProps) {
                                 animate={{ rotateY: 0 }}
                                 transition={{ duration: 0.25 }}
                             >
-                                <CardImage card={card} size="lg" />
+                                <div className="absolute inset-0 rounded-xl overflow-hidden">
+                                    <CardImage card={card} size="lg" />
+                                    {isPolishedCard(card) && <VerticalSheen />}
+                                </div>
+                                {card.specialty_id === "full_art" && (
+                                    <TypeOutline color={typeColor(types, card.character_type)} />
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </motion.div>
-            </div>
+            </TiltCard>
 
             <QualityStars level={quality?.level ?? 0} />
 

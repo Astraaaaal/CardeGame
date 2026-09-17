@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import type { Card } from "@/types/card";
-import { TIER_STEPS, tierLevel, type TierAxis } from "@/utils/cardTiers";
+import { TIER_STEPS, isPolishedCard, tierLevel, type TierAxis } from "@/utils/cardTiers";
+import { useTypes, typeColor } from "@/hooks/useTypes";
+import TiltCard from "./TiltCard";
 import CardImage from "./CardImage";
 
 /**
@@ -72,6 +74,37 @@ export function JewelrySparkles({ tier }: { tier: Tier }) {
     );
 }
 
+/** Reflet lumineux qui balaye la carte de bas en haut — cartes pas tout à fait
+ * ordinaires (cf. isPolishedCard). */
+export function VerticalSheen() {
+    return (
+        <motion.div
+            className="absolute inset-0 pointer-events-none mix-blend-screen"
+            style={{ background: "linear-gradient(180deg, transparent 30%, rgba(255,255,255,.4) 50%, transparent 70%)", backgroundSize: "100% 300%" }}
+            animate={{ backgroundPositionY: ["100%", "0%"] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.2 }}
+        />
+    );
+}
+
+/** Contour lumineux qui fait le tour de la carte, dans la couleur du type — full art. */
+export function TypeOutline({ color }: { color: string }) {
+    return (
+        <motion.div
+            className="absolute -inset-[3px] rounded-[14px] pointer-events-none"
+            style={{
+                background: `conic-gradient(from var(--outline-angle), transparent 0deg 300deg, ${color} 342deg, transparent 360deg)`,
+                WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+                WebkitMaskComposite: "xor",
+                maskComposite: "exclude",
+                padding: 3,
+            }}
+            animate={{ "--outline-angle": ["0deg", "360deg"] } as never}
+            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+        />
+    );
+}
+
 /** Rayons tournants — full art. */
 export function FullArtRays({ className = "" }: { className?: string }) {
     return (
@@ -87,6 +120,8 @@ export function FullArtRays({ className = "" }: { className?: string }) {
 /** Effet sur la carte — spécialité (full art : rayons, EX : bordure électrique, shiny : holographique). */
 export function SpecialtyOverlay({ id }: { id: string }) {
     if (id === "full_art") {
+        // Pendant la révélation, la carte est encore face cachée : les rayons
+        // habillent le dos (le contour coloré, lui, arrive avec la face visible).
         return <FullArtRays key={id} className="-inset-1/2 opacity-40" />;
     }
     if (id === "ex") {
@@ -145,23 +180,20 @@ export function CardWithEffects({ card, className = "" }: { card: Card; classNam
     const jewelry = cardTier(card, "jewelry");
     const specialty = cardTier(card, "specialty");
     const quality = cardTier(card, "quality");
+    const { data: types } = useTypes();
 
     return (
         <div className={`flex flex-col items-center gap-2 ${className}`}>
-            <div className="relative w-full aspect-[5/7]">
+            <TiltCard className="relative w-full aspect-[5/7]">
                 {rarity && <RarityHalo tier={rarity} />}
-                {/* Full art : rayons derrière la carte, pour ne pas masquer l'illustration. */}
-                {specialty?.id === "full_art" && (
-                    <div className="absolute -inset-6 rounded-[2rem] overflow-hidden pointer-events-none">
-                        <FullArtRays className="-inset-1/2 opacity-30" />
-                    </div>
-                )}
                 {jewelry && <JewelrySparkles tier={jewelry} />}
                 <div className="absolute inset-0 rounded-xl overflow-hidden">
                     <CardImage card={card} size="lg" />
                     {specialty && specialty.id !== "full_art" && <SpecialtyOverlay id={specialty.id} />}
+                    {isPolishedCard(card) && <VerticalSheen />}
                 </div>
-            </div>
+                {specialty?.id === "full_art" && <TypeOutline color={typeColor(types, card.character_type)} />}
+            </TiltCard>
             {quality && <QualityStars level={quality.level} />}
         </div>
     );
