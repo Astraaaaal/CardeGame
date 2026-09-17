@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendsApi } from "@/api/friends";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import { TRADE_PULSE_KEY, useTradePulse } from "@/hooks/useTradePulse";
-import { markTradeJoined } from "@/components/trade/TradeWatcher";
 import type { Friend } from "@/types/social";
 import Button from "@/components/ui/Button";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -141,7 +140,6 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
     const acceptTrade = useMutation({
         mutationFn: (id: number) => friendsApi.acceptTradeRequest(id),
         onSuccess: (session) => {
-            markTradeJoined(session.id);
             refreshTrades();
             onClose();
             navigate(`/trade/${session.id}`);

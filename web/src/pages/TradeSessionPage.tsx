@@ -14,6 +14,7 @@ import ResourceIcon from "@/components/ui/ResourceIcon";
 import AddResourceModal from "@/components/trade/AddResourceModal";
 import FloatingActionBar from "@/components/ui/FloatingActionBar";
 import { errMsg } from "@/utils/errors";
+import { TRADE_PULSE_KEY } from "@/hooks/useTradePulse";
 import { showRewards, type RewardItem } from "@/stores/rewardPopupStore";
 
 const MAX_ITEMS_PER_SIDE = 12;
@@ -78,6 +79,13 @@ export default function TradeSessionPage() {
     });
 
     const invalidate = () => qc.invalidateQueries({ queryKey: ["trade-session", id] });
+
+    // Échange terminé : rafraîchit tout de suite l'état global, sinon l'ancien
+    // « échange en cours » ramènerait ici en voulant revenir au menu.
+    const tradeStatus = trade?.status;
+    useEffect(() => {
+        if (tradeStatus && !ACTIVE.has(tradeStatus)) qc.invalidateQueries({ queryKey: TRADE_PULSE_KEY });
+    }, [tradeStatus, qc]);
 
     const addCard = useMutation({
         mutationFn: (cardId: string) => tradeSessionsApi.addCard(id, cardId),
@@ -157,9 +165,14 @@ export default function TradeSessionPage() {
     return (
         <div className="min-h-screen bg-game-bg flex flex-col pb-8">
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
-                <button className="text-white/60 hover:text-white text-sm" onClick={() => navigate("/")}>
-                    Retour
-                </button>
+                {/* Un échange en cours ne se quitte pas : il se conclut ou s'annule. */}
+                {finished ? (
+                    <button className="text-white/60 hover:text-white text-sm" onClick={() => navigate("/")}>
+                        Retour
+                    </button>
+                ) : (
+                    <span className="w-12" />
+                )}
                 <h2 className="text-white font-bold">Échange avec {trade.other_display_name}</h2>
                 <span className={`w-2 h-2 rounded-full ${trade.other_online ? "bg-green-400" : "bg-white/20"}`} />
             </header>

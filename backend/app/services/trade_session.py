@@ -16,7 +16,7 @@ from app.models.economy import Resource
 from app.models.trade_session import (
     TradeSession, TradeSessionItem,
     STATUS_NEGOTIATING, STATUS_CONFIRMING, STATUS_COMPLETED, STATUS_CANCELLED, STATUS_EXPIRED,
-    ACTIVE_STATUSES, MAX_ITEMS_PER_SIDE, EXPIRE_AFTER_MINUTES,
+    ACTIVE_STATUSES, MAX_ITEMS_PER_SIDE, EXPIRE_AFTER_MINUTES, ABSENT_EXPIRE_MINUTES,
 )
 from app.schemas.trade_session import TradeSessionOut, TradeSessionItemOut
 from app.services.card_view import build_card_response
@@ -108,7 +108,17 @@ async def _purge_orphaned_items(session: AsyncSession, trade: TradeSession) -> N
 async def maybe_expire(session: AsyncSession, trade: TradeSession) -> bool:
     if trade.status not in ACTIVE_STATUSES:
         return False
-    if datetime.utcnow() - trade.updated_at > timedelta(minutes=EXPIRE_AFTER_MINUTES):
+    now = datetime.utcnow()
+    idle = now - trade.updated_at > timedelta(minutes=EXPIRE_AFTER_MINUTES)
+    # On ne peut plus quitter un échange : si l'un des deux joueurs a disparu
+    # (appli fermée), l'échange expire vite pour ne pas bloquer l'autre.
+    absent = False
+    for user_id in (trade.user_a_id, trade.user_b_id):
+        player = await session.get(User, user_id)
+        seen = max(filter(None, [player.last_seen if player else None, trade.created_at]))
+        if now - seen > timedelta(minutes=ABSENT_EXPIRE_MINUTES):
+            absent = True
+    if idle or absent:
         trade.status = STATUS_EXPIRED
         session.add(trade)
         await session.commit()

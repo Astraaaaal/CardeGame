@@ -22,6 +22,8 @@ ACTIVE_STATUSES = (STATUS_NEGOTIATING, STATUS_CONFIRMING)
 
 MAX_ITEMS_PER_SIDE = 12
 EXPIRE_AFTER_MINUTES = 20
+# Un des deux joueurs n'a plus donné signe de vie (cf. User.last_seen) depuis :
+ABSENT_EXPIRE_MINUTES = 5
 
 
 class TradeSession(SQLModel, table=True):

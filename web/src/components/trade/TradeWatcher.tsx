@@ -3,39 +3,14 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
 import { useIsAnimationLocked } from "@/stores/animationLockStore";
+import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import { useTradePulse } from "@/hooks/useTradePulse";
 import TradeRequestPopup from "@/components/social/TradeRequestPopup";
 
-const JOINED_KEY = "trade-joined-sessions";
-
-// Sessions dans lesquelles le joueur est déjà entré (auto ou lui-même) : on
-// ne l'y ramène de force qu'une fois, sinon quitter la page (pour aller
-// choisir une carte, ou juste revenir au menu) le renverrait aussitôt dedans.
-// Mémoire + sessionStorage (survit à un rechargement de l'onglet).
-const joined = new Set<number>(readStoredJoined());
-
-function readStoredJoined(): number[] {
-    try {
-        const raw = JSON.parse(sessionStorage.getItem(JOINED_KEY) ?? "[]");
-        return Array.isArray(raw) ? raw.filter((v) => typeof v === "number") : [];
-    } catch {
-        return [];
-    }
-}
-
-export function markTradeJoined(sessionId: number) {
-    if (joined.has(sessionId)) return;
-    joined.add(sessionId);
-    try {
-        sessionStorage.setItem(JOINED_KEY, JSON.stringify([...joined].slice(-20)));
-    } catch {
-        // stockage indisponible : la mémoire suffit pour cet onglet
-    }
-}
-
-/** Surveille l'état des échanges sur toutes les pages : entre automatiquement
- * dans un échange accepté par l'autre joueur, affiche les demandes reçues,
- * et rafraîchit les listes quand quelque chose change. */
+/** Surveille l'état des échanges sur toutes les pages : un échange en cours ne
+ * se quitte pas (il se conclut ou s'annule) — le joueur y est ramené depuis
+ * n'importe quelle page, sauf la Collection le temps de choisir des cartes à
+ * proposer. Affiche aussi les demandes reçues et rafraîchit les listes. */
 export default function TradeWatcher() {
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     const navigate = useNavigate();
@@ -47,16 +22,15 @@ export default function TradeWatcher() {
 
     const activeId = isAuthenticated ? pulse?.active_session_id ?? null : null;
 
+    const pickingCardsForTrade = useCardSelectionStore((s) =>
+        s.request?.context?.purpose === "trade-add" && s.request.context.tradeSessionId === String(activeId)
+    );
+
     useEffect(() => {
-        if (!activeId) return;
-        if (pathname === `/trade/${activeId}`) {
-            markTradeJoined(activeId);
-            return;
-        }
-        if (locked || joined.has(activeId)) return;
-        markTradeJoined(activeId);
-        navigate(`/trade/${activeId}`);
-    }, [activeId, pathname, locked, navigate]);
+        if (!activeId || pathname === `/trade/${activeId}`) return;
+        if (locked || (pathname === "/collection" && pickingCardsForTrade)) return;
+        navigate(`/trade/${activeId}`, { replace: true });
+    }, [activeId, pathname, locked, pickingCardsForTrade, navigate]);
 
     useEffect(() => {
         if (!pulse) return;

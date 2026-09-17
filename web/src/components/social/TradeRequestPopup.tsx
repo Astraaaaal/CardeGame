@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { friendsApi } from "@/api/friends";
 import { useAuthStore } from "@/stores/authStore";
 import { TRADE_PULSE_KEY } from "@/hooks/useTradePulse";
-import { markTradeJoined } from "@/components/trade/TradeWatcher";
 import type { TradePulse, TradeRequestItem } from "@/types/social";
 import Button from "@/components/ui/Button";
 import { errMsg } from "@/utils/errors";
@@ -34,7 +33,6 @@ export default function TradeRequestPopup({ requests, blocked }: TradeRequestPop
         mutationFn: friendsApi.acceptTradeRequest,
         onSuccess: (trade, requestId) => {
             setErr("");
-            markTradeJoined(trade.id);
             dropRequest(requestId);
             navigate(`/trade/${trade.id}`);
         },

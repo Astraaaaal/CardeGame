@@ -60,3 +60,25 @@ async def test_execute_rolls_back_when_balance_became_insufficient(session):
     assert trade.ready_a is False and trade.ready_b is False
     assert alice.coins == 200  # inchangé par le trade, la seule dépense reste la sienne
     assert bob.coins == 500
+
+
+async def test_trade_expires_when_a_player_is_gone_for_five_minutes(session):
+    from datetime import datetime, timedelta
+
+    alice = await make_user(session, "alice")
+    bob = await make_user(session, "bob")
+    trade = await ts.create_session(session, alice.id, bob.id)
+    now = datetime.utcnow()
+    alice.last_seen = now
+    bob.last_seen = now - timedelta(minutes=2)
+    session.add_all([alice, bob])
+    await session.commit()
+    assert await ts.get_active_session_for(session, alice.id) is not None
+
+    trade.created_at = now - timedelta(minutes=10)
+    bob.last_seen = now - timedelta(minutes=6)
+    session.add_all([trade, bob])
+    await session.commit()
+    assert await ts.get_active_session_for(session, alice.id) is None
+    await session.refresh(trade)
+    assert trade.status == ts.STATUS_EXPIRED
