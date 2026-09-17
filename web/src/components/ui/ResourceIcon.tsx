@@ -9,5 +9,6 @@ export default function ResourceIcon({
     className?: string;
 }) {
     if (resourceId === "coins") return <CoinIcon className={className} />;
+    if (resourceId === "shards") return <span className="text-cyan-300">✦</span>;
     return <span>✨</span>;
 }

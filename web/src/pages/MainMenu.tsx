@@ -8,7 +8,7 @@ import { showcaseApi } from "@/api/showcase";
 import { useAuthStore } from "@/stores/authStore";
 import Button from "@/components/ui/Button";
 import CoinDisplay from "@/components/player/CoinDisplay";
-import ResourceDisplay from "@/components/player/ResourceDisplay";
+import WalletMenu from "@/components/player/WalletMenu";
 import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
 import ActiveTradeBanner from "@/components/trade/ActiveTradeBanner";
@@ -60,7 +60,7 @@ export default function MainMenu() {
 
       <div className="px-4 pt-4 max-w-sm mx-auto w-full space-y-2">
         <div className="flex items-center justify-between">
-          <ResourceDisplay amount={user?.resources?.[0]?.amount ?? 0} label={user?.resources?.[0]?.name} />
+          <WalletMenu />
           <CoinDisplay coins={user?.coins ?? 0} />
         </div>
 
