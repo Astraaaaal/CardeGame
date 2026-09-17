@@ -74,15 +74,18 @@ export function JewelrySparkles({ tier }: { tier: Tier }) {
     );
 }
 
-/** Reflet lumineux qui balaye la carte de bas en haut — cartes pas tout à fait
- * ordinaires (cf. isPolishedCard). */
-export function VerticalSheen() {
+/** Reflet lumineux fin, en diagonale, qui balaye la carte — cartes pas tout à
+ * fait ordinaires (cf. isPolishedCard). */
+export function DiagonalSheen() {
     return (
         <motion.div
-            className="absolute inset-0 pointer-events-none mix-blend-screen"
-            style={{ background: "linear-gradient(180deg, transparent 30%, rgba(255,255,255,.4) 50%, transparent 70%)", backgroundSize: "100% 300%" }}
-            animate={{ backgroundPositionY: ["100%", "0%"] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.2 }}
+            className="absolute -inset-1/2 pointer-events-none mix-blend-screen"
+            style={{
+                background: "linear-gradient(115deg, transparent 46%, rgba(255,255,255,.55) 50%, transparent 54%)",
+                backgroundSize: "300% 300%",
+            }}
+            animate={{ backgroundPosition: ["100% 100%", "0% 0%"] }}
+            transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.4 }}
         />
     );
 }
@@ -190,7 +193,7 @@ export function CardWithEffects({ card, className = "" }: { card: Card; classNam
                 <div className="absolute inset-0 rounded-xl overflow-hidden">
                     <CardImage card={card} size="lg" />
                     {specialty && specialty.id !== "full_art" && <SpecialtyOverlay id={specialty.id} />}
-                    {isPolishedCard(card) && <VerticalSheen />}
+                    {isPolishedCard(card) && <DiagonalSheen />}
                 </div>
                 {specialty?.id === "full_art" && <TypeOutline color={typeColor(types, card.character_type)} />}
             </TiltCard>

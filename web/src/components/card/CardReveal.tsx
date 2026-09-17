@@ -5,7 +5,7 @@ import { useProbabilities } from "@/hooks/useCollection";
 import { suspenseSteps, type SuspenseStep, type TierAxis } from "@/utils/cardTiers";
 import CardImage from "./CardImage";
 import {
-    RarityHalo, JewelrySparkles, SpecialtyOverlay, QualityStars, TypeOutline, VerticalSheen,
+    RarityHalo, JewelrySparkles, SpecialtyOverlay, QualityStars, TypeOutline, DiagonalSheen,
     RARITY_TEXT, type Tier,
 } from "./CardEffects";
 import TiltCard from "./TiltCard";
@@ -104,7 +104,7 @@ export default function CardReveal({ card, onNext }: CardRevealProps) {
                             >
                                 <div className="absolute inset-0 rounded-xl overflow-hidden">
                                     <CardImage card={card} size="lg" />
-                                    {isPolishedCard(card) && <VerticalSheen />}
+                                    {isPolishedCard(card) && <DiagonalSheen />}
                                 </div>
                                 {card.specialty_id === "full_art" && (
                                     <TypeOutline color={typeColor(types, card.character_type)} />
