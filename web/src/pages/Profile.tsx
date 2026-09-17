@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import { playerApi } from "@/api/player";
-import type { PlayerStats } from "@/types/player";
+import type { PlayerStats, TierCount } from "@/types/player";
 import type { Card } from "@/types/card";
 import ShowcaseEditor, { type EditorSaveHandle } from "@/components/profile/ShowcaseEditor";
 import TradeListingsEditor from "@/components/profile/TradeListingsEditor";
@@ -55,6 +55,24 @@ function CardHighlight({ label, card, caption }: { label: string; card: Card; ca
     );
 }
 
+function TierCounts({ title, counts }: { title: string; counts: TierCount[] }) {
+    return (
+        <div className="px-4 py-3">
+            <p className="text-white/50 text-xs mb-2">{title}</p>
+            <div className="flex flex-wrap gap-1.5">
+                {counts.map((c) => (
+                    <span
+                        key={c.id}
+                        className={`text-xs rounded-full px-2.5 py-1 border ${c.count ? "bg-white/10 border-white/15 text-white" : "border-white/5 text-white/30"}`}
+                    >
+                        {c.name} <span className="font-bold tabular-nums">{c.count.toLocaleString("fr-FR")}</span>
+                    </span>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function StatsTab({ stats, isLoading }: { stats: PlayerStats | undefined; isLoading: boolean }) {
     const { user } = useAuthStore();
 
@@ -72,8 +90,19 @@ function StatsTab({ stats, isLoading }: { stats: PlayerStats | undefined; isLoad
             <StatSection title="Collection">
                 <StatRow label="Cartes possédées (total)" value={stats.total_cards.toLocaleString("fr-FR")} />
                 <StatRow label="Cartes uniques" value={stats.unique_cards.toLocaleString("fr-FR")} />
+                <StatRow
+                    label="Complétion (personnages)"
+                    value={`${stats.characters_owned} / ${stats.characters_total}${stats.characters_total
+                        ? ` (${Math.floor((stats.characters_owned * 100) / stats.characters_total)} %)` : ""}`}
+                />
                 <StatRow label="Packs ouverts" value={stats.packs_opened.toLocaleString("fr-FR")} />
                 <StatRow label="Cartes recyclées" value={stats.cards_recycled.toLocaleString("fr-FR")} />
+            </StatSection>
+
+            <StatSection title="Répartition de la collection">
+                <TierCounts title="Par rareté" counts={stats.rarity_counts} />
+                <TierCounts title="Spécialités" counts={stats.specialty_counts} />
+                <TierCounts title="Bijoux" counts={stats.jewelry_counts} />
             </StatSection>
 
             <StatSection title="Puissance">
@@ -105,7 +134,30 @@ function StatsTab({ stats, isLoading }: { stats: PlayerStats | undefined; isLoad
             <StatSection title="Progression">
                 <StatRow label="Niveau actuel" value={String(stats.current_level)} />
                 <StatRow label="Achievements débloqués" value={`${stats.achievements_unlocked} / ${stats.achievements_total}`} />
+                <StatRow label="Quêtes journalières terminées" value={stats.daily_quests_completed.toLocaleString("fr-FR")} />
+                <StatRow label="Quêtes hebdomadaires terminées" value={stats.weekly_quests_completed.toLocaleString("fr-FR")} />
+            </StatSection>
+
+            <StatSection title="Classement et régularité">
+                <StatRow label="Rang actuel" value={stats.current_global_rank ? `#${stats.current_global_rank}` : "—"} />
+                <StatRow label="Meilleur rang" value={stats.best_global_rank ? `#${stats.best_global_rank}` : "—"} />
                 <StatRow label="Série de connexion" value={`${stats.login_streak} jour(s)`} />
+                <StatRow label="Meilleure série" value={`${stats.best_login_streak} jour(s)`} />
+                <StatRow label="Jours de connexion au total" value={stats.login_days_total.toLocaleString("fr-FR")} />
+            </StatSection>
+
+            <StatSection title="Boutique et économie">
+                <StatRow label="Achats en boutique" value={stats.shop_purchases.toLocaleString("fr-FR")} />
+                <StatRow label="Rerolls utilisés" value={stats.rerolls_used.toLocaleString("fr-FR")} />
+                <StatRow label="Poussière gagnée au recyclage" value={stats.dust_from_recycling.toLocaleString("fr-FR")} />
+                {stats.best_reroll_card && (
+                    <CardHighlight
+                        label="Ta meilleure carte obtenue par reroll"
+                        card={stats.best_reroll_card}
+                        caption={stats.best_reroll_card.combined_rarity
+                            ? `1 chance sur ${stats.best_reroll_card.combined_rarity.toLocaleString("fr-FR")}` : "—"}
+                    />
+                )}
             </StatSection>
 
             <StatSection title="Social">

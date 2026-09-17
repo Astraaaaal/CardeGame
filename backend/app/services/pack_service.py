@@ -19,6 +19,7 @@ from app.services.card_renderer import CardRendererService
 from app.services.wallet import get_balance, apply_delta
 from app.services.power import roll_power, combined_rarity
 from app.services import quest_progress
+from app.services import activity
 from app.schemas.card import CardResponse
 
 
@@ -138,6 +139,9 @@ class PackService:
             all_packs_response.append(pack_responses)
 
         await quest_progress.increment(session, user_id, "packs_opened", quantity)
+        await activity.track_cards_obtained(
+            session, user_id, [c.rarity_id for pack in all_packs_response for c in pack],
+        )
 
         return all_packs_response, total_new_cards
 

@@ -12,6 +12,7 @@ from app.models.economy import ShopOffer
 from app.models.reroll_inventory import UserRerollToken
 from app.models.user import User
 from app.services.card_view import build_card_response
+from app.services import activity
 from app.services.ranking import refresh_all_best_ranks
 from app.services.reroll import apply_reroll, reroll_axes
 
@@ -89,6 +90,7 @@ async def use(session: AsyncSession, user: User, token_id: int, card_id: str) ->
 
     previous_card = await build_card_response(session, card)
     await apply_reroll(session, card, token)
+    await activity.track_reroll(session, user, previous_card.rarity_id, card)
     token.quantity -= 1
     session.add(token)
     await session.flush()

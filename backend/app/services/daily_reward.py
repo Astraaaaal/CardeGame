@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.models.game_config import GameConfig
+from app.services import quest_progress
 
 
 class DailyRewardService:
@@ -53,6 +54,8 @@ class DailyRewardService:
         )
 
         user.best_login_streak = max(user.best_login_streak, user.login_streak)
+        user.login_days_total += 1
+        await quest_progress.increment(session, user.id, "daily_rewards_claimed", 1)
         user.coins += reward
         user.last_daily_claim = today
         await session.commit()

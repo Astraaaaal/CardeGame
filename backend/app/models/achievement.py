@@ -13,12 +13,16 @@ from sqlmodel import SQLModel, Field
 # cards_recycled, coins_balance, login_streak, level, types_owned_distinct,
 # type_complete, rarity_owned (metric_param = id de rareté), jewelry_owned
 # (metric_param), specialty_owned (metric_param), card_power, combined_rarity,
-# meta_unlocked_ratio
+# meta_unlocked_ratio, shop_purchases, rerolls_used, reroll_rarity_upgrades,
+# quests_completed, best_login_streak, rank_reached (metric_param = top N),
+# collection_completion_pct, rarity_count (metric_param), specialty_jewelry_owned
+# (metric_param = "spécialité:bijou")
 ACHIEVEMENT_METRICS = (
     "total_cards", "packs_opened", "trades_completed", "friends_count", "gifts_sent", "cards_recycled",
     "coins_balance", "login_streak", "level", "types_owned_distinct", "type_complete",
     "rarity_owned", "jewelry_owned", "specialty_owned", "card_power", "combined_rarity",
-    "meta_unlocked_ratio",
+    "meta_unlocked_ratio", "shop_purchases", "rerolls_used", "reroll_rarity_upgrades", "quests_completed",
+    "best_login_streak", "rank_reached", "collection_completion_pct", "rarity_count", "specialty_jewelry_owned",
 )
 
 

@@ -64,4 +64,25 @@ export interface PlayerStats {
     favorite_type_name: string | null;
     favorite_type_count: number;
     oldest_card: import("./card").Card | null;
+    characters_owned: number;
+    characters_total: number;
+    rarity_counts: TierCount[];
+    specialty_counts: TierCount[];
+    jewelry_counts: TierCount[];
+    shop_purchases: number;
+    rerolls_used: number;
+    dust_from_recycling: number;
+    best_reroll_card: import("./card").Card | null;
+    current_global_rank: number | null;
+    best_global_rank: number | null;
+    best_login_streak: number;
+    login_days_total: number;
+    daily_quests_completed: number;
+    weekly_quests_completed: number;
+}
+
+export interface TierCount {
+    id: string;
+    name: string;
+    count: number;
 }

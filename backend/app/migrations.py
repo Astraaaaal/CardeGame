@@ -136,6 +136,18 @@ _STATEMENTS = [
     # Carte précise du shop : puissance tirée à l'achat ou fixée par l'admin.
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power_mode VARCHAR(10) NOT NULL DEFAULT 'rolled'",
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power INTEGER",
+    # Compteurs pour les nouvelles statistiques / achievements / quêtes.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS dust_from_recycling INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS rerolls_used INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS reroll_rarity_upgrades INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS best_reroll_card_id VARCHAR(40)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS best_reroll_combined_rarity BIGINT",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_days_total INTEGER NOT NULL DEFAULT 0",
+    # Jours de connexion déjà cumulés avant le compteur : au moins la meilleure série.
+    "UPDATE users SET login_days_total = best_login_streak WHERE login_days_total < best_login_streak",
+    # Achievements de série : basés sur la meilleure série atteinte (plus perdus si la série casse).
+    "UPDATE achievement_defs SET metric = 'best_login_streak' "
+    "WHERE id IN ('streak_7', 'streak_30', 'streak_100') AND metric = 'login_streak'",
 ]
 
 # Boosters offerts à certains paliers de niveau (en plus des pièces) —
@@ -229,6 +241,29 @@ _DEFAULT_ACHIEVEMENTS = [
     ("streak_7", "Une semaine", "Une série de connexion de 7 jours.", "progression", "login_streak", 7, None, "coins", 150, None),
     ("streak_30", "Un mois", "Une série de connexion de 30 jours.", "progression", "login_streak", 30, None, "coins", 500, None),
     ("streak_100", "Fidèle", "Une série de connexion de 100 jours.", "progression", "login_streak", 100, None, "coins", 2_000, None),
+    ("shop_1", "Premier achat", "Faire ton premier achat en boutique.", "economy", "shop_purchases", 1, None, "coins", 50, None),
+    ("shop_10", "Client fidèle", "Faire 10 achats en boutique.", "economy", "shop_purchases", 10, None, "coins", 200, None),
+    ("shop_50", "Accro du shopping", "Faire 50 achats en boutique.", "economy", "shop_purchases", 50, None, "coins", 600, None),
+    ("shop_200", "Grand client", "Faire 200 achats en boutique.", "economy", "shop_purchases", 200, None, "dust", 1_500, None),
+    ("reroll_1", "Deuxième chance", "Utiliser ton premier reroll.", "economy", "rerolls_used", 1, None, "coins", 50, None),
+    ("reroll_10", "Tenace", "Utiliser 10 rerolls.", "economy", "rerolls_used", 10, None, "coins", 250, None),
+    ("reroll_50", "Perfectionniste", "Utiliser 50 rerolls.", "economy", "rerolls_used", 50, None, "dust", 600, None),
+    ("reroll_upgrade_1", "Coup de pouce", "Obtenir une meilleure rareté grâce à un reroll.", "economy", "reroll_rarity_upgrades", 1, None, "dust", 150, None),
+    ("reroll_upgrade_10", "Alchimiste", "Améliorer 10 fois la rareté d'une carte par reroll.", "economy", "reroll_rarity_upgrades", 10, None, "dust", 800, None),
+    ("quests_1", "Première mission", "Terminer ta première quête.", "progression", "quests_completed", 1, None, "coins", 50, None),
+    ("quests_10", "Aventurier", "Terminer 10 quêtes.", "progression", "quests_completed", 10, None, "coins", 250, None),
+    ("quests_50", "Vétéran des quêtes", "Terminer 50 quêtes.", "progression", "quests_completed", 50, None, "coins", 800, None),
+    ("quests_200", "Légende des quêtes", "Terminer 200 quêtes.", "progression", "quests_completed", 200, None, None, None, "booster_A1"),
+    ("rank_top10", "Dans le top 10", "Atteindre le top 10 du classement global.", "progression", "rank_reached", 1, "10", "coins", 300, None),
+    ("rank_top3", "Sur le podium", "Atteindre le top 3 du classement global.", "progression", "rank_reached", 1, "3", "coins", 800, None),
+    ("rank_1", "Numéro un", "Atteindre la 1re place du classement global.", "progression", "rank_reached", 1, "1", "dust", 2_000, None),
+    ("completion_25", "Quart de collection", "Posséder 25 % des personnages.", "collection", "collection_completion_pct", 25, None, "coins", 200, None),
+    ("completion_50", "Mi-collection", "Posséder 50 % des personnages.", "collection", "collection_completion_pct", 50, None, "coins", 500, None),
+    ("completion_75", "Presque complet", "Posséder 75 % des personnages.", "collection", "collection_completion_pct", 75, None, "coins", 1_000, None),
+    ("completion_100", "Collection complète", "Posséder tous les personnages.", "collection", "collection_completion_pct", 100, None, None, None, "booster_A1"),
+    ("legendary_5", "Trésor légendaire", "Posséder 5 cartes légendaires.", "collection", "rarity_count", 5, "legendary", "dust", 500, None),
+    ("legendary_25", "Panthéon", "Posséder 25 cartes légendaires.", "collection", "rarity_count", 25, "legendary", "dust", 2_000, None),
+    ("shiny_prismatic", "Éclat absolu", "Posséder une carte Shiny avec un bijou prismatique.", "collection", "specialty_jewelry_owned", 1, "shiny:prismatic", "dust", 1_000, None),
     ("halfway_there", "À mi-chemin", "Débloquer la moitié des autres achievements.", "meta", "meta_unlocked_ratio", 50, None, "coins", 1_000, None),
 ]
 
@@ -245,6 +280,13 @@ _DEFAULT_QUESTS = [
     ("w_trade_3", "Négociateur", "Conclue 3 échanges cette semaine.", "weekly", "trades_completed", 3, "coins", 250),
     ("w_recycle_10", "Grand ménage", "Recycle 10 cartes cette semaine.", "weekly", "cards_recycled", 10, "dust", 150),
     ("w_gift_5", "Cœur généreux", "Envoie 5 cadeaux cette semaine.", "weekly", "gifts_sent", 5, "coins", 200),
+    ("d_shop_3", "Emplettes", "Fais 3 achats en boutique.", "daily", "shop_purchases", 3, "coins", 40),
+    ("d_reroll_1", "Retente ta chance", "Utilise 1 reroll.", "daily", "rerolls_used", 1, "dust", 30),
+    ("d_rare_3", "Chasseur de rares", "Obtiens 3 cartes rares ou mieux (booster ou reroll).", "daily", "rare_cards_obtained", 3, "coins", 60),
+    ("w_shop_15", "Habitué de la boutique", "Fais 15 achats en boutique cette semaine.", "weekly", "shop_purchases", 15, "coins", 250),
+    ("w_reroll_5", "Bricoleur", "Utilise 5 rerolls cette semaine.", "weekly", "rerolls_used", 5, "dust", 150),
+    ("w_legendary_1", "Chasse au trésor", "Obtiens 1 carte légendaire cette semaine (booster ou reroll).", "weekly", "legendary_cards_obtained", 1, "coins", 400),
+    ("w_daily_5", "Assidu", "Récupère la récompense du jour 5 fois cette semaine.", "weekly", "daily_rewards_claimed", 5, "coins", 300),
     ("w_friend_request_3", "Réseau grandissant", "Envoie 3 demandes d'ami cette semaine.", "weekly", "friend_requests_sent", 3, "coins", 150),
 ]
 

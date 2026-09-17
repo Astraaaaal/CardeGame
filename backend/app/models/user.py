@@ -77,6 +77,13 @@ class User(SQLModel, table=True):
     # cards_recycled : compteur cumulatif (les cartes recyclées sont
     # supprimées, donc pas re-déductible d'une requête a posteriori).
     cards_recycled: int = Field(default=0)
+    # Compteurs cumulatifs pour statistiques / achievements.
+    dust_from_recycling: int = Field(default=0)
+    rerolls_used: int = Field(default=0)
+    reroll_rarity_upgrades: int = Field(default=0)  # reroll ayant amélioré la rareté
+    best_reroll_card_id: Optional[str] = Field(default=None, max_length=40)
+    best_reroll_combined_rarity: Optional[int] = Field(default=None)
+    login_days_total: int = Field(default=0)  # récompenses du jour récupérées
     # Dernier niveau dont la récompense a été récupérée (le niveau "courant"
     # se déduit à la volée de total_power ; celui-ci ne sert qu'à savoir
     # jusqu'où la récompense a déjà été réclamée).

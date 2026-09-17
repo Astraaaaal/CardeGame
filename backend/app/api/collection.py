@@ -367,6 +367,7 @@ async def recycle_cards(
     user_res.amount += total_gain
     user.total_cards = max(0, user.total_cards - len(owned))
     user.cards_recycled += len(owned)
+    user.dust_from_recycling += total_gain
 
     await quest_progress.increment(session, user.id, "cards_recycled", len(owned))
     await refresh_all_best_ranks(session)

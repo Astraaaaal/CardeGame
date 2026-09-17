@@ -18,7 +18,11 @@ from app.services.card_view import build_card_response
 from app.services.power import combined_rarity as _combined_rarity
 from app.services.levels import get_all_tiers, current_level_for_power
 from app.services.wallet import get_balance
-from app.services.achievements import sync_unlocked
+from app.services.achievements import (
+    sync_unlocked, count_shop_purchases, count_quests_completed, collection_completion,
+)
+from app.services.ranking import current_global_rank
+from app.models.reference import Rarity, Specialty, Jewelry
 
 DUST_ID = "dust"  # seule ressource secondaire pour l'instant (cf. app/api/collection.py::RECYCLE_RESOURCE_ID)
 
@@ -123,6 +127,25 @@ async def build_player_stats(session: AsyncSession, user: User) -> dict:
 
     dust = await get_balance(session, user, DUST_ID)
 
+    # Collection détaillée : complétion et répartition par rareté / spécialité / bijou.
+    characters_owned, characters_total = await collection_completion(session, user.id)
+
+    async def breakdown(model, attr: str, skip: set[str]) -> list[dict]:
+        refs = (await session.execute(select(model))).scalars().all()
+        counts: dict[str, int] = {}
+        for c in cards:
+            counts[getattr(c, attr)] = counts.get(getattr(c, attr), 0) + 1
+        return [
+            {"id": r.id, "name": r.name, "count": counts.get(r.id, 0)}
+            for r in sorted(refs, key=lambda r: -r.weight) if r.id not in skip
+        ]
+
+    best_reroll_card = None
+    if user.best_reroll_card_id:
+        card = await session.get(UserCard, user.best_reroll_card_id)
+        if card and card.user_id == user.id:
+            best_reroll_card = await build_card_response(session, card)
+
     return {
         "total_cards": total_cards,
         "unique_cards": unique_cards,
@@ -147,4 +170,19 @@ async def build_player_stats(session: AsyncSession, user: User) -> dict:
         "favorite_type_name": favorite_type_name,
         "favorite_type_count": favorite_type_count,
         "oldest_card": oldest_card,
+        "characters_owned": characters_owned,
+        "characters_total": characters_total,
+        "rarity_counts": await breakdown(Rarity, "rarity_id", set()),
+        "specialty_counts": await breakdown(Specialty, "specialty_id", {"normal"}),
+        "jewelry_counts": await breakdown(Jewelry, "jewelry_id", {"none"}),
+        "shop_purchases": await count_shop_purchases(session, user.id),
+        "rerolls_used": user.rerolls_used,
+        "dust_from_recycling": user.dust_from_recycling,
+        "best_reroll_card": best_reroll_card,
+        "current_global_rank": await current_global_rank(session, user.id),
+        "best_global_rank": user.best_global_rank,
+        "best_login_streak": max(user.best_login_streak, user.login_streak),
+        "login_days_total": user.login_days_total,
+        "daily_quests_completed": await count_quests_completed(session, user.id, "daily"),
+        "weekly_quests_completed": await count_quests_completed(session, user.id, "weekly"),
     }

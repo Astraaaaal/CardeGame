@@ -14,6 +14,8 @@ from sqlmodel import select, func, or_
 from app.models.user import User
 from app.models.card import UserCard
 from app.models.character import Character, CharacterType
+from app.models.economy import ShopPurchase
+from app.models.quest import UserQuest
 from app.models.social import FriendRequest
 from app.models.message import Message
 from app.models.trade_session import TradeSession, STATUS_COMPLETED
@@ -109,6 +111,30 @@ async def _max_combined_rarity(session: AsyncSession, user_id: int) -> int:
     return best
 
 
+async def count_shop_purchases(session: AsyncSession, user_id: int) -> int:
+    return int((await session.execute(
+        select(func.count()).select_from(ShopPurchase).where(ShopPurchase.user_id == user_id)
+    )).scalar() or 0)
+
+
+async def count_quests_completed(session: AsyncSession, user_id: int, period: str | None = None) -> int:
+    query = select(func.count()).select_from(UserQuest).where(
+        UserQuest.user_id == user_id, UserQuest.claimed_at != None,  # noqa: E711
+    )
+    if period:
+        query = query.where(UserQuest.period == period)
+    return int((await session.execute(query)).scalar() or 0)
+
+
+async def collection_completion(session: AsyncSession, user_id: int) -> tuple[int, int]:
+    """(personnages différents possédés, personnages existants)."""
+    owned = (await session.execute(
+        select(func.count(func.distinct(UserCard.character_id))).where(UserCard.user_id == user_id)
+    )).scalar() or 0
+    total = (await session.execute(select(func.count()).select_from(Character))).scalar() or 0
+    return int(owned), int(total)
+
+
 async def evaluate_metric(session: AsyncSession, user: User, achievement: AchievementDef) -> int:
     """Retourne la valeur courante de la métrique de cet achievement pour ce joueur
     (comparée à `achievement.threshold` par l'appelant pour savoir si débloqué)."""
@@ -148,6 +174,36 @@ async def evaluate_metric(session: AsyncSession, user: User, achievement: Achiev
         return await _max_power(session, user.id)
     if metric == "combined_rarity":
         return await _max_combined_rarity(session, user.id)
+    if metric == "shop_purchases":
+        return await count_shop_purchases(session, user.id)
+    if metric == "rerolls_used":
+        return user.rerolls_used
+    if metric == "reroll_rarity_upgrades":
+        return user.reroll_rarity_upgrades
+    if metric == "quests_completed":
+        return await count_quests_completed(session, user.id)
+    if metric == "best_login_streak":
+        return max(user.best_login_streak, user.login_streak)
+    if metric == "rank_reached":
+        top = int(achievement.metric_param or 0)
+        return 1 if user.best_global_rank and top and user.best_global_rank <= top else 0
+    if metric == "collection_completion_pct":
+        owned, total = await collection_completion(session, user.id)
+        return owned * 100 // total if total else 0
+    if metric == "rarity_count":
+        return int((await session.execute(
+            select(func.count()).select_from(UserCard).where(
+                UserCard.user_id == user.id, UserCard.rarity_id == achievement.metric_param,
+            )
+        )).scalar() or 0)
+    if metric == "specialty_jewelry_owned":
+        specialty_id, _, jewelry_id = (achievement.metric_param or "").partition(":")
+        row = (await session.execute(
+            select(UserCard.id).where(
+                UserCard.user_id == user.id, UserCard.specialty_id == specialty_id, UserCard.jewelry_id == jewelry_id,
+            ).limit(1)
+        )).first()
+        return 1 if row else 0
     if metric == "meta_unlocked_ratio":
         total_defs = (await session.execute(
             select(func.count()).select_from(AchievementDef).where(
@@ -229,16 +285,24 @@ async def list_achievements(session: AsyncSession, user: User) -> list[dict]:
     # PROCHAIN palier non encore récupéré — les précédents (récupérés)
     # restent masqués, comme les suivants (pas encore atteints). Si toute
     # la chaîne est récupérée, on garde le dernier palier (état "terminé").
+    # Classement (top 10 → top 3 → 1re place) : une seule chaîne, le paramètre
+    # étant le palier lui-même (plus il est petit, plus il est difficile).
+    def chain_key(a: AchievementDef) -> tuple:
+        return (a.metric, None) if a.metric == "rank_reached" else (a.metric, a.metric_param)
+
+    def difficulty(a: AchievementDef) -> int:
+        return -int(a.metric_param or 0) if a.metric == "rank_reached" else a.threshold
+
     chains: dict[tuple, list[AchievementDef]] = {}
     for a in defs.values():
-        chains.setdefault((a.metric, a.metric_param), []).append(a)
+        chains.setdefault(chain_key(a), []).append(a)
 
     visible_ids = set()
     for members in chains.values():
         if len(members) == 1:
             visible_ids.add(members[0].id)
             continue
-        members.sort(key=lambda a: a.threshold)
+        members.sort(key=difficulty)
         chosen = next(
             (a for a in members if not (unlocked.get(a.id) and unlocked[a.id].claimed_at)),
             members[-1],

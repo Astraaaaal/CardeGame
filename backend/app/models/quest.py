@@ -10,8 +10,12 @@ from datetime import datetime
 from sqlmodel import SQLModel, Field
 
 # Mêmes métriques que les quêtes savent suivre (cf. app/services/quest_progress.py) :
-# packs_opened, trades_completed, gifts_sent, cards_recycled, friend_requests_sent
-QUEST_METRICS = ("packs_opened", "trades_completed", "gifts_sent", "cards_recycled", "friend_requests_sent")
+# packs_opened, trades_completed, gifts_sent, cards_recycled, friend_requests_sent,
+# shop_purchases, rerolls_used, rare_cards_obtained, legendary_cards_obtained, daily_rewards_claimed
+QUEST_METRICS = (
+    "packs_opened", "trades_completed", "gifts_sent", "cards_recycled", "friend_requests_sent",
+    "shop_purchases", "rerolls_used", "rare_cards_obtained", "legendary_cards_obtained", "daily_rewards_claimed",
+)
 
 DAILY_QUEST_COUNT = 3
 WEEKLY_QUEST_COUNT = 2

@@ -40,6 +40,12 @@ class DailyRewardResponse(BaseModel):
     total_coins: int
 
 
+class TierCount(BaseModel):
+    id: str
+    name: str
+    count: int
+
+
 class PlayerStatsResponse(BaseModel):
     total_cards: int
     unique_cards: int
@@ -64,3 +70,22 @@ class PlayerStatsResponse(BaseModel):
     favorite_type_name: Optional[str] = None
     favorite_type_count: int
     oldest_card: Optional[CardResponse] = None
+    # Collection détaillée
+    characters_owned: int = 0
+    characters_total: int = 0
+    rarity_counts: list[TierCount] = []
+    specialty_counts: list[TierCount] = []
+    jewelry_counts: list[TierCount] = []
+    # Boutique et économie
+    shop_purchases: int = 0
+    rerolls_used: int = 0
+    dust_from_recycling: int = 0
+    best_reroll_card: Optional[CardResponse] = None
+    # Classement et régularité
+    current_global_rank: Optional[int] = None
+    best_global_rank: Optional[int] = None
+    best_login_streak: int = 0
+    login_days_total: int = 0
+    # Quêtes
+    daily_quests_completed: int = 0
+    weekly_quests_completed: int = 0

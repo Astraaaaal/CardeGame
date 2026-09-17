@@ -26,7 +26,7 @@ from app.services.card_view import build_card_response
 from app.services.daily_feature import get_todays_featured_offer_id
 from app.services.wallet import get_balance, apply_delta
 from app.services.ranking import refresh_all_best_ranks
-from app.services import booster_inventory, reroll_inventory
+from app.services import activity, booster_inventory, quest_progress, reroll_inventory
 from app.services.reroll import apply_reroll, assign_bought_card_power
 from app.services import premium as premium_svc
 from app.models.premium import Cosmetic
@@ -241,6 +241,7 @@ async def buy_offer(
             raise HTTPException(status_code=404, detail="Carte introuvable.")
         previous_card = await build_card_response(session, card)
         await apply_reroll(session, card, offer)
+        await activity.track_reroll(session, user, previous_card.rarity_id, card)
         cards_out = [await build_card_response(session, card)]
 
     elif offer.kind == "cosmetic":
@@ -257,6 +258,7 @@ async def buy_offer(
     new_balance = await apply_delta(session, user, offer.resource_id, -total_price)
     for _ in range(quantity):
         session.add(ShopPurchase(user_id=user.id, offer_id=offer.id))
+    await quest_progress.increment(session, user.id, "shop_purchases", quantity)
     await refresh_all_best_ranks(session)
 
     await session.commit()
