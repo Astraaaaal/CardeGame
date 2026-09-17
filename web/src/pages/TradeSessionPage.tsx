@@ -12,6 +12,7 @@ import CardImage from "@/components/card/CardImage";
 import CardDetail from "@/components/card/CardDetail";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import AddResourceModal from "@/components/trade/AddResourceModal";
+import FloatingActionBar from "@/components/ui/FloatingActionBar";
 import { errMsg } from "@/utils/errors";
 import { showRewards, type RewardItem } from "@/stores/rewardPopupStore";
 
@@ -267,7 +268,8 @@ export default function TradeSessionPage() {
                 {err && <p className="text-red-400 text-xs">{err}</p>}
 
                 {!finished && (
-                    <div className="space-y-2 pt-2">
+                    <FloatingActionBar spacerClassName={trade.status === "confirming" ? "h-48" : "h-32"}>
+                    <div className="space-y-2">
                         {trade.status === "negotiating" && (
                             <Button
                                 variant={trade.my_ready ? "secondary" : "primary"}
@@ -306,11 +308,14 @@ export default function TradeSessionPage() {
                             Annuler l'échange
                         </Button>
                     </div>
+                    </FloatingActionBar>
                 )}
                 {finished && (
-                    <Button variant="primary" className="w-full" onClick={() => navigate("/")}>
-                        Retour au menu
-                    </Button>
+                    <FloatingActionBar>
+                        <Button variant="primary" className="w-full" onClick={() => navigate("/")}>
+                            Retour au menu
+                        </Button>
+                    </FloatingActionBar>
                 )}
             </div>
 

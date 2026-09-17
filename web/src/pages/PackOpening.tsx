@@ -8,6 +8,7 @@ import CardReveal from "@/components/card/CardReveal";
 import CardImage from "@/components/card/CardImage";
 import CardDetail from "@/components/card/CardDetail";
 import Button from "@/components/ui/Button";
+import FloatingActionBar from "@/components/ui/FloatingActionBar";
 
 export default function PackOpening() {
   const navigate = useNavigate();
@@ -97,6 +98,9 @@ export default function PackOpening() {
             onClose={() => setSelectedCard(null)}
           />
 
+        </motion.div>
+
+        <FloatingActionBar spacerClassName="h-32">
           <div className="space-y-2">
             <Button
               variant="primary"
@@ -115,7 +119,7 @@ export default function PackOpening() {
               Retour à la boutique
             </Button>
           </div>
-        </motion.div>
+        </FloatingActionBar>
       </div>
     );
   }

@@ -12,6 +12,7 @@ import CardImage from "@/components/card/CardImage";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import BottomNav from "@/components/layout/BottomNav";
+import FloatingActionBar from "@/components/ui/FloatingActionBar";
 import { errMsg } from "@/utils/errors";
 
 function fmtDate(iso: string | null | undefined): string {
@@ -210,34 +211,39 @@ export default function Profile() {
                         <ShowcaseEditor ref={showcaseRef} />
                         <TradeListingsEditor ref={listingsRef} />
 
-                        <div className="space-y-2">
-                            {saveMsg && (
-                                <p className={`text-xs ${saveMsg.ok ? "text-green-400" : "text-red-400"}`}>{saveMsg.text}</p>
-                            )}
-                            <div className="flex items-center gap-2">
-                                <Button variant="primary" className="flex-1" loading={saving} onClick={saveShowcase}>
-                                    Enregistrer
-                                </Button>
-                                <button
-                                    className="w-11 h-11 shrink-0 rounded-full border border-white/15 bg-game-surface
-                                               text-white/60 hover:text-white hover:border-accent transition-colors
-                                               flex items-center justify-center"
-                                    title="Voir comme un autre joueur"
-                                    aria-label="Voir comme un autre joueur"
-                                    onClick={() => user && navigate(`/players/${user.id}`)}
-                                >
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 )}
             </main>
 
             <BottomNav />
+
+            {tab === "showcase" && (
+                <FloatingActionBar>
+                    <div className="space-y-2">
+                        {saveMsg && (
+                            <p className={`text-xs ${saveMsg.ok ? "text-green-400" : "text-red-400"}`}>{saveMsg.text}</p>
+                        )}
+                        <div className="flex items-center gap-2">
+                            <Button variant="primary" className="flex-1" loading={saving} onClick={saveShowcase}>
+                                Enregistrer
+                            </Button>
+                            <button
+                                className="w-11 h-11 shrink-0 rounded-full border border-white/15 bg-game-surface
+                                           text-white/60 hover:text-white hover:border-accent transition-colors
+                                           flex items-center justify-center"
+                                title="Voir comme un autre joueur"
+                                aria-label="Voir comme un autre joueur"
+                                onClick={() => user && navigate(`/players/${user.id}`)}
+                            >
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </FloatingActionBar>
+            )}
         </div>
     );
 }

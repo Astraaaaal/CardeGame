@@ -243,11 +243,11 @@ export default function Collection() {
             {!inSelectionMode && <BottomNav />}
 
             <div className={`fixed inset-x-0 z-30 pointer-events-none ${inSelectionMode ? "bottom-24" : "bottom-20"}`}>
-                <div className="max-w-mobile mx-auto px-4 flex flex-col items-start gap-2">
+                <div className="max-w-mobile mx-auto px-4 flex flex-col items-end gap-2">
                     {([["top", "↑", "Tout en haut"], ["bottom", "↓", "Tout en bas"]] as const).map(([to, icon, label]) => (
                         <button
                             key={to}
-                            className="pointer-events-auto w-10 h-10 rounded-full bg-game-surface/90 border border-white/15 text-white/80
+                            className="pointer-events-auto w-10 h-10 rounded-full bg-game-surface border border-white/15 text-white/80
                              shadow-lg flex items-center justify-center text-lg hover:border-accent hover:text-white transition-colors"
                             title={label}
                             aria-label={label}
@@ -260,7 +260,7 @@ export default function Collection() {
             </div>
 
             {inSelectionMode && (
-                <div className="absolute bottom-0 left-0 right-0 z-30 bg-game-surface border-t border-white/10 p-4">
+                <div className="fixed bottom-0 left-0 right-0 z-30 bg-game-surface border-t border-white/10 p-4">
                     <Button
                         variant="gold"
                         className="w-full max-w-sm mx-auto block"
