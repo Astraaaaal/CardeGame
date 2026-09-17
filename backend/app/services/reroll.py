@@ -13,7 +13,7 @@ from sqlmodel import select
 from app.models.card import UserCard
 from app.models.character import CharacterSet
 from app.models.reference import Rarity, Quality, Specialty, Jewelry
-from app.services.power import roll_power
+from app.services.power import power_range, roll_power
 from app.services.tier_order import rank
 
 REROLL_MODELS = {
@@ -74,12 +74,18 @@ async def apply_reroll(session: AsyncSession, card: UserCard, rules) -> None:
         picked = random.choices(pool, weights=[i.weight for i in pool], k=1)[0]
         setattr(card, _FIELD_MAP[axis], picked.id)
 
-    # Le retirage d'un autre axe change déjà la plage de puissance
-    # (nouvelle combinaison -> nouvelle probabilité) ; reroll_power
-    # seul retire juste un nouveau tirage dans la MÊME plage.
     card.drop_probability = await _recompute_probability(session, card)
-    card.power = roll_power(
-        card.drop_probability, card.rarity_id, card.quality_id,
-        card.specialty_id, card.jewelry_id,
+    max_power = power_range(
+        card.drop_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id,
     )
+    if rules.reroll_power or card.power is None:
+        # Nouveau tirage dans la plage de la combinaison (éventuellement nouvelle).
+        card.power = roll_power(
+            card.drop_probability, card.rarity_id, card.quality_id,
+            card.specialty_id, card.jewelry_id,
+        )
+    elif max_power is not None and card.power > max_power:
+        # Seuls les autres axes sont relancés : la puissance est conservée, mais
+        # redescend au maximum possible si la nouvelle combinaison est plus commune.
+        card.power = max_power
     session.add(card)
