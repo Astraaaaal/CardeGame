@@ -17,6 +17,21 @@ export const authApi = {
         return res.data;
     },
 
+    verifyEmail: async (token: string): Promise<MessageResponse> => {
+        const res = await api.post("/auth/verify-email", { token });
+        return res.data;
+    },
+
+    requestPasswordReset: async (identifier: string): Promise<MessageResponse> => {
+        const res = await api.post("/auth/password-reset/request", { identifier });
+        return res.data;
+    },
+
+    confirmPasswordReset: async (identifier: string, code: string, new_password: string): Promise<MessageResponse> => {
+        const res = await api.post("/auth/password-reset/confirm", { identifier, code, new_password });
+        return res.data;
+    },
+
     logout: async (refreshToken: string): Promise<void> => {
         await api.post("/auth/logout", { refresh_token: refreshToken });
     },

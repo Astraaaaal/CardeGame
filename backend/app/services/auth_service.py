@@ -11,6 +11,7 @@ from app.models.user import User
 from app.models.token import RefreshToken
 from app.models.economy import Resource, UserResource
 from app.services.wallet import COINS_ID
+from app.services import account_email
 from app.core.security import (
     hash_password,
     verify_password,
@@ -24,7 +25,7 @@ from app.core.security import (
 class AuthService:
 
     async def register(
-        self, session: AsyncSession, username: str, password: str
+        self, session: AsyncSession, username: str, password: str, email: str, newsletter: bool = False,
     ) -> User:
         """Crée un nouveau compte."""
         username_lower = username.strip().lower()
@@ -39,6 +40,9 @@ class AuthService:
                 detail="Ce pseudo est déjà pris.",
             )
 
+        email = account_email.normalize_email(email)
+        await account_email.ensure_email_available(session, email)
+
         resources = (await session.execute(select(Resource))).scalars().all()
         coins_start = next((r.starting_amount for r in resources if r.id == COINS_ID), 500)
 
@@ -46,6 +50,8 @@ class AuthService:
             username=username_lower,
             display_name=username.strip(),
             password_hash=hash_password(password),
+            email=email,
+            newsletter_opt_in=newsletter,
             coins=coins_start,
             created_at=datetime.utcnow(),
         )
@@ -66,12 +72,7 @@ class AuthService:
         """
         Vérifie les identifiants, retourne les tokens JWT.
         """
-        username_lower = username.strip().lower()
-
-        result = await session.execute(
-            select(User).where(User.username == username_lower)
-        )
-        user = result.scalar_one_or_none()
+        user = await account_email.find_user_by_identifier(session, username)
 
         if not user or not verify_password(password, user.password_hash):
             raise HTTPException(

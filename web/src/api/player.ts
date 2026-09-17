@@ -33,6 +33,21 @@ export const playerApi = {
         return res.data;
     },
 
+    changeEmail: async (email: string, password: string): Promise<Player> => {
+        const res = await api.put("/player/email", { email, password });
+        return res.data;
+    },
+
+    resendVerification: async (): Promise<MessageResponse> => {
+        const res = await api.post("/player/email/resend-verification");
+        return res.data;
+    },
+
+    setNewsletter: async (subscribed: boolean): Promise<Player> => {
+        const res = await api.put("/player/newsletter", { subscribed });
+        return res.data;
+    },
+
     claimDailyReward: async (): Promise<DailyReward> => {
         const res = await api.post("/player/daily-reward");
         return res.data;

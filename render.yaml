@@ -33,6 +33,17 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+      - key: PUBLIC_APP_URL
+        value: https://cardegame.onrender.com
+      # E-mails + newsletter (Brevo) — vide = e-mails seulement écrits dans les logs.
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_NEWSLETTER_LIST_ID
+        sync: false
+      - key: EMAIL_SENDER_ADDRESS
+        sync: false
+      - key: EMAIL_SENDER_NAME
+        value: CardeGame
 
   # ── Frontend (site statique — React PWA) ──
   # NB : un site statique Render n'a pas de champ `plan` (gratuit par nature).

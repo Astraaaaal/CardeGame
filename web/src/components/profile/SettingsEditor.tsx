@@ -5,6 +5,7 @@ import { playerApi } from "@/api/player";
 import { useLogout } from "@/hooks/useAuth";
 import type { PlayerSettings, TradeRequestPolicy, GiftPolicy } from "@/types/player";
 import Button from "@/components/ui/Button";
+import Toggle from "@/components/ui/Toggle";
 import DeleteAccountModal from "@/components/profile/DeleteAccountModal";
 import { errMsg } from "@/utils/errors";
 
@@ -14,22 +15,6 @@ const POLICY_OPTIONS: { value: TradeRequestPolicy; label: string }[] = [
     { value: "close_friends", label: "Amis proches uniquement" },
     { value: "none", label: "Personne" },
 ];
-
-function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-    return (
-        <button
-            type="button"
-            className={`w-11 h-6 p-0 rounded-full transition-colors relative shrink-0 ${checked ? "bg-accent" : "bg-white/15"}`}
-            onClick={() => onChange(!checked)}
-        >
-            <span
-                className={`absolute left-0.5 top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-                    checked ? "translate-x-5" : "translate-x-0"
-                }`}
-            />
-        </button>
-    );
-}
 
 export default function SettingsEditor() {
     const qc = useQueryClient();

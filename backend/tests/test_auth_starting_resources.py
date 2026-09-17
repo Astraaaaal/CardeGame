@@ -16,7 +16,7 @@ async def test_register_grants_configured_starting_amounts(session):
     session.add(Resource(id="gems", name="Gemmes", starting_amount=0))
     await session.commit()
 
-    user = await auth_service.register(session, "newplayer", "password123")
+    user = await auth_service.register(session, "newplayer", "password123", "newplayer@example.com")
 
     assert user.coins == 300
 
@@ -29,5 +29,5 @@ async def test_register_grants_configured_starting_amounts(session):
 
 
 async def test_register_falls_back_to_500_coins_without_resource_row(session):
-    user = await auth_service.register(session, "newplayer2", "password123")
+    user = await auth_service.register(session, "newplayer2", "password123", "newplayer2@example.com")
     assert user.coins == 500

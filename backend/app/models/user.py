@@ -19,6 +19,13 @@ class User(SQLModel, table=True):
     display_name: str = Field(max_length=20)
     password_hash: str = Field(max_length=256)
 
+    # E-mail (obligatoire pour les nouveaux comptes, absent des anciens) —
+    # stocké en minuscules, unique. Récupération de mot de passe et newsletter
+    # ne fonctionnent qu'une fois l'adresse confirmée (email_verified_at).
+    email: Optional[str] = Field(default=None, max_length=254, unique=True, index=True)
+    email_verified_at: Optional[datetime] = Field(default=None)
+    newsletter_opt_in: bool = Field(default=False)
+
     # Économie
     coins: int = Field(default=500)
 

@@ -6,6 +6,8 @@ export interface LoginRequest {
 export interface RegisterRequest {
     username: string;
     password: string;
+    email: string;
+    newsletter: boolean;
     invite_code?: string;
 }
 

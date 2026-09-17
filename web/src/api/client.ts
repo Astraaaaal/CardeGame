@@ -22,6 +22,8 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 });
 
 // ── Response interceptor : auto-refresh si 401 ──
+const PUBLIC_PATHS = ["/login", "/legal", "/verify-email"];
+
 let isRefreshing = false;
 let failedQueue: Array<{
     resolve: (value: unknown) => void;
@@ -46,7 +48,12 @@ api.interceptors.response.use(
             _retry?: boolean;
         };
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Un 401 sur une route d'authentification est une vraie réponse (mauvais
+        // mot de passe, code invalide...) : on la laisse remonter au formulaire
+        // au lieu de rediriger (ce qui rechargeait la page et effaçait le message).
+        const isAuthRoute = /\/api\/auth\//.test(originalRequest?.url ?? "") || /^\/auth\//.test(originalRequest?.url ?? "");
+
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
@@ -58,8 +65,10 @@ api.interceptors.response.use(
 
             const refreshToken = localStorage.getItem("refresh_token");
             if (!refreshToken) {
+                isRefreshing = false;
                 localStorage.clear();
-                window.location.href = "/login";
+                // Déjà sur une page publique : pas de rechargement (évite une boucle).
+                if (!PUBLIC_PATHS.includes(window.location.pathname)) window.location.href = "/login";
                 return Promise.reject(error);
             }
 

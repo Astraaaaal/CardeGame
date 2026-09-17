@@ -14,6 +14,7 @@ import PlayerShowcase from "@/pages/PlayerShowcase";
 import Leaderboard from "@/pages/Leaderboard";
 import Progression from "@/pages/Progression";
 import Inventory from "@/pages/Inventory";
+import VerifyEmail from "@/pages/VerifyEmail";
 import TradeSessionPage from "@/pages/TradeSessionPage";
 import AdminPanel from "@/pages/AdminPanel";
 import LegalNotice from "@/pages/LegalNotice";
@@ -49,6 +50,7 @@ export default function App() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/admin" element={<AdminPanel />} />
                 <Route path="/legal" element={<LegalNotice />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route
                     path="/"
                     element={

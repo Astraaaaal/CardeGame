@@ -7,8 +7,9 @@ import { useLogout } from "@/hooks/useAuth";
 import Button from "@/components/ui/Button";
 import PasswordInput from "@/components/ui/PasswordInput";
 import { errMsg } from "@/utils/errors";
+import EmailSettings from "@/components/profile/EmailSettings";
 
-/** Nom affiché + changement de mot de passe. */
+/** Adresse e-mail et newsletter, nom affiché, changement de mot de passe. */
 export default function AccountEditor() {
     const navigate = useNavigate();
     const { user, setUser } = useAuthStore();
@@ -60,6 +61,8 @@ export default function AccountEditor() {
 
     return (
         <div className="space-y-6">
+            <EmailSettings />
+
             <div className="bg-game-surface rounded-2xl border border-white/10 p-4">
                 <h3 className="text-white font-bold text-sm mb-3">Nom affiché</h3>
                 <div className="flex gap-2">

@@ -21,6 +21,9 @@ export interface Player {
     allow_friend_requests: boolean;
     trade_request_policy: TradeRequestPolicy;
     trade_request_popup_enabled: boolean;
+    email: string | null;
+    email_verified: boolean;
+    newsletter_opt_in: boolean;
 }
 
 export interface PlayerSettings {

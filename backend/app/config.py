@@ -32,6 +32,16 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
 
+    # ── URL publique du jeu (liens dans les e-mails, retour de paiement) ──
+    PUBLIC_APP_URL: str = "http://localhost:5173"
+
+    # ── E-mails / newsletter (Brevo) — vide = e-mails écrits dans les logs ──
+    BREVO_API_KEY: str = ""
+    # Texte (et non entier) : une variable vide sur Render ne doit pas empêcher le démarrage.
+    BREVO_NEWSLETTER_LIST_ID: str = ""  # vide = pas de synchronisation newsletter
+    EMAIL_SENDER_ADDRESS: str = "no-reply@cardegame.local"
+    EMAIL_SENDER_NAME: str = "CardeGame"
+
     # ── CORS ── (JSON en variable d'env : '["https://mon-site.fr"]')
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 

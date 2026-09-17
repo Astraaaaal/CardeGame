@@ -118,6 +118,10 @@ _STATEMENTS = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_achievement_1_id VARCHAR(50)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_achievement_2_id VARCHAR(50)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS showcase_achievement_3_id VARCHAR(50)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(254)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email)",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP",
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS newsletter_opt_in BOOLEAN NOT NULL DEFAULT FALSE",
 ]
 
 # Boosters offerts à certains paliers de niveau (en plus des pièces) —

@@ -8,13 +8,39 @@ from pydantic import BaseModel, Field
 class RegisterRequest(BaseModel):
     username: str = Field(min_length=3, max_length=20, pattern=r"^[a-zA-Z0-9]+$")
     password: str = Field(min_length=4, max_length=100)
+    email: str = Field(min_length=3, max_length=254)
+    # Consentement explicite (RGPD) : décoché par défaut côté interface.
+    newsletter: bool = False
     # Requis uniquement si settings.BETA_INVITE_CODE est configuré (cf. app/api/auth.py).
     invite_code: str = Field(default="", max_length=50)
 
 
 class LoginRequest(BaseModel):
-    username: str
+    username: str  # pseudo OU adresse e-mail
     password: str
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=10, max_length=200)
+
+
+class PasswordResetRequest(BaseModel):
+    identifier: str = Field(min_length=1, max_length=254)  # pseudo ou e-mail
+
+
+class PasswordResetConfirm(BaseModel):
+    identifier: str = Field(min_length=1, max_length=254)
+    code: str = Field(min_length=6, max_length=6, pattern=r"^[0-9]{6}$")
+    new_password: str = Field(min_length=4, max_length=100)
+
+
+class ChangeEmailRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str
+
+
+class NewsletterRequest(BaseModel):
+    subscribed: bool
 
 
 class TokenResponse(BaseModel):

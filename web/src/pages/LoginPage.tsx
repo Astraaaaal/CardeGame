@@ -1,50 +1,106 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import Button from "@/components/ui/Button";
 import PasswordInput from "@/components/ui/PasswordInput";
 import { useLogin, useRegister } from "@/hooks/useAuth";
+import { authApi } from "@/api/auth";
+import { errMsg } from "@/utils/errors";
+
+type Mode = "login" | "register" | "forgot" | "reset";
+
+const INPUT = `w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5
+    text-white placeholder-white/30 focus:border-accent focus:outline-none transition-colors`;
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <label className="block text-white/70 text-sm mb-1">{label}</label>
+            {children}
+        </div>
+    );
+}
 
 export default function LoginPage() {
-    const [isRegister, setIsRegister] = useState(false);
+    const [mode, setMode] = useState<Mode>("login");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
+    const [email, setEmail] = useState("");
+    const [newsletter, setNewsletter] = useState(false);
     const [inviteCode, setInviteCode] = useState("");
+    const [code, setCode] = useState("");
     const [error, setError] = useState("");
+    const [info, setInfo] = useState("");
+    const [busy, setBusy] = useState(false);
     const navigate = useNavigate();
 
     const loginMutation = useLogin();
     const registerMutation = useRegister();
 
+    const switchMode = (next: Mode) => {
+        setMode(next);
+        setError("");
+        setInfo("");
+        if (next === "forgot") setPassword("");
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
-
-        if (username.length < 3 || password.length < 4) {
-            setError("Nom (3+ car.) et mot de passe (4+ car.) requis");
-            return;
-        }
+        setInfo("");
 
         try {
-            if (isRegister) {
-                await registerMutation.mutateAsync({ username, password, invite_code: inviteCode });
+            if (mode === "login") {
+                if (!username.trim() || !password) {
+                    setError("Pseudo (ou e-mail) et mot de passe requis");
+                    return;
+                }
+                await loginMutation.mutateAsync({ username, password });
+                navigate("/");
+            } else if (mode === "register") {
+                if (username.length < 3 || password.length < 4) {
+                    setError("Nom (3+ car.) et mot de passe (4+ car.) requis");
+                    return;
+                }
+                if (!email.includes("@")) {
+                    setError("Adresse e-mail requise");
+                    return;
+                }
+                await registerMutation.mutateAsync({ username, password, email, newsletter, invite_code: inviteCode });
                 // Auto-login après inscription
                 await loginMutation.mutateAsync({ username, password });
+                navigate("/");
+            } else if (mode === "forgot") {
+                if (!username.trim()) {
+                    setError("Indique ton pseudo ou ton e-mail");
+                    return;
+                }
+                setBusy(true);
+                const res = await authApi.requestPasswordReset(username);
+                setInfo(res.message);
+                setMode("reset");
             } else {
-                await loginMutation.mutateAsync({ username, password });
+                if (!/^\d{6}$/.test(code) || password.length < 4) {
+                    setError("Code à 6 chiffres et nouveau mot de passe (4+ car.) requis");
+                    return;
+                }
+                setBusy(true);
+                const res = await authApi.confirmPasswordReset(username, code, password);
+                setCode("");
+                setPassword("");
+                setMode("login");
+                setInfo(res.message);
             }
-            navigate("/");
         } catch (err: unknown) {
-            if (err && typeof err === "object" && "response" in err) {
-                const axiosErr = err as { response?: { data?: { detail?: string } } };
-                setError(axiosErr.response?.data?.detail || "Erreur de connexion");
-            } else {
-                setError("Erreur de connexion");
-            }
+            setError(errMsg(err));
+        } finally {
+            setBusy(false);
         }
     };
 
-    const isLoading = loginMutation.isPending || registerMutation.isPending;
+    const isLoading = loginMutation.isPending || registerMutation.isPending || busy;
+    const subtitle = { login: "Connexion", register: "Créer un compte", forgot: "Mot de passe oublié", reset: "Nouveau mot de passe" }[mode];
+    const submitLabel = { login: "Se connecter", register: "Créer le compte", forgot: "Recevoir un code", reset: "Changer le mot de passe" }[mode];
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col items-center justify-center px-4">
@@ -59,65 +115,100 @@ export default function LoginPage() {
                         Carde<span className="text-accent">Game</span>
                         <span className="text-xs font-bold tracking-wide text-white/40">BÊTA</span>
                     </h1>
-                    <p className="text-white/50 text-sm">
-                        {isRegister ? "Créer un compte" : "Connexion"}
-                    </p>
+                    <p className="text-white/50 text-sm">{subtitle}</p>
                 </div>
 
-                {/* Form */}
                 <form
                     onSubmit={handleSubmit}
                     className="bg-game-surface rounded-2xl p-6 border border-white/10 space-y-4"
                 >
-                    <div>
-                        <label className="block text-white/70 text-sm mb-1">
-                            Nom d'utilisateur
-                        </label>
+                    <Field label={mode === "register" ? "Nom d'utilisateur" : "Pseudo ou e-mail"}>
                         <input
                             type="text"
-                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5
-                         text-white placeholder-white/30 focus:border-accent focus:outline-none
-                         transition-colors"
-                            placeholder="Entrez votre nom..."
+                            className={INPUT}
+                            placeholder={mode === "register" ? "Entrez votre nom..." : "Pseudo ou adresse e-mail..."}
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             autoComplete="username"
+                            disabled={mode === "reset"}
                         />
-                    </div>
+                    </Field>
 
-                    <div>
-                        <label className="block text-white/70 text-sm mb-1">
-                            Mot de passe
-                        </label>
-                        <PasswordInput
-                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5
-                         text-white placeholder-white/30 focus:border-accent focus:outline-none
-                         transition-colors"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            autoComplete={isRegister ? "new-password" : "current-password"}
-                        />
-                    </div>
-
-                    {isRegister && (
-                        <div>
-                            <label className="block text-white/70 text-sm mb-1">
-                                Code d'invitation
-                            </label>
+                    {mode === "register" && (
+                        <Field label="Adresse e-mail">
                             <input
-                                type="text"
-                                className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-2.5
-                         text-white placeholder-white/30 focus:border-accent focus:outline-none
-                         transition-colors"
-                                placeholder="Reçu de la personne qui t'invite"
-                                value={inviteCode}
-                                onChange={(e) => setInviteCode(e.target.value)}
-                                autoComplete="off"
+                                type="email"
+                                className={INPUT}
+                                placeholder="toi@exemple.fr"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                autoComplete="email"
                             />
-                        </div>
+                        </Field>
                     )}
 
+                    {mode === "reset" && (
+                        <Field label="Code reçu par e-mail">
+                            <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={6}
+                                className={`${INPUT} tracking-[0.4em] text-center text-lg`}
+                                placeholder="000000"
+                                value={code}
+                                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                                autoComplete="one-time-code"
+                            />
+                        </Field>
+                    )}
+
+                    {mode !== "forgot" && (
+                        <Field label={mode === "reset" ? "Nouveau mot de passe" : "Mot de passe"}>
+                            <PasswordInput
+                                className={INPUT}
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                            />
+                        </Field>
+                    )}
+
+                    {mode === "register" && (
+                        <>
+                            <Field label="Code d'invitation">
+                                <input
+                                    type="text"
+                                    className={INPUT}
+                                    placeholder="Reçu de la personne qui t'invite"
+                                    value={inviteCode}
+                                    onChange={(e) => setInviteCode(e.target.value)}
+                                    autoComplete="off"
+                                />
+                            </Field>
+                            <label className="flex items-start gap-2 text-white/60 text-xs cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="mt-0.5"
+                                    checked={newsletter}
+                                    onChange={(e) => setNewsletter(e.target.checked)}
+                                />
+                                Recevoir la newsletter de CardeGame (nouveautés, événements). Désinscription possible à tout moment.
+                            </label>
+                        </>
+                    )}
+
+                    {mode === "login" && (
+                        <button
+                            type="button"
+                            className="text-accent text-xs hover:underline"
+                            onClick={() => switchMode("forgot")}
+                        >
+                            Mot de passe oublié ?
+                        </button>
+                    )}
+
+                    {info && <p className="text-green-400 text-sm text-center">{info}</p>}
                     {error && (
                         <motion.p
                             className="text-red-400 text-sm text-center"
@@ -128,29 +219,32 @@ export default function LoginPage() {
                         </motion.p>
                     )}
 
-                    <Button
-                        type="submit"
-                        variant="primary"
-                        size="lg"
-                        loading={isLoading}
-                        className="w-full"
-                    >
-                        {isRegister ? "Créer le compte" : "Se connecter"}
+                    <Button type="submit" variant="primary" size="lg" loading={isLoading} className="w-full">
+                        {submitLabel}
                     </Button>
+
+                    {mode === "reset" && (
+                        <button
+                            type="button"
+                            className="text-white/40 text-xs hover:text-white w-full"
+                            onClick={() => switchMode("forgot")}
+                        >
+                            Renvoyer un code
+                        </button>
+                    )}
                 </form>
 
-                {/* Toggle */}
                 <p className="text-center text-white/40 text-sm mt-4">
-                    {isRegister ? "Déjà un compte ?" : "Pas encore de compte ?"}{" "}
+                    {mode === "login" ? "Pas encore de compte ?" : mode === "register" ? "Déjà un compte ?" : ""}{" "}
                     <button
                         className="text-accent hover:underline"
-                        onClick={() => {
-                            setIsRegister(!isRegister);
-                            setError("");
-                        }}
+                        onClick={() => switchMode(mode === "login" ? "register" : "login")}
                     >
-                        {isRegister ? "Se connecter" : "S'inscrire"}
+                        {mode === "login" ? "S'inscrire" : "Se connecter"}
                     </button>
+                </p>
+                <p className="text-center mt-2">
+                    <Link to="/legal" className="text-white/30 text-xs hover:text-white/60">Mentions légales</Link>
                 </p>
             </motion.div>
         </div>

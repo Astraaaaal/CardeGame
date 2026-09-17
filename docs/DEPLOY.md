@@ -28,6 +28,10 @@ Sur le service `cardegame-api` → onglet **Environment** :
 | `ADMIN_KEY` | *auto-généré — **copier la valeur**, elle sert au seed* |
 | `BETA_INVITE_CODE` | optionnel — vide = inscription libre ; sinon requis pour créer un compte |
 | `CLOUDINARY_*` | laisser vide (rendu des cartes côté client) |
+| `PUBLIC_APP_URL` | URL du jeu, utilisée dans les liens des e-mails et le retour de paiement |
+| `BREVO_API_KEY` | clé API Brevo (SMTP & API → Clés API) — vide = e-mails écrits dans les logs |
+| `BREVO_NEWSLETTER_LIST_ID` | numéro de la liste Brevo des abonnés newsletter — vide/0 = pas de synchro |
+| `EMAIL_SENDER_ADDRESS` | adresse d'expédition **validée dans Brevo** (domaine authentifié) |
 
 Save → l'API redéploie.
 

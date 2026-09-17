@@ -17,7 +17,9 @@ from app.models.economy import Resource, UserResource
 from app.models.social import TradeListing
 from app.models.achievement import UserAchievement
 from app.schemas.player import PlayerResponse, DailyRewardResponse, UpdateProfileRequest, PlayerStatsResponse
-from app.schemas.auth import ChangePasswordRequest, DeleteAccountRequest, MessageResponse
+from app.schemas.auth import (
+    ChangePasswordRequest, DeleteAccountRequest, MessageResponse, ChangeEmailRequest, NewsletterRequest,
+)
 from app.schemas.economy import ResourceBalance
 from app.schemas.showcase import ShowcaseResponse, UpdateShowcaseRequest, UpdateTradeListingsRequest
 from app.schemas.settings import PlayerSettings, UpdatePlayerSettings
@@ -26,6 +28,7 @@ from app.services.showcase_view import build_showcase_response, ACHIEVEMENT_SLOT
 from app.services.account import delete_account
 from app.services.player_stats import build_player_stats
 from app.services.ranking import refresh_all_best_ranks
+from app.services import account_email
 
 router = APIRouter()
 daily_service = DailyRewardService()
@@ -55,6 +58,9 @@ async def _profile_response(session: AsyncSession, user: User) -> PlayerResponse
         allow_friend_requests=user.allow_friend_requests,
         trade_request_policy=user.trade_request_policy,
         trade_request_popup_enabled=user.trade_request_popup_enabled,
+        email=user.email,
+        email_verified=user.email_verified_at is not None,
+        newsletter_opt_in=user.newsletter_opt_in,
     )
 
 
@@ -112,6 +118,38 @@ async def change_password(
     await session.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
     await session.commit()
     return MessageResponse(message="Mot de passe changé. Reconnecte-toi.")
+
+
+@router.put("/email", response_model=PlayerResponse, dependencies=[Depends(rate_limit(5, 600))])
+async def change_email(
+    body: ChangeEmailRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Ajoute ou change l'adresse e-mail (mot de passe requis) ; elle doit être reconfirmée."""
+    await account_email.change_email(session, user, body.email, body.password)
+    return await _profile_response(session, user)
+
+
+@router.post("/email/resend-verification", response_model=MessageResponse, dependencies=[Depends(rate_limit(3, 600))])
+async def resend_verification(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    if user.email_verified_at:
+        raise HTTPException(400, "Ton adresse est déjà confirmée.")
+    await account_email.send_verification(session, user)
+    return MessageResponse(message=f"Lien de confirmation renvoyé à {user.email}.")
+
+
+@router.put("/newsletter", response_model=PlayerResponse)
+async def update_newsletter(
+    body: NewsletterRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    await account_email.set_newsletter(session, user, body.subscribed)
+    return await _profile_response(session, user)
 
 
 @router.delete(

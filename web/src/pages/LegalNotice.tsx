@@ -51,15 +51,44 @@ export default function LegalNotice() {
 
                 <Section title="Données personnelles">
                     <p>
-                        CardeGame collecte un pseudo, un mot de passe (chiffré) et les données de
-                        jeu nécessaires au fonctionnement du service (collection, échanges,
-                        messages). Aucune donnée n'est cédée à des tiers.
+                        CardeGame collecte un pseudo, une adresse e-mail, un mot de passe (chiffré)
+                        et les données de jeu nécessaires au fonctionnement du service (collection,
+                        échanges, messages). Aucune donnée n'est vendue à des tiers.
+                    </p>
+                    <p>
+                        L'adresse e-mail sert à confirmer le compte, à récupérer le mot de passe et,
+                        uniquement si tu l'as accepté, à recevoir la newsletter (désinscription à tout
+                        moment depuis les réglages ou le lien présent dans chaque e-mail). Les e-mails
+                        sont envoyés via Brevo (Sendinblue SAS, France).
+                    </p>
+                    <p>
+                        Les paiements sont traités par Stripe : CardeGame ne reçoit ni ne stocke tes
+                        coordonnées bancaires. L'historique des commandes est conservé pour les
+                        obligations comptables, même après suppression du compte.
                     </p>
                     <p>
                         Conformément au RGPD, tu peux supprimer ton compte et l'ensemble de tes
                         données à tout moment depuis l'onglet Paramètres de ton profil.
                     </p>
                     <p>Pour toute question relative à tes données : {PLACEHOLDER}</p>
+                </Section>
+
+                <Section title="Conditions de vente (boutique premium)">
+                    <p>Vendeur : {PLACEHOLDER} (nom, statut, SIRET, adresse).</p>
+                    <p>
+                        Produits : contenus numériques (monnaie virtuelle « Éclats », lots, éléments
+                        cosmétiques), sans valeur monétaire hors du jeu, non échangeables entre
+                        joueurs et non convertibles en argent.
+                    </p>
+                    <p>Prix : indiqués en euros TTC avant l'achat. TVA : {PLACEHOLDER}.</p>
+                    <p>
+                        Livraison : immédiate après confirmation du paiement. En validant l'achat, tu
+                        demandes l'exécution immédiate du contrat et renonces à ton droit de
+                        rétractation (article L221-28 du Code de la consommation).
+                    </p>
+                    <p>Remboursements et réclamations : {PLACEHOLDER}.</p>
+                    <p>Mineurs : {PLACEHOLDER} (accord parental requis).</p>
+                    <p>Médiateur de la consommation : {PLACEHOLDER}.</p>
                 </Section>
 
                 <Section title="Cookies">

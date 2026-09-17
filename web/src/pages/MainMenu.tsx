@@ -115,6 +115,21 @@ export default function MainMenu() {
 
       <ActiveTradeBanner />
 
+      {user && (!user.email || !user.email_verified) && (
+        <button
+          className="mx-4 mt-3 flex items-center justify-between gap-2 bg-amber-400/10 border border-amber-400/40
+                     rounded-xl px-4 py-2.5 text-left max-w-sm self-center w-[calc(100%-2rem)]"
+          onClick={() => navigate("/settings")}
+        >
+          <span className="text-white text-sm">
+            {user.email
+              ? "Confirme ton adresse e-mail pour sécuriser ton compte."
+              : "Ajoute ton adresse e-mail pour sécuriser ton compte."}
+          </span>
+          <span className="text-amber-300 text-xs font-semibold shrink-0">{user.email ? "Voir" : "Ajouter"}</span>
+        </button>
+      )}
+
       {/* Content */}
       <main className="flex-1 flex flex-col items-center justify-center gap-6 px-4">
         <motion.h1

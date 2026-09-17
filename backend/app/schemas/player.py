@@ -24,6 +24,9 @@ class PlayerResponse(BaseModel):
     allow_friend_requests: bool = True
     trade_request_policy: str = "friends"
     trade_request_popup_enabled: bool = True
+    email: Optional[str] = None
+    email_verified: bool = False
+    newsletter_opt_in: bool = False
 
 
 class UpdateProfileRequest(BaseModel):
