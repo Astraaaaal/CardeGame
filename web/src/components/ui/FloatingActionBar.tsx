@@ -6,15 +6,16 @@ interface FloatingActionBarProps {
 
 /**
  * Boutons de validation toujours visibles en bas de l'écran (plutôt qu'en bas
- * de la page). À placer en dernier dans la page : l'espace réservé permet de
- * faire défiler le reste du contenu au-dessus de la barre.
+ * de la page), sans bandeau derrière eux. À placer en dernier dans la page :
+ * l'espace réservé permet de faire défiler le contenu au-dessus des boutons.
  */
 export default function FloatingActionBar({ children, spacerClassName = "h-24" }: FloatingActionBarProps) {
     return (
         <>
             <div className={`shrink-0 ${spacerClassName}`} aria-hidden />
-            <div className="fixed bottom-0 inset-x-0 z-30 bg-game-surface border-t border-white/10 px-4 py-3">
-                <div className="max-w-sm mx-auto w-full">{children}</div>
+            {/* Pas de bandeau : seuls les boutons flottent au-dessus du contenu. */}
+            <div className="fixed bottom-0 inset-x-0 z-30 px-4 py-3 pointer-events-none">
+                <div className="max-w-sm mx-auto w-full pointer-events-auto">{children}</div>
             </div>
         </>
     );

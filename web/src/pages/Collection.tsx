@@ -260,7 +260,7 @@ export default function Collection() {
             </div>
 
             {inSelectionMode && (
-                <div className="fixed bottom-0 left-0 right-0 z-30 bg-game-surface border-t border-white/10 p-4">
+                <div className="fixed bottom-0 left-0 right-0 z-30 p-4 pointer-events-none [&>*]:pointer-events-auto">
                     <Button
                         variant="gold"
                         className="w-full max-w-sm mx-auto block"
