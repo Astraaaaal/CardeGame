@@ -7,6 +7,16 @@ from pydantic import BaseModel, Field
 from app.schemas.card import CardResponse
 
 
+class MessageRewardItemOut(BaseModel):
+    kind: str  # resource | booster | reroll | card
+    name: str
+    quantity: int = 1
+    resource_id: str | None = None
+    booster_id: str | None = None
+    label: str | None = None  # bonus du booster
+    card: CardResponse | None = None
+
+
 class MessageOut(BaseModel):
     id: int
     sender_type: str  # "admin" | "player"
@@ -24,6 +34,7 @@ class MessageOut(BaseModel):
     reward_booster_label: str | None = None  # booster à bonus
     reward_reroll_label: str | None = None
     reward_reroll_qty: int | None = None
+    reward_items: list[MessageRewardItemOut] = []
     has_reward: bool
     created_at: datetime
     read_at: datetime | None = None
@@ -51,6 +62,8 @@ class SendAdminMessageBody(BaseModel):
     body: str = Field(default="", max_length=2000)
     reward_resource_id: str | None = None
     reward_amount: int | None = None
+    # Récompenses multiples (ressource, booster, reroll, carte) — cf. message_rewards.py.
+    rewards: list[dict] = Field(default_factory=list, max_length=20)
 
 
 class SendAdminMessageResponse(BaseModel):

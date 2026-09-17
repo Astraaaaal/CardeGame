@@ -1049,7 +1049,14 @@ function Panel() {
                     </Button>
                 )}
 
-                {tab === "messages" && <AdminMessagesComposer resources={resources} />}
+                {tab === "messages" && (
+                    <AdminMessagesComposer
+                        resources={resources}
+                        boosters={boostersQ.data ?? []}
+                        characters={charsQ.data ?? []}
+                        tuning={tuningQ.data}
+                    />
+                )}
                 {tab === "progression" && <AdminProgressionEditor resources={resources} boosters={boostersQ.data ?? []} />}
                 {tab === "settings" && <SettingsPanel />}
                 {tab === "bugReports" && <AdminBugReports />}

@@ -19,9 +19,21 @@ export interface AppMessage {
     reward_booster_label: string | null;
     reward_reroll_label: string | null;
     reward_reroll_qty: number | null;
+    /** Messages admin : récompenses multiples. */
+    reward_items: MessageRewardItem[];
     has_reward: boolean;
     created_at: string;
     read_at: string | null;
     claimed_at: string | null;
     claim_error: string | null;
+}
+
+export interface MessageRewardItem {
+    kind: "resource" | "booster" | "reroll" | "card";
+    name: string;
+    quantity: number;
+    resource_id: string | null;
+    booster_id: string | null;
+    label: string | null;
+    card: Card | null;
 }

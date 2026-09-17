@@ -53,7 +53,7 @@ async def claim_message(
 ):
     msg = await svc.get_message_or_404(session, message_id, user.id)
     msg = await svc.claim(session, msg)
-    if msg.reward_card_id and msg.claimed_at:
+    if (msg.reward_card_id or any(i.get("kind") == "card" for i in msg.reward_items or [])) and msg.claimed_at:
         await refresh_all_best_ranks(session)
         await session.commit()
     return await svc.build_out(session, msg)
@@ -93,6 +93,6 @@ async def send_admin_message(
 ):
     count = await svc.send_admin_broadcast(
         session, body.usernames, body.subject, body.body,
-        body.reward_resource_id, body.reward_amount,
+        body.reward_resource_id, body.reward_amount, body.rewards,
     )
     return SendAdminMessageResponse(sent_count=count)

@@ -30,6 +30,12 @@ function MessageRow({ message }: { message: AppMessage }) {
             if (m.claimed_at && !m.claim_error) {
                 const items: RewardItem[] = rewardItems(m);
                 if (m.reward_card) items.push({ kind: "card", card: m.reward_card });
+                for (const r of m.reward_items) {
+                    if (r.kind === "resource" && r.resource_id) items.push({ kind: "resource", resourceId: r.resource_id, amount: r.quantity, name: r.name });
+                    if (r.kind === "booster" && r.booster_id) items.push({ kind: "booster", boosterId: r.booster_id, quantity: r.quantity, name: r.label ?? r.name });
+                    if (r.kind === "reroll") items.push({ kind: "reroll_token", name: r.name, quantity: r.quantity });
+                    if (r.kind === "card" && r.card) items.push({ kind: "card", card: r.card });
+                }
                 if (m.reward_reroll_label && m.reward_reroll_qty) {
                     items.push({ kind: "reroll_token", name: m.reward_reroll_label, quantity: m.reward_reroll_qty });
                 }
@@ -116,6 +122,25 @@ function MessageRow({ message }: { message: AppMessage }) {
                             </span>
                         </div>
                     )}
+
+                    {message.reward_items.map((r, i) => (
+                        <div key={i} className="flex items-center gap-3 bg-black/20 rounded-lg p-2">
+                            {r.kind === "card" && r.card ? (
+                                <div className="w-12 shrink-0"><CardImage card={r.card} size="sm" /></div>
+                            ) : r.kind === "resource" && r.resource_id ? (
+                                <ResourceIcon resourceId={r.resource_id} className="w-5 h-5" />
+                            ) : (
+                                <span className="text-lg">{r.kind === "booster" ? "🎴" : "🎲"}</span>
+                            )}
+                            <span className="text-white text-sm">
+                                {r.kind === "resource" ? `${r.quantity.toLocaleString("fr-FR")} ${r.name}`
+                                    : r.kind === "card" && r.card
+                                        ? [r.card.character_name, r.card.rarity_name, r.card.quality_name].filter(Boolean).join(" · ")
+                                        : `${r.name} ×${r.quantity}`}
+                                {r.label && <span className="block text-gold text-xs">{r.label}</span>}
+                            </span>
+                        </div>
+                    ))}
 
                     {message.claim_error && (
                         <p className="text-red-400 text-xs">{message.claim_error}</p>

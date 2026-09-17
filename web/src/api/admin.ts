@@ -180,7 +180,24 @@ export interface SendAdminMessageBody {
     body?: string;
     reward_resource_id?: string | null;
     reward_amount?: number | null;
+    rewards?: AdminMessageReward[];
 }
+
+/** Récompense d'un message admin (cf. backend app/services/message_rewards.py). */
+export type AdminMessageReward =
+    | { kind: "resource"; id: string; amount: number }
+    | { kind: "booster"; id: string; quantity: number; force_min_rarity_id?: string | null; rarity_weight_multiplier?: number | null; label?: string }
+    | {
+        kind: "reroll"; label: string; quantity: number;
+        rules: {
+            reroll_rarity: boolean; reroll_quality: boolean; reroll_specialty: boolean;
+            reroll_jewelry: boolean; reroll_power: boolean; reroll_mode: "random" | "guaranteed_min";
+        };
+    }
+    | {
+        kind: "card"; character_id: string; rarity_id: string; quality_id: string;
+        specialty_id: string; jewelry_id: string; power_mode: "rolled" | "fixed"; power?: number | null;
+    };
 
 export const adminMessagesApi = {
     send: (b: SendAdminMessageBody) =>

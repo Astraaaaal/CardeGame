@@ -50,6 +50,8 @@ class Message(SQLModel, table=True):
     reward_booster_qty: Optional[int] = Field(default=None)
     reward_booster_bonus: Optional[dict] = Field(default=None, sa_column=Column(JSON, nullable=True))
     reward_reroll: Optional[dict] = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # Messages admin : liste de récompenses (cf. app/services/message_rewards.py).
+    reward_items: Optional[list] = Field(default=None, sa_column=Column(JSON, nullable=True))
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     read_at: Optional[datetime] = Field(default=None)

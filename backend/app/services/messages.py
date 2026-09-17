@@ -19,7 +19,7 @@ from app.services.card_view import build_card_response
 from app.services.wallet import get_balance, apply_delta, COINS_ID
 from app.services.gift_policy import can_send_gift
 from app.services import quest_progress
-from app.services import booster_inventory, reroll_inventory
+from app.services import booster_inventory, message_rewards, reroll_inventory
 from app.services.premium import ensure_tradeable
 
 MAX_RECIPIENTS_PER_SEND = 200
@@ -61,6 +61,7 @@ def _has_reward(message: Message) -> bool:
         or bool(message.reward_resource_id and message.reward_amount)
         or bool(message.reward_booster_id and message.reward_booster_qty)
         or bool(message.reward_reroll and message.reward_reroll.get("quantity"))
+        or bool(message.reward_items)
     )
 
 
@@ -116,6 +117,10 @@ async def claim(session: AsyncSession, message: Message) -> Message:
             session, recipient.id, reroll.get("offer_id"), reroll.get("label") or "Reroll",
             reroll.get("rules") or {}, int(reroll["quantity"]),
         )
+
+    if not error and message.reward_items:
+        # Réaffectation (pas de mutation en place) pour que la colonne JSON soit bien enregistrée.
+        message.reward_items = await message_rewards.grant(session, recipient, message.reward_items)
 
     message.claimed_at = datetime.utcnow()
     message.claim_error = error
@@ -218,8 +223,9 @@ async def send_gift(
 
 async def send_admin_broadcast(
     session: AsyncSession, usernames: list[str] | None, subject: str, body: str,
-    reward_resource_id: str | None, reward_amount: int | None,
+    reward_resource_id: str | None, reward_amount: int | None, rewards: list[dict] | None = None,
 ) -> int:
+    reward_items = await message_rewards.validate(session, rewards) if rewards else None
     if reward_resource_id and reward_resource_id != COINS_ID and not await session.get(Resource, reward_resource_id):
         raise HTTPException(404, "Ressource introuvable.")
     if (reward_resource_id and not reward_amount) or (reward_amount and not reward_resource_id):
@@ -241,6 +247,7 @@ async def send_admin_broadcast(
             sender_type="admin", sender_user_id=None, recipient_user_id=user.id,
             subject=subject.strip(), body=body.strip(),
             reward_resource_id=reward_resource_id, reward_amount=reward_amount,
+            reward_items=reward_items,
         ))
     await session.commit()
     return len(recipients)
@@ -284,6 +291,7 @@ async def build_out(session: AsyncSession, message: Message) -> MessageOut:
         reward_booster_label=(message.reward_booster_bonus or {}).get("label") or None,
         reward_reroll_label=(message.reward_reroll or {}).get("label") or None,
         reward_reroll_qty=(message.reward_reroll or {}).get("quantity") or None,
+        reward_items=await message_rewards.describe(session, message.reward_items),
         created_at=message.created_at, read_at=message.read_at, claimed_at=message.claimed_at,
         claim_error=message.claim_error,
     )
