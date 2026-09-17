@@ -72,7 +72,9 @@ export default function CardImage({
                 // sans ça, une sélection de texte à la souris repeint toute la
                 // grille à chaque mouvement, ce qui fige les machines modestes.
                 contain: "paint",
-                borderRadius: "5cqi",
+                // En % de la carte elle-même : un "cqi" ici se rapporterait au conteneur
+                // parent (ou à la fenêtre), d'où des coins quasi ovales sur écran large.
+                borderRadius: "5% / 3.57%",
                 overflow: "hidden",
                 boxShadow: `inset 0 0 0 3px ${frame}, inset 0 0 0 4.5px rgba(0,0,0,.55), 0 0 ${ex ? 26 : 14}px ${rarity}${ex ? "88" : "55"}, 0 4px 14px rgba(0,0,0,.45)`,
                 transition: "transform .18s ease",
