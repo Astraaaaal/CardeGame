@@ -35,7 +35,7 @@ export function RarityHalo({ tier }: { tier: Tier }) {
             style={{ background: `radial-gradient(circle, ${color}cc 0%, ${color}55 45%, transparent 72%)`, filter: "blur(18px)" }}
             initial={{ opacity: 0, scale: 0.7 }}
             animate={{ opacity: [0.55, 0.9 + tier.level * 0.03, 0.55], scale: [0.96, 1.04 + tier.level * 0.02, 0.96] }}
-            transition={{ duration: 1.8 - tier.level * 0.25, repeat: Infinity, ease: "easeInOut" }}
+            transition={{ duration: (1.8 - tier.level * 0.25) * 2, repeat: Infinity, ease: "easeInOut" }}
         />
     );
 }
@@ -102,7 +102,7 @@ export function SpecialtyOverlay({ id }: { id: string }) {
                         "inset 0 0 8px #facc15, 0 0 6px #facc15",
                     ],
                 }}
-                transition={{ duration: 0.7, repeat: Infinity }}
+                transition={{ duration: 1.4, repeat: Infinity }}
             />
         );
     }

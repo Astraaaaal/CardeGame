@@ -60,7 +60,7 @@ export function FramedAvatar({ frame, size, children }: {
             style={{
                 width: size, height: size, padding: ring,
                 ["--cosmetic-glow" as string]: frame.color_from,
-                animation: frame.animation === "pulse" ? "cosmetic-pulse 2s ease-in-out infinite" : undefined,
+                animation: frame.animation === "pulse" ? "cosmetic-pulse 4s ease-in-out infinite" : undefined,
             }}
         >
             <div

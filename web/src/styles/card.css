@@ -64,7 +64,7 @@
 }
 
 .card-glow {
-    animation: glow-pulse 1.5s ease-in-out infinite;
+    animation: glow-pulse 3s ease-in-out infinite;
 }
 /* Reflet "shiny" pour CardImage (specialty = shiny) */
 @keyframes cardSheen {
