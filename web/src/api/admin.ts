@@ -167,6 +167,38 @@ export interface AdminQuestDef {
     active: boolean;
 }
 
+// Réglages des activités (présence, coffre, expéditions, atelier, mini-jeux).
+const httpActivities = axios.create({ baseURL: `${API_URL}/api/admin/activities` });
+httpActivities.interceptors.request.use((config) => {
+    config.headers.set("X-Admin-Key", adminKey.get());
+    return config;
+});
+
+export interface ActivitiesConfig {
+    reward_booster_id: string;
+    presence: { max_multiplier: number; full_after_hours: number; reset_after_minutes: number };
+    chest: { coins_per_hour: number; dust_per_hour: number; cap_hours: number };
+    expeditions: {
+        slots: number; max_cards: number; durations: number[]; coins_per_minute: number; dust_ratio: number;
+        power_scale: number; max_power_factor: number;
+        booster_chance: Record<string, number>; rare_card_chance: Record<string, number>;
+    };
+    workshop: {
+        taps_per_gauge: number; max_taps_per_second: number; coins_per_gauge: number; dust_chance: number;
+        dust_amount: number; fragments_per_booster: number; gauges_per_day: number;
+    };
+    higher_lower: { min_stake: number; max_stake: number; multiplier: number; max_steps: number };
+    wheel: {
+        extra_spin_cost: number; extra_spins_per_day: number;
+        segments: { label: string; kind: "resource" | "booster" | "reroll"; id: string; amount: number; weight: number }[];
+    };
+}
+
+export const adminActivitiesApi = {
+    get: () => httpActivities.get<ActivitiesConfig>("/config").then((r) => r.data),
+    save: (b: ActivitiesConfig) => httpActivities.put<ActivitiesConfig>("/config", b).then((r) => r.data),
+};
+
 // Route sœur de /api/admin/content, hors de son préfixe — client dédié.
 const httpMessages = axios.create({ baseURL: `${API_URL}/api/admin/messages` });
 httpMessages.interceptors.request.use((config) => {
