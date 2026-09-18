@@ -19,6 +19,7 @@ import TradeSessionPage from "@/pages/TradeSessionPage";
 import AdminPanel from "@/pages/AdminPanel";
 import LegalNotice from "@/pages/LegalNotice";
 import Activities from "@/pages/Activities";
+import Guild from "@/pages/Guild";
 import TradeWatcher from "@/components/trade/TradeWatcher";
 import RewardPopup from "@/components/player/RewardPopup";
 import { usePresencePing } from "@/hooks/usePresence";
@@ -133,6 +134,14 @@ export default function App() {
                     element={
                         <ProtectedRoute>
                             <Activities />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/guild"
+                    element={
+                        <ProtectedRoute>
+                            <Guild />
                         </ProtectedRoute>
                     }
                 />

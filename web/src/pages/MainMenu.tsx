@@ -46,6 +46,7 @@ export default function MainMenu() {
     { label: "Boutique", path: "/shop" },
     { label: "Ma Collection", path: "/collection" },
     { label: "Activités", path: "/activities" },
+    { label: "Guilde", path: "/guild" },
     { label: "Inventaire", path: "/inventory" },
     { label: "Classement", path: "/leaderboard" },
     { label: "Progression", path: "/progression" },

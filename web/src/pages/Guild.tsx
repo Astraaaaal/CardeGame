@@ -1,0 +1,32 @@
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { guildsApi } from "@/api/guilds";
+import BottomNav from "@/components/layout/BottomNav";
+import NoGuild, { MY_GUILD_KEY } from "@/components/guild/NoGuild";
+import GuildView from "@/components/guild/GuildView";
+
+/** Guilde du joueur, ou création / recherche s'il n'en a pas. */
+export default function Guild() {
+    const navigate = useNavigate();
+    // Rafraîchi régulièrement : progression du défi, nouveaux membres, bonus.
+    const { data, isLoading } = useQuery({ queryKey: MY_GUILD_KEY, queryFn: guildsApi.me, refetchInterval: 30_000 });
+
+    return (
+        <div className="min-h-screen bg-game-bg flex flex-col">
+            <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
+                <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
+                    Retour
+                </button>
+                <h1 className="text-white font-bold">Guilde</h1>
+                <span className="w-14" />
+            </header>
+
+            <main className="flex-1 px-4 py-6 max-w-sm mx-auto w-full pb-24">
+                {isLoading && <p className="text-white/40 text-sm text-center">Chargement...</p>}
+                {data && (data.guild ? <GuildView guild={data.guild} /> : <NoGuild state={data} />)}
+            </main>
+
+            <BottomNav />
+        </div>
+    );
+}

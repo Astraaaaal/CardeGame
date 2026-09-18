@@ -7,6 +7,7 @@ import { useAuthStore } from "@/stores/authStore";
 import type { LeaderboardEntry } from "@/types/leaderboard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import BottomNav from "@/components/layout/BottomNav";
+import GuildRankings from "@/components/guild/GuildRankings";
 
 function EntryRow({ entry, isSelf }: { entry: LeaderboardEntry; isSelf: boolean }) {
     const navigate = useNavigate();
@@ -52,7 +53,7 @@ function EntryList({ entries, isLoading }: { entries: LeaderboardEntry[]; isLoad
     );
 }
 
-type Tab = "friends" | "global" | "type";
+type Tab = "friends" | "global" | "type" | "guilds";
 
 export default function Leaderboard() {
     const navigate = useNavigate();
@@ -92,6 +93,7 @@ export default function Leaderboard() {
                     { key: "friends", label: "Amis" },
                     { key: "global", label: "Global" },
                     { key: "type", label: "Par type" },
+                    { key: "guilds", label: "Guildes" },
                 ] as const).map((t) => (
                     <button
                         key={t.key}
@@ -136,6 +138,8 @@ export default function Leaderboard() {
                         <EntryList entries={byTypeQ.data?.entries ?? []} isLoading={byTypeQ.isLoading} />
                     </>
                 )}
+
+                {tab === "guilds" && <GuildRankings />}
             </main>
 
             <BottomNav />
