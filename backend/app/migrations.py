@@ -153,6 +153,8 @@ _STATEMENTS = [
     "WHERE once_per_account = TRUE AND limit_period = 'none'",
     # Activités : réglages éditables depuis l'admin.
     "ALTER TABLE game_config ADD COLUMN IF NOT EXISTS activities JSON",
+    # Guildes : délai après un départ.
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS guild_left_at TIMESTAMP",
     # Carte précise du shop : puissance tirée à l'achat ou fixée par l'admin.
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power_mode VARCHAR(10) NOT NULL DEFAULT 'rolled'",
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power INTEGER",

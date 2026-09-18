@@ -19,7 +19,7 @@ from app.models.message import Message
 from app.models.social import TradeListing
 from app.models.trade_session import ACTIVE_STATUSES, TradeSession, TradeSessionItem
 from app.models.user import User
-from app.services import activities_config, booster_inventory
+from app.services import activities_config, booster_inventory, guilds, quest_progress
 from app.services.card_generator import CardGeneratorService
 from app.services.card_view import build_card_response
 from app.services.power import roll_power
@@ -104,7 +104,8 @@ async def overview(session: AsyncSession, user: User) -> dict:
     )).scalars().all()
     by_slot = {e.slot: e for e in active}
     slots = []
-    for slot in range(cfg["expeditions"]["slots"]):
+    slot_count = cfg["expeditions"]["slots"] + (await guilds.level_perks(session, user.id))["extra_expedition_slots"]
+    for slot in range(slot_count):
         exp = by_slot.get(slot)
         slots.append({"slot": slot, "expedition": await _out(session, exp, cfg) if exp else None})
     return {
@@ -118,7 +119,8 @@ async def overview(session: AsyncSession, user: User) -> dict:
 async def start(session: AsyncSession, user: User, slot: int, duration: int, card_ids: list[str]) -> dict:
     cfg = await activities_config.get_config(session)
     exp_cfg = cfg["expeditions"]
-    if not 0 <= slot < exp_cfg["slots"]:
+    slot_count = exp_cfg["slots"] + (await guilds.level_perks(session, user.id))["extra_expedition_slots"]
+    if not 0 <= slot < slot_count:
         raise HTTPException(400, "Emplacement d'expédition invalide.")
     if duration not in exp_cfg["durations"]:
         raise HTTPException(400, "Durée d'expédition invalide.")
@@ -145,6 +147,10 @@ async def start(session: AsyncSession, user: User, slot: int, duration: int, car
 
     total_power = sum(c.power or 0 for c in cards)
     est = estimate(duration, total_power, cfg)
+    loot_bonus = await guilds.buff_value(session, user.id, "expedition_loot")
+    if loot_bonus:
+        est["coins"] = round(est["coins"] * loot_bonus)
+        est["dust"] = round(est["dust"] * loot_bonus)
     now = datetime.utcnow()
     exp = Expedition(
         user_id=user.id, slot=slot, duration_minutes=duration, card_ids=card_ids, total_power=total_power,
@@ -216,6 +222,7 @@ async def claim(session: AsyncSession, user: User, expedition_id: int) -> dict:
 
     exp.claimed_at = datetime.utcnow()
     session.add(exp)
+    await quest_progress.increment(session, user.id, "expeditions_completed", 1)
     session.add(user)
     await session.commit()
     return reward

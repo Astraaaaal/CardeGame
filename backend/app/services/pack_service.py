@@ -19,7 +19,7 @@ from app.services.card_renderer import CardRendererService
 from app.services.wallet import get_balance, apply_delta
 from app.services.power import roll_power, combined_rarity
 from app.services import quest_progress
-from app.services import activity, presence_bonus
+from app.services import activity, guilds, presence_bonus
 from app.schemas.card import CardResponse
 
 
@@ -57,6 +57,7 @@ class PackService:
 
         # Bonus de présence (appli restée affichée) : se cumule avec celui de l'offre.
         luck = await presence_bonus.luck_multiplier(session, user_id)
+        luck *= await guilds.buff_value(session, user_id, "luck") or 1.0
         if luck > 1.0:
             rarity_weight_multiplier = (rarity_weight_multiplier or 1.0) * luck
 

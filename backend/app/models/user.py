@@ -84,6 +84,8 @@ class User(SQLModel, table=True):
     best_reroll_card_id: Optional[str] = Field(default=None, max_length=40)
     best_reroll_combined_rarity: Optional[int] = Field(default=None)
     login_days_total: int = Field(default=0)  # récompenses du jour récupérées
+    # Départ de guilde : délai avant d'en rejoindre une autre.
+    guild_left_at: Optional[datetime] = Field(default=None)
     # Dernier niveau dont la récompense a été récupérée (le niveau "courant"
     # se déduit à la volée de total_power ; celui-ci ne sert qu'à savoir
     # jusqu'où la récompense a déjà été réclamée).

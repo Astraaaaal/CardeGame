@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.models.game_config import GameConfig
-from app.services import quest_progress
+from app.services import guilds, quest_progress
 
 
 class DailyRewardService:
@@ -53,6 +53,10 @@ class DailyRewardService:
             user.login_streak - 1
         )
 
+        # Guilde : +x % selon son niveau, et bonus temporaire éventuel.
+        perks = await guilds.level_perks(session, user.id)
+        reward = round(reward * (1 + perks["daily_bonus_pct"] / 100)
+                       * (await guilds.buff_value(session, user.id, "daily_reward") or 1.0))
         user.best_login_streak = max(user.best_login_streak, user.login_streak)
         user.login_days_total += 1
         await quest_progress.increment(session, user.id, "daily_rewards_claimed", 1)

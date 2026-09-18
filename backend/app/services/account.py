@@ -19,6 +19,7 @@ from app.models.quest import QuestProgress, UserQuest
 from app.models.booster_inventory import UserBoosterInventory, UserBonusBooster
 from app.models.reroll_inventory import UserRerollToken
 from app.models.activity import UserActivity, Expedition, HigherLowerGame
+from app.models.guild import GuildBuff, GuildContribution, GuildInvite, GuildMessage
 from app.models.premium import UserCosmetic, PremiumOrder
 from app.services import account_email
 from app.models.trade_session import TradeSession, TradeSessionItem
@@ -26,6 +27,14 @@ from app.models.trade_session import TradeSession, TradeSessionItem
 
 async def delete_account(session: AsyncSession, user: User) -> None:
     user_id = user.id
+
+    from app.services import guilds  # import tardif : évite un cycle
+    if await guilds.membership(session, user_id):
+        await guilds.leave(session, user)
+    await session.execute(delete(GuildInvite).where(GuildInvite.user_id == user_id))
+    await session.execute(update(GuildMessage).where(GuildMessage.user_id == user_id).values(user_id=None))
+    await session.execute(update(GuildBuff).where(GuildBuff.bought_by == user_id).values(bought_by=None))
+    await session.execute(delete(GuildContribution).where(GuildContribution.user_id == user_id))
 
     sess_ids = [s.id for s in (await session.execute(
         select(TradeSession).where(or_(TradeSession.user_a_id == user_id, TradeSession.user_b_id == user_id))

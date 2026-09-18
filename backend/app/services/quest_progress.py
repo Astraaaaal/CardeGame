@@ -33,6 +33,9 @@ async def increment(session: AsyncSession, user_id: int, metric: str, amount: in
             row = QuestProgress(user_id=user_id, metric=metric, period=period, period_key=key, count=0)
         row.count += amount
         session.add(row)
+    # Objectifs de guilde (import tardif : guilds importe ce module).
+    from app.services import guilds
+    await guilds.track(session, user_id, metric, amount)
 
 
 async def get_count(session: AsyncSession, user_id: int, metric: str, period: str, period_key: str) -> int:

@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.models.user import User
+from app.services import quest_progress
 from app.models.quest import QuestDef, UserQuest, DAILY_QUEST_COUNT, WEEKLY_QUEST_COUNT
 from app.services.quest_progress import daily_key, weekly_key, get_count
 from app.services.wallet import apply_delta
@@ -86,6 +87,7 @@ async def claim_quest(session: AsyncSession, user: User, user_quest_id: int) -> 
         await booster_inventory.grant(session, user.id, qdef.reward_booster_id, 1)
 
     uq.claimed_at = datetime.utcnow()
+    await quest_progress.increment(session, user.id, "quests_completed", 1)
     session.add(uq)
     await session.commit()
 

@@ -41,6 +41,40 @@ DEFAULTS: dict = {
         "fragments_per_booster": 10,
         "gauges_per_day": 20,
     },
+    "guilds": {
+        "creation_cost": 2000,
+        "base_members": 20,
+        "members_by_level": {"5": 25, "10": 30},
+        "leave_cooldown_hours": 4,
+        "xp_per_level": 1000,           # niveau L à 1000 × L(L−1)/2 XP
+        "points_per_coins": 10,         # 10 pièces données = 1 point de coffre (et 1 XP)
+        "points_per_dust": 2,
+        "daily_bonus_per_level_pct": 2,  # +2 % de récompense du jour par niveau
+        "daily_bonus_cap_pct": 20,
+        "expedition_slot_level": 5,     # +1 emplacement d'expédition à ce niveau
+        # Objectif hebdomadaire : quantité par membre au palier 1, +25 % par palier.
+        "tier_step": 0.25,
+        "objectives": {
+            "packs_opened": 8, "cards_recycled": 15, "trades_completed": 1,
+            "expeditions_completed": 4, "workshop_gauges": 20, "quests_completed": 5,
+            "rare_cards_obtained": 6,
+        },
+        "objective_labels": {
+            "packs_opened": "Ouvrir des boosters", "cards_recycled": "Recycler des cartes",
+            "trades_completed": "Conclure des échanges", "expeditions_completed": "Terminer des expéditions",
+            "workshop_gauges": "Remplir des jauges d'atelier", "quests_completed": "Terminer des quêtes",
+            "rare_cards_obtained": "Obtenir des cartes rares",
+        },
+        "objective_xp": 300,     # XP de guilde par objectif réussi (× palier)
+        "objective_coins": 150,  # récompense de chaque contributeur (× palier)
+        "objective_dust": 30,
+        "buffs": {
+            "luck": {"label": "Chance ×1,5 (48 h)", "cost": 500, "hours": 48, "value": 1.5},
+            "expedition_loot": {"label": "+25 % de butin d'expédition (7 j)", "cost": 400, "hours": 168, "value": 1.25},
+            "daily_reward": {"label": "+20 % à la récompense du jour (7 j)", "cost": 300, "hours": 168, "value": 1.2},
+            "workshop": {"label": "+10 jauges d'atelier par jour (7 j)", "cost": 300, "hours": 168, "value": 10},
+        },
+    },
     "higher_lower": {"min_stake": 50, "max_stake": 5000, "multiplier": 1.8, "max_steps": 10},
     "wheel": {
         "extra_spin_cost": 200,
