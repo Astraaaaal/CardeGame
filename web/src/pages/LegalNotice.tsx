@@ -9,9 +9,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     );
 }
 
-// Reste à compléter : le code postal de l'éditeur, et le médiateur de la
-// consommation le jour où la boutique premium ouvre au public.
-const POSTAL_CODE = "[code postal]";
+// Reste à compléter : le médiateur de la consommation, le jour où la boutique
+// premium ouvre au public.
 const CONTACT_EMAIL = "contact@a2n.site";
 
 export default function LegalNotice() {
@@ -30,7 +29,7 @@ export default function LegalNotice() {
             <main className="flex-1 px-4 py-6 max-w-sm mx-auto w-full space-y-4">
                 <Section title="Éditeur du site">
                     <p>CardeGame est édité sous le nom A2N par Swann Patissier, particulier.</p>
-                    <p>Adresse : 11 rue de l'Indre, {POSTAL_CODE} Nantes, France.</p>
+                    <p>Adresse : 11 rue de l'Indre, 44100 Nantes, France.</p>
                     <p>Contact : {CONTACT_EMAIL}</p>
                 </Section>
 
@@ -83,7 +82,7 @@ export default function LegalNotice() {
 
                 <Section title="Conditions de vente (boutique premium)">
                     <p>
-                        Vendeur : Swann Patissier, particulier, 11 rue de l'Indre, {POSTAL_CODE} Nantes,
+                        Vendeur : Swann Patissier, particulier, 11 rue de l'Indre, 44100 Nantes,
                         France — {CONTACT_EMAIL}. TVA non applicable, article 293 B du Code général
                         des impôts.
                     </p>
