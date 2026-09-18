@@ -6,6 +6,13 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
+class GuildTagOut(BaseModel):
+    id: int
+    tag: str
+    color: str
+    icon: str
+
+
 class FriendOut(BaseModel):
     user_id: int
     username: str
@@ -14,6 +21,7 @@ class FriendOut(BaseModel):
     last_seen: datetime | None = None
     close_friend: bool = False
     group_ids: list[int] = []
+    guild: GuildTagOut | None = None
 
 
 class FriendGroupOut(BaseModel):

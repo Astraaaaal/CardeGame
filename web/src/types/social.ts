@@ -6,6 +6,14 @@ export interface Friend {
     last_seen: string | null;
     close_friend: boolean;
     group_ids: number[];
+    guild: GuildTag | null;
+}
+
+export interface GuildTag {
+    id: number;
+    tag: string;
+    color: string;
+    icon: string;
 }
 
 export interface FriendGroup {

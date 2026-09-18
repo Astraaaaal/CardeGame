@@ -4,6 +4,7 @@ Routes social — amis, amis proches, demandes d'ami, demandes d'échange (place
 
 from datetime import datetime
 
+from app.services import guilds
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, or_, and_, update, func
@@ -59,12 +60,14 @@ async def list_friends(
         .where(FriendGroup.user_id == user.id)
     )).all():
         group_ids_by_friend.setdefault(friend_user_id, []).append(group_id)
+    guild_tags = await guilds.tags_for(session, [f.id for f in friends])
     return [
         FriendOut(
             user_id=f.id, username=f.username, display_name=f.display_name,
             online=_is_online(f), last_seen=f.last_seen,
             close_friend=f.id in close_ids,
             group_ids=group_ids_by_friend.get(f.id, []),
+            guild=guild_tags.get(f.id),
         )
         for f in friends
     ]
@@ -303,6 +306,7 @@ async def accept_friend_request(
     return FriendOut(
         user_id=other.id, username=other.username, display_name=other.display_name,
         online=_is_online(other), last_seen=other.last_seen,
+        guild=(await guilds.tags_for(session, [other.id])).get(other.id),
     )
 
 

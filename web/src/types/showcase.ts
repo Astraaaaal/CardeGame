@@ -1,3 +1,4 @@
+import type { GuildTag } from "./social";
 import type { Card } from "./card";
 import type { Cosmetic } from "./premium";
 
@@ -38,6 +39,7 @@ export interface Showcase {
     level: number;
     best_login_streak: number;
     current_global_rank: number | null;
+    guild: GuildTag | null;
     best_global_rank: number | null;
     achievements: ShowcaseAchievement[];
     achievement_slots: (string | null)[];

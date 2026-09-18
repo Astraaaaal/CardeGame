@@ -622,9 +622,13 @@ async def rankings(session: AsyncSession, kind: str) -> list[dict]:
     return [{**r, "rank": i + 1} for i, r in enumerate(rows[:100])]
 
 
-async def tag_for(session: AsyncSession, user_id: int) -> str | None:
-    member = await membership(session, user_id)
-    if not member:
-        return None
-    guild = await session.get(Guild, member.guild_id)
-    return guild.tag if guild else None
+async def tags_for(session: AsyncSession, user_ids: list[int]) -> dict[int, dict]:
+    """Étiquette de guilde (id, tag, couleur, icône) de chaque joueur qui en a une."""
+    if not user_ids:
+        return {}
+    rows = (await session.execute(
+        select(GuildMember.user_id, Guild)
+        .join(Guild, Guild.id == GuildMember.guild_id)
+        .where(GuildMember.user_id.in_(user_ids))
+    )).all()
+    return {uid: {"id": g.id, "tag": g.tag, "color": g.color, "icon": g.icon} for uid, g in rows}

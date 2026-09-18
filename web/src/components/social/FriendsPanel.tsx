@@ -221,6 +221,9 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                             className={`w-2 h-2 rounded-full shrink-0 ${f.online ? "bg-green-400" : "bg-white/20"}`}
                             title={f.online ? "En ligne" : "Hors ligne"}
                         />
+                        {f.guild && (
+                            <span className="text-[10px] font-bold shrink-0" style={{ color: f.guild.color }}>[{f.guild.tag}]</span>
+                        )}
                         <span className="text-white text-sm font-semibold truncate">{f.display_name}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">

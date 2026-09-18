@@ -92,7 +92,12 @@ export default function PlayerShowcase() {
                                     <span className="text-4xl text-white/20">?</span>
                                 )}
                             </FramedAvatar>
-                            <h2 className="text-white font-bold text-lg">{data.display_name}</h2>
+                            <h2 className="text-white font-bold text-lg">
+                                {data.guild && (
+                                    <span className="mr-1.5" style={{ color: data.guild.color }}>[{data.guild.tag}]</span>
+                                )}
+                                {data.display_name}
+                            </h2>
                             <p className="text-white/40 text-xs">@{data.username}</p>
                             <div className="grid grid-cols-3 gap-2 w-full mt-2">
                                 {[

@@ -3,6 +3,7 @@ Schemas — vitrine publique du joueur (avatar, cartes mises en avant, cartes à
 """
 
 from typing import Literal
+from app.schemas.social import GuildTagOut
 from pydantic import BaseModel, Field
 from app.schemas.card import CardResponse
 from app.schemas.premium import CosmeticOut
@@ -50,6 +51,7 @@ class ShowcaseResponse(BaseModel):
     achievement_slots: list[str | None] = [None, None, None]
     avatar_frame: CosmeticOut | None = None
     showcase_background: CosmeticOut | None = None
+    guild: GuildTagOut | None = None
 
 
 class UpdateShowcaseRequest(BaseModel):
