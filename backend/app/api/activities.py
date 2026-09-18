@@ -12,7 +12,7 @@ from app.database import get_session
 from app.models.user import User
 from pydantic import BaseModel, Field
 
-from app.services import activities_config, expeditions, presence_bonus
+from app.services import activities_config, expeditions, presence_bonus, workshop
 
 router = APIRouter()
 admin_router = APIRouter(dependencies=[Depends(require_admin)])
@@ -73,6 +73,28 @@ async def claim_expedition(
     session: AsyncSession = Depends(get_session),
 ):
     return await expeditions.claim(session, user, expedition_id)
+
+
+class TapBody(BaseModel):
+    count: int = Field(ge=0, le=1000)
+
+
+@router.get("/workshop")
+async def workshop_status(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await workshop.status(session, user)
+
+
+@router.post("/workshop/taps", dependencies=[Depends(rate_limit(120, 60))])
+async def workshop_taps(
+    body: TapBody,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Lot de taps envoyé environ une fois par seconde par l'appli."""
+    return await workshop.tap(session, user, body.count)
 
 
 @admin_router.get("/config")

@@ -44,6 +44,20 @@ export interface ExpeditionReward {
     card: Card | null;
 }
 
+export interface WorkshopState {
+    taps: number;
+    taps_per_gauge: number;
+    gauges_today: number;
+    gauges_per_day: number;
+    fragments: number;
+    fragments_per_booster: number;
+    coins_per_gauge: number;
+    accepted?: number;
+    reward: { coins: number; dust: number; gauges: number; boosters: number };
+    booster_id?: string | null;
+    booster_name?: string | null;
+}
+
 export const activitiesApi = {
     presence: () => api.get<PresenceStatus>("/activities/presence").then((r) => r.data),
     ping: () => api.post<PresenceStatus>("/activities/presence/ping").then((r) => r.data),
@@ -54,6 +68,10 @@ export const activitiesApi = {
         }).then((r) => r.data),
     claimExpedition: (id: number) =>
         api.post<ExpeditionReward>(`/activities/expeditions/${id}/claim`).then((r) => r.data),
+    workshop: () => api.get<WorkshopState>("/activities/workshop")
+        .then((r) => ({ ...r.data, reward: { coins: 0, dust: 0, gauges: 0, boosters: 0 } })),
+    workshopTaps: (count: number) =>
+        api.post<WorkshopState>("/activities/workshop/taps", { count }).then((r) => r.data),
     claimChest: () =>
         api.post<{ coins: number; dust: number; hours: number }>("/activities/presence/chest").then((r) => r.data),
 };
