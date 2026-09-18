@@ -55,7 +55,9 @@ export default function HigherLowerGame() {
                     <p className={`text-sm font-semibold ${last.status === "cashed" ? "text-green-400" : "text-red-400"}`}>
                         {last.status === "cashed"
                             ? `Encaissé : +${last.cashout_value.toLocaleString("fr-FR")} ${unit(last.resource_id)}`
-                            : `${OUTCOME_LABEL.lose} La mise de ${last.stake.toLocaleString("fr-FR")} est perdue.`}
+                            : `${OUTCOME_LABEL.lose} La carte suivante avait ⚡ ${last.current_card.power?.toLocaleString("fr-FR")}`
+                              + ` (contre ⚡ ${last.previous_card?.power?.toLocaleString("fr-FR")}) : `
+                              + `la mise de ${last.stake.toLocaleString("fr-FR")} est perdue.`}
                     </p>
                 )}
                 <div className="flex gap-2">

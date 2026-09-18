@@ -16,6 +16,7 @@ export default function WorkshopTab() {
     const [localTaps, setLocalTaps] = useState(0);
     const [gain, setGain] = useState<string | null>(null);
     const [bumps, setBumps] = useState<number[]>([]);
+    const bumpId = useRef(0);
 
     // Envoi groupé des taps une fois par seconde ; le serveur fait foi.
     useEffect(() => {
@@ -53,7 +54,10 @@ export default function WorkshopTab() {
         if (capped) return;
         pending.current += 1;
         setLocalTaps((n) => n + 1);
-        setBumps((b) => [...b.slice(-6), Date.now()]);
+        // Identifiant unique par tap (plusieurs taps peuvent tomber dans la même milliseconde).
+        bumpId.current += 1;
+        const id = bumpId.current;
+        setBumps((b) => [...b.slice(-5), id]);
     };
 
     return (
