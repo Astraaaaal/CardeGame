@@ -9,6 +9,7 @@ import { useAuthStore } from "@/stores/authStore";
 import Button from "@/components/ui/Button";
 import CoinDisplay from "@/components/player/CoinDisplay";
 import WalletMenu from "@/components/player/WalletMenu";
+import PresencePanel from "@/components/activities/PresencePanel";
 import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
 import BottomNav from "@/components/layout/BottomNav";
@@ -111,6 +112,10 @@ export default function MainMenu() {
             </>
           )}
         </button>
+      </div>
+
+      <div className="px-4 pt-2 max-w-sm mx-auto w-full">
+        <PresencePanel />
       </div>
 
       {user && (!user.email || !user.email_verified) && (

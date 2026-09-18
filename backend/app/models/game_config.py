@@ -7,6 +7,7 @@ serveur — elles n'ont pas leur place dans .env, éditable seulement via
 redéploiement.
 """
 
+from sqlalchemy import JSON, Column
 from sqlmodel import SQLModel, Field
 
 
@@ -20,3 +21,6 @@ class GameConfig(SQLModel, table=True):
     # des virgules) y ont accès même fermée, pour tester.
     premium_shop_enabled: bool = Field(default=False)
     premium_testers: str = Field(default="")
+    # Réglages des activités (présence, expéditions, atelier, mini-jeux),
+    # fusionnés avec les valeurs par défaut de app/services/activities_config.py.
+    activities: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=True))

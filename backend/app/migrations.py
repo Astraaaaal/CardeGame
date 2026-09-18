@@ -151,6 +151,8 @@ _STATEMENTS = [
     "ALTER TABLE premium_products ADD COLUMN IF NOT EXISTS limit_count INTEGER NOT NULL DEFAULT 1",
     "UPDATE premium_products SET limit_period = 'account', limit_count = 1 "
     "WHERE once_per_account = TRUE AND limit_period = 'none'",
+    # Activités : réglages éditables depuis l'admin.
+    "ALTER TABLE game_config ADD COLUMN IF NOT EXISTS activities JSON",
     # Carte précise du shop : puissance tirée à l'achat ou fixée par l'admin.
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power_mode VARCHAR(10) NOT NULL DEFAULT 'rolled'",
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS card_power INTEGER",

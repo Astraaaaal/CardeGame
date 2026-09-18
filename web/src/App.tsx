@@ -20,6 +20,7 @@ import AdminPanel from "@/pages/AdminPanel";
 import LegalNotice from "@/pages/LegalNotice";
 import TradeWatcher from "@/components/trade/TradeWatcher";
 import RewardPopup from "@/components/player/RewardPopup";
+import { usePresencePing } from "@/hooks/usePresence";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, setUser } = useAuthStore();
@@ -42,6 +43,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+    // Signal de présence (bonus de chance, coffre d'absence) tant que l'appli est affichée.
+    usePresencePing();
     return (
         <div className="max-w-mobile mx-auto min-h-screen">
             <TradeWatcher />
