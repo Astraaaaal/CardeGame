@@ -12,7 +12,7 @@ from app.database import get_session
 from app.models.user import User
 from pydantic import BaseModel, Field
 
-from app.services import activities_config, expeditions, presence_bonus, workshop
+from app.services import activities_config, expeditions, minigames, presence_bonus, workshop
 
 router = APIRouter()
 admin_router = APIRouter(dependencies=[Depends(require_admin)])
@@ -95,6 +95,67 @@ async def workshop_taps(
 ):
     """Lot de taps envoyé environ une fois par seconde par l'appli."""
     return await workshop.tap(session, user, body.count)
+
+
+class HigherLowerStartBody(BaseModel):
+    resource_id: str
+    stake: int = Field(ge=1)
+
+
+class HigherLowerGuessBody(BaseModel):
+    guess: str = Field(pattern="^(higher|lower)$")
+
+
+@router.get("/higher-lower")
+async def higher_lower_state(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await minigames.higher_lower_state(session, user)
+
+
+@router.post("/higher-lower", dependencies=[Depends(rate_limit(30, 60))])
+async def higher_lower_start(
+    body: HigherLowerStartBody,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await minigames.higher_lower_start(session, user, body.resource_id, body.stake)
+
+
+@router.post("/higher-lower/{game_id}/guess", dependencies=[Depends(rate_limit(60, 60))])
+async def higher_lower_guess(
+    game_id: int,
+    body: HigherLowerGuessBody,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await minigames.higher_lower_guess(session, user, game_id, body.guess)
+
+
+@router.post("/higher-lower/{game_id}/cashout", dependencies=[Depends(rate_limit(30, 60))])
+async def higher_lower_cashout(
+    game_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await minigames.higher_lower_cashout(session, user, game_id)
+
+
+@router.get("/wheel")
+async def wheel_state(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await minigames.wheel_state(session, user)
+
+
+@router.post("/wheel/spin", dependencies=[Depends(rate_limit(20, 60))])
+async def wheel_spin(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await minigames.wheel_spin(session, user)
 
 
 @admin_router.get("/config")

@@ -58,6 +58,50 @@ export interface WorkshopState {
     booster_name?: string | null;
 }
 
+export interface HigherLowerGameState {
+    id: number;
+    status: "active" | "cashed" | "lost";
+    resource_id: string;
+    stake: number;
+    step: number;
+    max_steps: number;
+    multiplier: number;
+    current_card: Card;
+    cashout_value: number;
+    next_value: number;
+    outcome?: "win" | "tie" | "lose";
+    previous_card?: Card;
+}
+
+export interface HigherLowerState {
+    game: HigherLowerGameState | null;
+    min_stake: number;
+    max_stake: number;
+    multiplier: number;
+    max_steps: number;
+}
+
+export interface WheelState {
+    free_available: boolean;
+    extra_spins_used: number;
+    extra_spins_per_day: number;
+    extra_spin_cost: number;
+    segments: { label: string; kind: "resource" | "booster" | "reroll" }[];
+}
+
+export interface WheelSpin {
+    index: number;
+    reward: {
+        kind: "resource" | "booster" | "reroll";
+        label: string;
+        amount: number;
+        resource_id: string | null;
+        booster_id: string | null;
+        booster_name: string | null;
+    };
+    state: WheelState;
+}
+
 export const activitiesApi = {
     presence: () => api.get<PresenceStatus>("/activities/presence").then((r) => r.data),
     ping: () => api.post<PresenceStatus>("/activities/presence/ping").then((r) => r.data),
@@ -72,6 +116,15 @@ export const activitiesApi = {
         .then((r) => ({ ...r.data, reward: { coins: 0, dust: 0, gauges: 0, boosters: 0 } })),
     workshopTaps: (count: number) =>
         api.post<WorkshopState>("/activities/workshop/taps", { count }).then((r) => r.data),
+    higherLower: () => api.get<HigherLowerState>("/activities/higher-lower").then((r) => r.data),
+    startHigherLower: (resourceId: string, stake: number) =>
+        api.post<HigherLowerGameState>("/activities/higher-lower", { resource_id: resourceId, stake }).then((r) => r.data),
+    guessHigherLower: (id: number, guess: "higher" | "lower") =>
+        api.post<HigherLowerGameState>(`/activities/higher-lower/${id}/guess`, { guess }).then((r) => r.data),
+    cashoutHigherLower: (id: number) =>
+        api.post<HigherLowerGameState>(`/activities/higher-lower/${id}/cashout`).then((r) => r.data),
+    wheel: () => api.get<WheelState>("/activities/wheel").then((r) => r.data),
+    spinWheel: () => api.post<WheelSpin>("/activities/wheel/spin").then((r) => r.data),
     claimChest: () =>
         api.post<{ coins: number; dust: number; hours: number }>("/activities/presence/chest").then((r) => r.data),
 };

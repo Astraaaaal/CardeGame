@@ -4,12 +4,14 @@ import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import BottomNav from "@/components/layout/BottomNav";
 import ExpeditionsTab, { EXPEDITION_PURPOSE } from "@/components/activities/ExpeditionsTab";
 import WorkshopTab from "@/components/activities/WorkshopTab";
+import MiniGamesTab from "@/components/activities/MiniGamesTab";
 
-type Tab = "expeditions" | "workshop";
+type Tab = "expeditions" | "workshop" | "minigames";
 
 const TABS: { key: Tab; label: string }[] = [
     { key: "expeditions", label: "Expéditions" },
     { key: "workshop", label: "Atelier" },
+    { key: "minigames", label: "Mini-jeux" },
 ];
 
 /** Activités hors combat : expéditions, atelier, mini-jeux. */
@@ -57,6 +59,7 @@ export default function Activities() {
             <main className="flex-1 px-4 py-6 max-w-sm mx-auto w-full">
                 {tab === "expeditions" && <ExpeditionsTab />}
                 {tab === "workshop" && <WorkshopTab />}
+                {tab === "minigames" && <MiniGamesTab />}
             </main>
 
             <BottomNav />
