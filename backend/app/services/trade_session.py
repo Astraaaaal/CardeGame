@@ -24,7 +24,7 @@ from app.models.trade_session import (
 from app.schemas.trade_session import TradeSessionOut, TradeSessionItemOut
 from app.services.card_view import build_card_response
 from app.services.wallet import get_balance, apply_delta, COINS_ID
-from app.services import booster_inventory, quest_progress, reroll_inventory
+from app.services import booster_inventory, expeditions, quest_progress, reroll_inventory
 from app.services.presence import is_online as _is_online
 from app.services.premium import ensure_tradeable
 
@@ -161,6 +161,7 @@ async def add_card_item(session: AsyncSession, trade: TradeSession, owner_id: in
     card = await session.get(UserCard, user_card_id)
     if not card or card.user_id != owner_id:
         raise HTTPException(404, "Tu ne possèdes pas cette carte.")
+    await expeditions.ensure_not_on_expedition(session, [user_card_id])
 
     already = (await session.execute(
         select(TradeSessionItem).where(
@@ -410,7 +411,8 @@ async def _execute_trade(session: AsyncSession, trade: TradeSession) -> list[str
             locked = (await session.execute(
                 select(UserCard).where(UserCard.id == item.user_card_id).with_for_update()
             )).scalar_one_or_none()
-            if not locked or locked.user_id != item.owner_id:
+            if not locked or locked.user_id != item.owner_id \
+                    or await expeditions.locked_card_ids(session, [item.user_card_id]):
                 name = "Une carte"
                 if locked:
                     char = await session.get(Character, locked.character_id)

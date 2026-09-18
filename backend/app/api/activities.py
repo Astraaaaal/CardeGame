@@ -10,7 +10,9 @@ from app.core.dependencies import get_current_user, require_admin
 from app.core.ratelimit import rate_limit
 from app.database import get_session
 from app.models.user import User
-from app.services import activities_config, presence_bonus
+from pydantic import BaseModel, Field
+
+from app.services import activities_config, expeditions, presence_bonus
 
 router = APIRouter()
 admin_router = APIRouter(dependencies=[Depends(require_admin)])
@@ -39,6 +41,38 @@ async def claim_absence_chest(
     session: AsyncSession = Depends(get_session),
 ):
     return await presence_bonus.claim_chest(session, user)
+
+
+class ExpeditionStartBody(BaseModel):
+    slot: int = Field(ge=0)
+    duration_minutes: int = Field(ge=1)
+    card_ids: list[str] = Field(min_length=1, max_length=10)
+
+
+@router.get("/expeditions")
+async def expeditions_overview(
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await expeditions.overview(session, user)
+
+
+@router.post("/expeditions", dependencies=[Depends(rate_limit(20, 60))])
+async def start_expedition(
+    body: ExpeditionStartBody,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await expeditions.start(session, user, body.slot, body.duration_minutes, body.card_ids)
+
+
+@router.post("/expeditions/{expedition_id}/claim", dependencies=[Depends(rate_limit(20, 60))])
+async def claim_expedition(
+    expedition_id: int,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    return await expeditions.claim(session, user, expedition_id)
 
 
 @admin_router.get("/config")

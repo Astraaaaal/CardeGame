@@ -87,6 +87,8 @@ async def use(session: AsyncSession, user: User, token_id: int, card_id: str) ->
     )).scalar_one_or_none()
     if not card:
         raise HTTPException(404, "Carte introuvable.")
+    from app.services.expeditions import ensure_not_on_expedition  # import tardif : évite un cycle
+    await ensure_not_on_expedition(session, [card.id])
 
     previous_card = await build_card_response(session, card)
     await apply_reroll(session, card, token)

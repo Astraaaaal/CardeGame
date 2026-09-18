@@ -45,6 +45,7 @@ export default function MainMenu() {
   const menuItems = [
     { label: "Boutique", path: "/shop" },
     { label: "Ma Collection", path: "/collection" },
+    { label: "Activités", path: "/activities" },
     { label: "Inventaire", path: "/inventory" },
     { label: "Classement", path: "/leaderboard" },
     { label: "Progression", path: "/progression" },

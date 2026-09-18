@@ -11,6 +11,7 @@ from app.database import get_session
 from app.core.dependencies import get_current_user
 from app.core.ratelimit import rate_limit
 from app.models.user import User
+from app.services import expeditions
 from app.models.card import UserCard
 from app.models.social import TradeListing
 from app.schemas.showcase import ShowcaseResponse
@@ -63,6 +64,7 @@ async def buy_trade_listing(
         await session.delete(listing)
         await session.commit()
         raise HTTPException(409, "Cette carte n'est plus disponible.")
+    await expeditions.ensure_not_on_expedition(session, [card.id])
 
     have = await get_balance(session, buyer, listing.resource_id)
     if have < listing.price:

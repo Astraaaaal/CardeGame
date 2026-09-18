@@ -26,7 +26,7 @@ from app.services.card_view import build_card_response
 from app.services.daily_feature import get_todays_featured_offer_id
 from app.services.wallet import get_balance, apply_delta
 from app.services.ranking import refresh_all_best_ranks
-from app.services import activity, booster_inventory, purchase_limits, quest_progress, reroll_inventory
+from app.services import activity, booster_inventory, expeditions, purchase_limits, quest_progress, reroll_inventory
 from app.services.reroll import apply_reroll, assign_bought_card_power
 from app.services import premium as premium_svc
 from app.models.premium import Cosmetic
@@ -267,6 +267,7 @@ async def buy_offer(
         )).scalar_one_or_none()
         if not card:
             raise HTTPException(status_code=404, detail="Carte introuvable.")
+        await expeditions.ensure_not_on_expedition(session, [card.id])
         previous_card = await build_card_response(session, card)
         await apply_reroll(session, card, offer)
         await activity.track_reroll(session, user, previous_card.rarity_id, card)

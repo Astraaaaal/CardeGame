@@ -19,7 +19,7 @@ from app.services.card_view import build_card_response
 from app.services.wallet import get_balance, apply_delta, COINS_ID
 from app.services.gift_policy import can_send_gift
 from app.services import quest_progress
-from app.services import booster_inventory, message_rewards, reroll_inventory
+from app.services import booster_inventory, expeditions, message_rewards, reroll_inventory
 from app.services.premium import ensure_tradeable
 
 MAX_RECIPIENTS_PER_SEND = 200
@@ -89,7 +89,8 @@ async def claim(session: AsyncSession, message: Message) -> Message:
         card = (await session.execute(
             select(UserCard).where(UserCard.id == message.reward_card_id).with_for_update()
         )).scalar_one_or_none()
-        if not card or (message.sender_user_id and card.user_id != message.sender_user_id):
+        if not card or (message.sender_user_id and card.user_id != message.sender_user_id) \
+                or await expeditions.locked_card_ids(session, [message.reward_card_id]):
             error = "Cette carte n'est plus disponible."
         else:
             card.user_id = recipient.id
@@ -164,6 +165,7 @@ async def send_gift(
         card = await session.get(UserCard, user_card_id)
         if not card or card.user_id != sender.id:
             raise HTTPException(404, "Tu ne possèdes pas cette carte.")
+        await expeditions.ensure_not_on_expedition(session, [user_card_id])
         reward_card_id = user_card_id
     elif item_type == "booster":
         if not booster_id or not amount or amount <= 0:

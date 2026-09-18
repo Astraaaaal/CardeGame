@@ -18,6 +18,7 @@ import VerifyEmail from "@/pages/VerifyEmail";
 import TradeSessionPage from "@/pages/TradeSessionPage";
 import AdminPanel from "@/pages/AdminPanel";
 import LegalNotice from "@/pages/LegalNotice";
+import Activities from "@/pages/Activities";
 import TradeWatcher from "@/components/trade/TradeWatcher";
 import RewardPopup from "@/components/player/RewardPopup";
 import { usePresencePing } from "@/hooks/usePresence";
@@ -124,6 +125,14 @@ export default function App() {
                     element={
                         <ProtectedRoute>
                             <Progression />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/activities"
+                    element={
+                        <ProtectedRoute>
+                            <Activities />
                         </ProtectedRoute>
                     }
                 />

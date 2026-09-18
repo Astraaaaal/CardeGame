@@ -11,6 +11,7 @@ from app.core.dependencies import get_current_user
 from app.core.ratelimit import rate_limit
 from app.core.security import hash_password, verify_password
 from app.models.user import User
+from app.services import expeditions
 from app.models.token import RefreshToken
 from app.models.card import UserCard
 from app.models.economy import Resource, UserResource
@@ -240,6 +241,7 @@ async def update_trade_listings(
         card = await session.get(UserCard, slot_in.user_card_id)
         if not card or card.user_id != user.id:
             raise HTTPException(400, "Une des cartes choisies ne t'appartient pas.")
+        await expeditions.ensure_not_on_expedition(session, [slot_in.user_card_id])
         if not await session.get(Resource, slot_in.resource_id):
             raise HTTPException(400, f"La ressource '{slot_in.resource_id}' n'existe pas.")
         await ensure_tradeable(session, slot_in.resource_id)

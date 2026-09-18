@@ -21,7 +21,7 @@ from app.schemas.collection import CollectionResponse, ProbabilityItem, Probabil
 from app.schemas.economy import RecycleByIdsRequest, RecycleByIdsResponse
 from app.services.card_view import build_card_response
 from app.services.power import combined_rarity
-from app.services import quest_progress
+from app.services import expeditions, quest_progress
 from app.services.ranking import refresh_all_best_ranks
 from app.services.tier_order import (
     RARITY_ORDER, QUALITY_ORDER, SPECIALTY_ORDER, JEWELRY_ORDER, rank,
@@ -336,6 +336,7 @@ async def recycle_cards(
 
     if len(owned) != len(ids):
         raise HTTPException(status_code=404, detail="Une ou plusieurs cartes sont introuvables ou ne t'appartiennent pas.")
+    await expeditions.ensure_not_on_expedition(session, ids)
 
     resource = await session.get(Resource, RECYCLE_RESOURCE_ID)
     if not resource:
