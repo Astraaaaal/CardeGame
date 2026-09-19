@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { messagesApi } from "@/api/messages";
@@ -10,6 +10,7 @@ import ResourceIcon from "@/components/ui/ResourceIcon";
 import InventoryItemPicker, { type InventoryItem } from "@/components/inventory/InventoryItemPicker";
 import type { Card } from "@/types/card";
 import { errMsg } from "@/utils/errors";
+import EmojiPicker from "@/components/ui/EmojiPicker";
 
 export interface SendGiftInitialState {
     username: string;
@@ -39,6 +40,8 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
     const [username, setUsername] = useState(initialState?.username ?? presetUsername ?? "");
     const [subject, setSubject] = useState(initialState?.subject ?? "Cadeau");
     const [body, setBody] = useState(initialState?.body ?? "");
+    const subjectRef = useRef<HTMLInputElement>(null);
+    const bodyRef = useRef<HTMLTextAreaElement>(null);
     const [pickedCard, setPickedCard] = useState<{ id: string; preview: Card } | null>(initialState?.pickedCard ?? null);
     const [pickedItem, setPickedItem] = useState<InventoryItem | null>(null);
     const [itemPickerOpen, setItemPickerOpen] = useState(false);
@@ -102,14 +105,18 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
 
                     <div className="flex gap-2">
                         <input
+                            ref={subjectRef}
                             className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
                             placeholder="Objet"
                             maxLength={100}
                             value={subject}
                             onChange={(e) => setSubject(e.target.value)}
                         />
+                        <EmojiPicker target={subjectRef} value={subject} onChange={setSubject} />
                     </div>
+                    <div className="flex gap-2 items-start">
                     <textarea
+                        ref={bodyRef}
                         className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30 resize-none"
                         placeholder="Petit mot (optionnel)..."
                         rows={2}
@@ -117,6 +124,8 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
                     />
+                    <EmojiPicker target={bodyRef} value={body} onChange={setBody} />
+                    </div>
 
                     {pickedCard ? (
                         <div className="flex items-center gap-3 bg-black/20 border border-white/5 rounded-lg p-2">

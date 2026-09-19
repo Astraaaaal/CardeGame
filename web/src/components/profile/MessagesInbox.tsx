@@ -7,6 +7,7 @@ import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import { errMsg } from "@/utils/errors";
 import { rewardItems, showRewards, type RewardItem } from "@/stores/rewardPopupStore";
+import EmojiText from "@/components/ui/EmojiText";
 
 function fmt(iso: string): string {
     return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -68,7 +69,7 @@ function MessageRow({ message }: { message: AppMessage }) {
             <button className="w-full flex items-center gap-2 px-4 py-3 text-left" onClick={toggle}>
                 {!message.read_at && <span className="w-2 h-2 rounded-full bg-accent shrink-0" />}
                 <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-semibold truncate">{message.subject}</p>
+                    <p className="text-white text-sm font-semibold truncate"><EmojiText text={message.subject} /></p>
                     <p className="text-white/40 text-xs">
                         {message.sender_display_name} · {fmt(message.created_at)}
                     </p>
@@ -79,7 +80,7 @@ function MessageRow({ message }: { message: AppMessage }) {
 
             {open && (
                 <div className="px-4 pb-4 space-y-3">
-                    {message.body && <p className="text-white/70 text-sm whitespace-pre-wrap">{message.body}</p>}
+                    {message.body && <p className="text-white/70 text-sm whitespace-pre-wrap"><EmojiText text={message.body} /></p>}
 
                     {message.reward_card && (
                         <div className="flex items-center gap-3 bg-black/20 rounded-lg p-2">
