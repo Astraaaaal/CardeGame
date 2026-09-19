@@ -513,11 +513,18 @@ async def detail(session: AsyncSession, user: User) -> dict | None:
     level = level_for_xp(guild.xp, cfg)
 
     members = []
-    for m in await _members(session, guild.id):
+    member_rows = await _members(session, guild.id)
+    powers = dict((await session.execute(
+        select(UserCard.user_id, func.coalesce(func.sum(UserCard.power), 0))
+        .where(UserCard.user_id.in_([m.user_id for m in member_rows]))
+        .group_by(UserCard.user_id)
+    )).all())
+    for m in member_rows:
         u = await session.get(User, m.user_id)
         if u:
             members.append({"user_id": u.id, "username": u.username, "display_name": u.display_name,
-                            "role": m.role, "joined_at": m.joined_at, "donated_points": m.donated_points})
+                            "role": m.role, "joined_at": m.joined_at, "donated_points": m.donated_points,
+                            "power": int(powers.get(u.id) or 0)})
     order = {ROLE_LEADER: 0, ROLE_OFFICER: 1, ROLE_MEMBER: 2}
     members.sort(key=lambda x: (order[x["role"]], -x["donated_points"]))
 

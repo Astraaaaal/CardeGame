@@ -38,6 +38,7 @@ export interface GuildMemberRow {
     role: GuildRole;
     joined_at: string;
     donated_points: number;
+    power: number;
 }
 
 export interface GuildDetail extends GuildSummary {

@@ -6,6 +6,8 @@ import { useAuthStore } from "@/stores/authStore";
 import Button from "@/components/ui/Button";
 import { errMsg } from "@/utils/errors";
 import ResourceIcon from "@/components/ui/ResourceIcon";
+import EmojiText from "@/components/ui/EmojiText";
+import EmojiPicker from "@/components/ui/EmojiPicker";
 import GuildEmblem, { GUILD_COLORS, GUILD_ICONS, POLICY_LABEL, ROLE_LABEL } from "./GuildEmblem";
 import { MY_GUILD_KEY } from "./NoGuild";
 
@@ -234,6 +236,7 @@ function ChestTab({ guild }: { guild: GuildDetail }) {
 
 function MembersTab({ guild }: { guild: GuildDetail }) {
     const me = useAuthStore((s) => s.user);
+    const navigate = useNavigate();
     const { msg, setMsg, setDetail, refresh, onError } = useGuildActions();
     const [username, setUsername] = useState("");
     const [welcome, setWelcome] = useState(guild.welcome_message);
@@ -262,7 +265,11 @@ function MembersTab({ guild }: { guild: GuildDetail }) {
     const leave = useMutation({ mutationFn: () => guildsApi.leave(), onSuccess: refresh, onError });
 
     const order: Record<GuildRole, number> = { leader: 0, officer: 1, member: 2 };
-    const members = [...guild.members_list].sort((a, b) => order[a.role] - order[b.role] || b.donated_points - a.donated_points);
+    const [sortBy, setSortBy] = useState<"role" | "power" | "donated">("role");
+    const members = [...guild.members_list].sort((a, b) =>
+        sortBy === "power" ? b.power - a.power
+            : sortBy === "donated" ? b.donated_points - a.donated_points
+            : order[a.role] - order[b.role] || b.donated_points - a.donated_points);
 
     const confirmLeave = () => {
         const last = guild.members === 1;
@@ -290,16 +297,26 @@ function MembersTab({ guild }: { guild: GuildDetail }) {
             )}
 
             <section className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-[11px] text-white/40">
+                    Trier par
+                    {([["role", "Hiérarchie"], ["power", "Puissance"], ["donated", "Points donnés"]] as const).map(([key, label]) => (
+                        <button key={key}
+                            className={`px-2 py-0.5 rounded-full font-bold ${sortBy === key ? "bg-accent text-white" : "bg-white/10 text-white/60"}`}
+                            onClick={() => setSortBy(key)}>{label}</button>
+                    ))}
+                </div>
                 {members.map((m) => {
                     const self = m.user_id === me?.id;
                     return (
                         <div key={m.user_id} className="flex items-center gap-2 bg-game-surface border border-white/10 rounded-xl p-2.5">
-                            <div className="flex-1 min-w-0">
-                                <p className="text-white text-sm truncate">
+                            <button className="flex-1 min-w-0 text-left" onClick={() => navigate(`/players/${m.user_id}`)}>
+                                <p className="text-white text-sm truncate hover:underline">
                                     {m.display_name}{self && <span className="text-white/30"> (toi)</span>}
                                 </p>
-                                <p className="text-white/40 text-[11px]">{ROLE_LABEL[m.role]} · {fmt(m.donated_points)} points donnés</p>
-                            </div>
+                                <p className="text-white/40 text-[11px]">
+                                    {ROLE_LABEL[m.role]} · ⚡ {fmt(m.power)} · {fmt(m.donated_points)} points donnés
+                                </p>
+                            </button>
                             {isLeader && !self && (
                                 <select className="bg-black/40 text-white text-xs rounded-lg px-1.5 py-1 border border-white/10"
                                     value={m.role}
@@ -382,6 +399,7 @@ function WallTab() {
     const [text, setText] = useState("");
     const [err, setErr] = useState<string | null>(null);
     const bottom = useRef<HTMLDivElement>(null);
+    const input = useRef<HTMLInputElement>(null);
     const { data: messages } = useQuery({ queryKey: ["guild", "wall"], queryFn: guildsApi.wall, refetchInterval: 15_000 });
     const post = useMutation({
         mutationFn: () => guildsApi.post(text.trim()),
@@ -412,7 +430,7 @@ function WallTab() {
                                 )} ·{" "}
                                 {utc(m.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                             </p>
-                            <p className="text-white text-sm whitespace-pre-line break-words">{m.body}</p>
+                            <p className="text-white text-sm whitespace-pre-line break-words"><EmojiText text={m.body} /></p>
                         </div>
                     ),
                 )}
@@ -421,9 +439,10 @@ function WallTab() {
             </div>
             {err && <p className="text-red-400 text-xs">{err}</p>}
             <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); send(); }}>
-                <input className={inputCls} maxLength={200} placeholder="Écrire un message..." value={text}
+                <input ref={input} className={inputCls} maxLength={200} placeholder="Écrire un message..." value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); send(); } }} />
+                <EmojiPicker target={input} value={text} onChange={setText} />
                 <Button variant="primary" size="sm" type="submit" loading={post.isPending} disabled={!text.trim()}>Envoyer</Button>
             </form>
         </div>
