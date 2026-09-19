@@ -49,22 +49,32 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
             setLastQuantity(quantity);
             setSelectedIds(new Set());
             setResult(null);
+            setFocusId(null);
         }
     }, [card, quantity]);
 
-    const displayCard = card ?? lastCard;
+    // Exemplaire précis consulté depuis la liste des doublons (sa puissance,
+    // sa date d'obtention...) ; sinon la carte telle qu'ouverte.
+    const [focusId, setFocusId] = useState<string | null>(null);
+    const baseCard = card ?? lastCard;
+    const focusQ = useQuery({
+        queryKey: ["card-detail", focusId],
+        queryFn: () => collectionApi.getCardDetail(focusId!),
+        enabled: !!focusId,
+    });
+    const displayCard = (focusId && focusQ.data) || baseCard;
     const owned = lastQuantity ?? 1;
 
     const copiesQ = useQuery({
         queryKey: ["card-copies", displayCard?.character_id, displayCard?.rarity_id, displayCard?.quality_id, displayCard?.specialty_id, displayCard?.jewelry_id],
         queryFn: () => collectionApi.getCardCopies({
-            character_id: displayCard!.character_id,
-            rarity_id: displayCard!.rarity_id,
-            quality_id: displayCard!.quality_id,
-            specialty_id: displayCard!.specialty_id,
-            jewelry_id: displayCard!.jewelry_id,
+            character_id: baseCard!.character_id,
+            rarity_id: baseCard!.rarity_id,
+            quality_id: baseCard!.quality_id,
+            specialty_id: baseCard!.specialty_id,
+            jewelry_id: baseCard!.jewelry_id,
         }),
-        enabled: owned > 1 && !!displayCard && !readOnly,
+        enabled: owned > 1 && !!baseCard && !readOnly,
     });
 
     const recycleIds = owned > 1 ? Array.from(selectedIds) : (displayCard ? [displayCard.id] : []);
@@ -214,25 +224,36 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                                     {owned > 1 && (
                                         <div className="mb-2">
                                             <p className="text-white/40 text-[11px] mb-1.5">
-                                                Coche le ou les exemplaires à recycler :
+                                                Coche le ou les exemplaires à recycler — touche une ligne pour voir cet exemplaire :
                                             </p>
                                             {copiesQ.isLoading ? (
                                                 <p className="text-white/40 text-xs">Chargement...</p>
                                             ) : (
                                                 <div className="bg-black/30 rounded-lg px-3 py-2 space-y-1.5 max-h-32 overflow-y-auto">
-                                                    {copyGroups.map((g) => (
-                                                        <label key={String(g.power)} className="flex items-center gap-2 text-sm text-white/80 cursor-pointer">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={g.ids.every((id) => selectedIds.has(id))}
-                                                                onChange={() => toggleCopies(g.ids)}
-                                                            />
-                                                            {g.power != null ? `⚡${g.power}` : "—"}
-                                                            {g.ids.length > 1 && (
-                                                                <span className="text-white/40 text-xs">×{g.ids.length}</span>
-                                                            )}
-                                                        </label>
-                                                    ))}
+                                                    {copyGroups.map((g) => {
+                                                        const focused = !!focusId && g.ids.includes(focusId);
+                                                        return (
+                                                            <div
+                                                                key={String(g.power)}
+                                                                className={`flex items-center gap-2 text-sm cursor-pointer rounded px-1 -mx-1 ${
+                                                                    focused ? "bg-accent/20 text-white" : "text-white/80 hover:bg-white/5"
+                                                                }`}
+                                                                onClick={() => setFocusId(focused ? null : g.ids[0])}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={g.ids.every((id) => selectedIds.has(id))}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    onChange={() => toggleCopies(g.ids)}
+                                                                />
+                                                                {g.power != null ? `⚡${g.power}` : "—"}
+                                                                {g.ids.length > 1 && (
+                                                                    <span className="text-white/40 text-xs">×{g.ids.length}</span>
+                                                                )}
+                                                                {focused && <span className="ml-auto text-accent text-[11px]">affiché</span>}
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
