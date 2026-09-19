@@ -6,7 +6,7 @@ import { suspenseSteps, type SuspenseStep, type TierAxis } from "@/utils/cardTie
 import CardImage from "./CardImage";
 import {
     RarityHalo, JewelrySparkles, SpecialtyOverlay, QualityStars, TypeOutline, DiagonalSheen,
-    RARITY_TEXT, type Tier,
+    RARITY_TEXT, BackEdgeHint, bestHiddenTier, type Tier,
 } from "./CardEffects";
 import TiltCard from "./TiltCard";
 import { useTypes, typeColor } from "@/hooks/useTypes";
@@ -46,6 +46,7 @@ export default function CardReveal({ card, onNext }: CardRevealProps) {
     const specialty = currentTier(revealed, "specialty");
     const quality = currentTier(revealed, "quality");
     const lastStep = revealed[revealed.length - 1];
+    const hint = bestHiddenTier(steps.slice(revealedCount));
 
     const tierName = (step: SuspenseStep) => {
         const list = tiers && {
@@ -113,6 +114,7 @@ export default function CardReveal({ card, onNext }: CardRevealProps) {
                         )}
                     </AnimatePresence>
                 </motion.div>
+                {!flipped && <BackEdgeHint hint={hint} />}
             </TiltCard>
 
             <QualityStars level={quality?.level ?? 0} />

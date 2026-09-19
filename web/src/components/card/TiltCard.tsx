@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 
-const MAX_DEG = 14;
+export const MAX_DEG = 14;
+
+/** Inclinaison courante (degrés), pour les effets qui réagissent au mouvement. */
+const TiltContext = createContext({ x: 0, y: 0 });
+export const useTilt = () => useContext(TiltContext);
 // Marge autour de la carte où l'inclinaison réagit encore : elle commence à
 // suivre le curseur avant qu'il n'arrive sur la carte, et ne retombe pas dès
 // qu'il en effleure le bord.
@@ -59,7 +63,7 @@ export default function TiltCard({ children, className = "" }: { children: React
                 ? { type: "spring", stiffness: 40, damping: 15, mass: 1.3 }
                 : { type: "spring", stiffness: 300, damping: 24 }}
         >
-            {children}
+            <TiltContext.Provider value={tilt}>{children}</TiltContext.Provider>
         </motion.div>
     );
 }

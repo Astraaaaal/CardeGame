@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import type { Card } from "@/types/card";
 import { TIER_STEPS, isPolishedCard, tierLevel, type TierAxis } from "@/utils/cardTiers";
 import { useTypes, typeColor } from "@/hooks/useTypes";
-import TiltCard from "./TiltCard";
+import TiltCard, { MAX_DEG, useTilt } from "./TiltCard";
 import CardImage from "./CardImage";
 
 /**
@@ -200,4 +200,59 @@ export function CardWithEffects({ card, className = "" }: { card: Card; classNam
             {quality && <QualityStars level={quality.level} />}
         </div>
     );
+}
+
+/**
+ * Indice au dos d'une carte pendant la révélation : invisible à plat, une
+ * lueur apparaît sur le bord côté doigt quand on incline la carte. Sa couleur
+ * et son intensité trahissent la meilleure caractéristique encore cachée.
+ */
+const HINT_COLORS: Record<string, string> = {
+    rare: "#3b9dff", epic: "#a855f7", legendary: "#fbbf24",
+    silver: "#e2e8f0", gold: "#facc15", diamond: "#a5f3fc", prismatic: "rainbow",
+    full_art: "#f472b6", ex: "#fb923c", shiny: "rainbow",
+    excellent: "#86efac", graded: "#4ade80", mint: "#34d399", authentic: "#10b981",
+};
+const RAINBOW = "#f87171, #facc15, #4ade80, #60a5fa, #c084fc";
+
+export function BackEdgeHint({ hint }: { hint: { id: string; strength: number } | null }) {
+    const { x, y } = useTilt();
+    if (!hint) return null;
+    const amount = Math.min(1, Math.hypot(x, y) / MAX_DEG);
+    // Côté vers lequel pointe le doigt (0deg = haut, 90deg = droite).
+    const angle = (Math.atan2(y, x) * 180) / Math.PI;
+    const color = HINT_COLORS[hint.id] ?? "#ffffff";
+    const stops = color === "rainbow" ? RAINBOW : `${color}, ${color}`;
+    return (
+        <div
+            className="absolute -inset-[3px] rounded-[18px] pointer-events-none"
+            style={{
+                background: `linear-gradient(${angle}deg, transparent 35%, ${stops})`,
+                WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
+                WebkitMaskComposite: "xor",
+                maskComposite: "exclude",
+                padding: 3,
+                opacity: amount * Math.min(1, 0.35 + 0.15 * hint.strength),
+                filter: `drop-shadow(0 0 ${4 + hint.strength * 2}px ${color === "rainbow" ? "#ffffff" : color})`,
+                transition: "opacity 0.2s",
+            }}
+        />
+    );
+}
+
+const HINT_STRENGTH: Record<string, number> = {
+    rare: 1, epic: 2, legendary: 4,
+    silver: 1, gold: 2, diamond: 3, prismatic: 4,
+    full_art: 2, ex: 3, shiny: 4,
+    excellent: 1, graded: 2, mint: 3, authentic: 4,
+};
+
+/** Meilleure caractéristique parmi celles pas encore dévoilées (null si aucune). */
+export function bestHiddenTier(hidden: { id: string }[]): { id: string; strength: number } | null {
+    let best: { id: string; strength: number } | null = null;
+    for (const step of hidden) {
+        const strength = HINT_STRENGTH[step.id] ?? 1;
+        if (!best || strength > best.strength) best = { id: step.id, strength };
+    }
+    return best;
 }
