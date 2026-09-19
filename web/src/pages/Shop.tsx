@@ -223,7 +223,13 @@ function ResourcesTab() {
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
     const consumeResultIfPurpose = useCardSelectionStore((s) => s.consumeResultIfPurpose);
     const [feedback, setFeedback] = useState<{ offerId: string; text: string; ok: boolean } | null>(null);
-    const [quantities, setQuantities] = useState<Record<string, Quantity>>({});
+    const [buying, setBuying] = useState<ShopOffer | null>(null);
+    const [popupQty, setPopupQty] = useState<Quantity>(1);
+    useEffect(() => { setPopupQty(1); }, [buying?.id]);
+    const canAfford = (o: ShopOffer, n: number) => {
+        const remaining = o.limit_period !== "none" ? o.limit_count - o.purchases_in_period : Infinity;
+        return o.price * n <= getResourceBalance(user, o.resource_id) && n <= remaining;
+    };
     const [tokenError, setTokenError] = useState("");
     const rerollHandled = useRef(false);
     const tradePending = useHasPendingTradeProposal();
@@ -234,6 +240,7 @@ function ResourcesTab() {
             offer: ShopOffer; cardId?: string; toInventory?: boolean; quantity?: number;
         }) => shopApi.buy(offer.id, cardId, toInventory, quantity),
         onSuccess: (res, { offer, toInventory, quantity = 1 }) => {
+            setBuying(null);
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["collection"] });
             qc.invalidateQueries({ queryKey: ["shop-offers"] });
@@ -333,14 +340,7 @@ function ResourcesTab() {
                         const limited = o.limit_period !== "none";
                         const limitReached = limited && o.purchases_in_period >= o.limit_count;
                         const blockedByTrade = tradePending && o.kind === "booster";
-                        const balance = getResourceBalance(user, o.resource_id);
-                        const remaining = limited ? o.limit_count - o.purchases_in_period : Infinity;
-                        const canBuy = (n: number) => o.price * n <= balance && n <= remaining;
-                        const multi = isMultiBuyable(o);
-                        const chosen = quantities[o.id] ?? 1;
-                        // Quantité choisie devenue impossible (achat entre-temps) : retour à ×1.
-                        const qty: Quantity = multi && canBuy(chosen) ? chosen : 1;
-                        const qtyLabel = qty > 1 ? ` ×${qty}` : "";
+                        const canBuy = (n: number) => canAfford(o, n);
                         const ownedTokens = o.kind === "reroll" ? (rerollTokens ?? []).filter((t) => t.offer_id === o.id) : [];
                         // Boosters déjà stockés depuis cette offre : même booster, même bonus.
                         const ownedBoosters = o.kind === "booster"
@@ -348,8 +348,6 @@ function ResourcesTab() {
                                 && (b.force_min_rarity_id ?? null) === (o.force_min_rarity_id ?? null)
                                 && (b.rarity_weight_multiplier ?? null) === (o.rarity_weight_multiplier ?? null))
                             : [];
-                        const isBuying = (toInventory: boolean) =>
-                            buy.isPending && buy.variables?.offer.id === o.id && !!buy.variables?.toInventory === toInventory;
 
                         return (
                             <div key={o.id} className={`bg-game-surface rounded-2xl p-4 border ${o.featured_today ? "border-gold/60" : "border-white/10"}`}>
@@ -388,56 +386,15 @@ function ResourcesTab() {
                                     <div key={b.bonus_id ?? "base"} className="mb-2"><OwnedBoosterRow owned={b} /></div>
                                 ))}
 
-                                {multi && !limitReached && (
-                                    <div className="flex items-center gap-2 mb-2">
-                                        {QUANTITIES.map((n) => (
-                                            <button
-                                                key={n}
-                                                disabled={!canBuy(n)}
-                                                className={`px-3 py-1 rounded-lg text-sm font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed
-                                                    ${qty === n ? "bg-accent text-white" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
-                                                onClick={() => setQuantities((prev) => ({ ...prev, [o.id]: n }))}
-                                            >
-                                                ×{n}
-                                            </button>
-                                        ))}
-                                        {qty > 1 && (
-                                            <span className="ml-auto text-white/60 text-xs">
-                                                Total : <span className="text-purple-300 font-bold">{(o.price * qty).toLocaleString("fr-FR")}</span>
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Un reroll utilisé tout de suite ne porte que sur une carte. */}
-                                {!(o.kind === "reroll" && qty > 1) && (
-                                    <Button
-                                        variant="primary"
-                                        size="sm"
-                                        className="w-full"
-                                        disabled={limitReached || blockedByTrade || !canBuy(qty)}
-                                        loading={isBuying(false)}
-                                        onClick={() => handleBuy(o, qty)}
-                                    >
-                                        {limitReached
-                                            ? "Limite atteinte"
-                                            : o.kind === "booster" ? `Ouvrir${qtyLabel}`
-                                            : o.kind === "reroll" ? "Utiliser"
-                                            : `Acheter${qtyLabel}`}
-                                    </Button>
-                                )}
-                                {(o.kind === "booster" || o.kind === "reroll") && !limitReached && (
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        className={`w-full ${o.kind === "reroll" && qty > 1 ? "" : "mt-2"}`}
-                                        disabled={!canBuy(qty)}
-                                        loading={isBuying(true)}
-                                        onClick={() => { setFeedback(null); buy.mutate({ offer: o, toInventory: true, quantity: qty }); }}
-                                    >
-                                        Stocker{qtyLabel}
-                                    </Button>
-                                )}
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    className="w-full"
+                                    disabled={limitReached || !canBuy(1)}
+                                    onClick={() => { setFeedback(null); setBuying(o); }}
+                                >
+                                    {limitReached ? "Limite atteinte" : "Acheter"}
+                                </Button>
                                 {!limitReached && !canBuy(1) && (
                                     <p className="text-red-400/80 text-xs mt-2">Pas assez de {o.resource_name.toLowerCase()}</p>
                                 )}
@@ -452,6 +409,66 @@ function ResourcesTab() {
                     })}
                 </div>
             )}
+
+            <Modal open={!!buying} onClose={() => setBuying(null)} title={buying?.name}>
+                {buying && (() => {
+                    const o = buying;
+                    const multi = isMultiBuyable(o);
+                    const qty: Quantity = multi && canAfford(o, popupQty) ? popupQty : 1;
+                    const qtyLabel = qty > 1 ? ` ×${qty}` : "";
+                    const blockedByTrade = tradePending && o.kind === "booster";
+                    const pending = (toInventory: boolean) =>
+                        buy.isPending && buy.variables?.offer.id === o.id && !!buy.variables?.toInventory === toInventory;
+                    return (
+                        <div className="space-y-4">
+                            <p className="text-white/60 text-sm">{offerPreview(o)}</p>
+                            {multi && (
+                                <div className="flex gap-2 justify-center">
+                                    {QUANTITIES.map((n) => (
+                                        <button
+                                            key={n}
+                                            disabled={!canAfford(o, n)}
+                                            className={`px-4 py-2 rounded-xl font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed
+                                                ${qty === n ? "bg-accent text-white" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
+                                            onClick={() => setPopupQty(n)}
+                                        >
+                                            ×{n}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            <p className="text-center text-purple-300 font-bold">
+                                {(o.price * qty).toLocaleString("fr-FR")} {o.resource_name}
+                            </p>
+                            {/* Un reroll utilisé tout de suite ne porte que sur une carte. */}
+                            {!(o.kind === "reroll" && qty > 1) && (
+                                <Button
+                                    variant="gold" size="lg" className="w-full"
+                                    disabled={blockedByTrade || !canAfford(o, qty)}
+                                    loading={pending(false)}
+                                    onClick={() => handleBuy(o, qty)}
+                                >
+                                    {o.kind === "booster" ? `Ouvrir${qtyLabel}` : o.kind === "reroll" ? "Utiliser" : `Acheter${qtyLabel}`}
+                                </Button>
+                            )}
+                            {(o.kind === "booster" || o.kind === "reroll") && (
+                                <Button
+                                    variant="secondary" className="w-full"
+                                    disabled={!canAfford(o, qty)}
+                                    loading={pending(true)}
+                                    onClick={() => { setFeedback(null); buy.mutate({ offer: o, toInventory: true, quantity: qty }); }}
+                                >
+                                    Stocker{qtyLabel}
+                                </Button>
+                            )}
+                            {blockedByTrade && <TradePendingNotice />}
+                            {feedback?.offerId === o.id && !feedback.ok && (
+                                <p className="text-red-400 text-xs text-center">{feedback.text}</p>
+                            )}
+                        </div>
+                    );
+                })()}
+            </Modal>
         </>
     );
 }
