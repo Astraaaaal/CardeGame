@@ -6,11 +6,15 @@ import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import FriendsPanel from "@/components/social/FriendsPanel";
 
 /**
- * Navigation basse (Réglages + Social) répétée sur la plupart des pages —
+ * Navigation (Réglages + Social) en pastilles flottantes, répétée sur la plupart des pages —
  * pas sur celles où un flux focalisé serait perturbé par une navigation
  * annexe (ouverture de booster, sélection de carte...), cf. les pages qui
  * ne l'incluent pas.
  */
+const BUBBLE =
+    "pointer-events-auto w-12 h-12 rounded-full bg-game-surface border border-white/15 shadow-lg shadow-black/40 " +
+    "flex items-center justify-center text-xl hover:border-accent transition-colors";
+
 export default function BottomNav() {
     const navigate = useNavigate();
     // Rouvre automatiquement le panneau Social au retour d'une sélection de
@@ -27,27 +31,37 @@ export default function BottomNav() {
 
     return (
         <>
-            <footer className="flex items-center justify-between px-4 py-4">
-                <button
-                    className="text-white/70 hover:text-white text-xl"
-                    onClick={() => navigate("/settings")}
-                    title="Réglages"
-                >
-                    ⚙️
-                </button>
-                <button
-                    className="relative text-white/70 hover:text-white text-xl"
-                    onClick={() => setSocialOpen(true)}
-                    title="Social"
-                >
-                    👥
-                    {pendingCount > 0 && (
-                        <span className="absolute -top-1 -right-1.5 inline-flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4">
-                            {pendingCount}
-                        </span>
-                    )}
-                </button>
-            </footer>
+            {/* Espace réservé : la fin de la page ne passe pas sous les pastilles. */}
+            <div className="h-20 shrink-0" aria-hidden />
+            {/* Pastilles flottantes, toujours accessibles sans défiler jusqu'en bas.
+                Elles remontent au-dessus d'une barre de validation flottante
+                (--fab-h, cf. FloatingActionBar). */}
+            <div
+                className="fixed inset-x-0 z-30 pointer-events-none transition-[bottom] duration-200"
+                style={{ bottom: "calc(var(--fab-h, 0px) + 1rem)" }}
+            >
+                <div className="max-w-mobile mx-auto px-4 flex items-center justify-between">
+                    <button
+                        className={BUBBLE}
+                        onClick={() => navigate("/settings")}
+                        title="Réglages"
+                    >
+                        ⚙️
+                    </button>
+                    <button
+                        className={`relative ${BUBBLE}`}
+                        onClick={() => setSocialOpen(true)}
+                        title="Social"
+                    >
+                        👥
+                        {pendingCount > 0 && (
+                            <span className="absolute -top-1 -right-1 inline-flex items-center justify-center bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4">
+                                {pendingCount}
+                            </span>
+                        )}
+                    </button>
+                </div>
+            </div>
 
             <FriendsPanel open={socialOpen} onClose={() => setSocialOpen(false)} />
         </>

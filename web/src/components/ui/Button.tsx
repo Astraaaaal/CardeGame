@@ -1,7 +1,7 @@
 import { ButtonHTMLAttributes, ReactNode } from "react";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: "primary" | "secondary" | "danger" | "gold";
+    variant?: "primary" | "secondary" | "solid" | "danger" | "gold";
     size?: "sm" | "md" | "lg";
     loading?: boolean;
     children: ReactNode;
@@ -10,6 +10,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const variants = {
     primary: "bg-accent hover:bg-accent/80 text-white",
     secondary: "bg-white/10 hover:bg-white/20 text-white border border-white/20",
+    // Comme secondary mais opaque — pour les boutons flottants au-dessus du contenu.
+    solid: "bg-game-panel hover:bg-[#34344C] text-white border border-white/20",
     danger: "bg-red-600 hover:bg-red-700 text-white",
     gold: "bg-gold hover:bg-gold/80 text-game-bg font-bold",
 };

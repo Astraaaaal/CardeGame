@@ -111,7 +111,7 @@ export default function PackOpening() {
               Voir ma collection
             </Button>
             <Button
-              variant="secondary"
+              variant="solid"
               size="md"
               className="w-full"
               onClick={() => leave("/shop")}

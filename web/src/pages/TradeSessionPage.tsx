@@ -326,7 +326,7 @@ export default function TradeSessionPage() {
                                     {trade.my_confirmed ? "En attente de l'autre joueur..." : "Confirmer l'échange"}
                                 </Button>
                                 <Button
-                                    variant="secondary"
+                                    variant="solid"
                                     className="w-full"
                                     disabled={trade.my_confirmed}
                                     onClick={() => setReady.mutate(false)}
