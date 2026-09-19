@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { friendsApi } from "@/api/friends";
@@ -29,17 +29,21 @@ export default function BottomNav() {
     });
     const pendingCount = friendRequests?.incoming.length ?? 0;
 
+    // Hauteur occupée par les pastilles (48 px + 16 px de marge).
+    useEffect(() => {
+        const root = document.documentElement;
+        root.style.setProperty("--nav-h", "4rem");
+        return () => { root.style.removeProperty("--nav-h"); };
+    }, []);
+
     return (
         <>
             {/* Espace réservé : la fin de la page ne passe pas sous les pastilles. */}
             <div className="h-20 shrink-0" aria-hidden />
             {/* Pastilles flottantes, toujours accessibles sans défiler jusqu'en bas.
-                Elles remontent au-dessus d'une barre de validation flottante
-                (--fab-h, cf. FloatingActionBar). */}
-            <div
-                className="fixed inset-x-0 z-30 pointer-events-none transition-[bottom] duration-200"
-                style={{ bottom: "calc(var(--fab-h, 0px) + 1rem)" }}
-            >
+                Une barre de validation flottante se place au-dessus d'elles
+                (--nav-h, cf. FloatingActionBar). */}
+            <div className="fixed inset-x-0 bottom-4 z-30 pointer-events-none">
                 <div className="max-w-mobile mx-auto px-4 flex items-center justify-between">
                     <button
                         className={BUBBLE}
