@@ -114,10 +114,18 @@ class CardGeneratorService:
         # 5. Jewelry
         jewelry = self._weighted_pick(jewelries)
 
-        # 6. Probabilité combinée (avec le même pool/poids ajustés que le tirage)
-        drop_prob = self._calculate_probability(
+        # 6. Probabilités : celle du tirage réel (pool/poids ajustés par la
+        #    chance ou une garantie) et celle de BASE de la carte — son set
+        #    seul, poids de rareté normaux — qui fixe sa puissance maximum et
+        #    reste celle affichée (identique à un reroll, cf. services/reroll.py).
+        draw_prob = self._calculate_probability(
             characters, character, rarity, quality, specialty, jewelry,
             rarity_pool, rarity_weights, qualities, specialties, jewelries,
+        )
+        same_set = [c for c in characters if c["set_id"] == character["set_id"]]
+        drop_prob = self._calculate_probability(
+            same_set, character, rarity, quality, specialty, jewelry,
+            rarities, [r.weight for r in rarities], qualities, specialties, jewelries,
         )
 
         return {
@@ -130,6 +138,7 @@ class CardGeneratorService:
             "specialty_id": specialty.id,
             "jewelry_id": jewelry.id,
             "drop_probability": drop_prob,
+            "draw_probability": draw_prob,
             # Données enrichies pour la réponse
             "_character": character,
             "_rarity": rarity,

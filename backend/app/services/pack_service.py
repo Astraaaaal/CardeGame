@@ -17,7 +17,7 @@ from app.models.economy import Resource
 from app.services.card_generator import CardGeneratorService
 from app.services.card_renderer import CardRendererService
 from app.services.wallet import get_balance, apply_delta
-from app.services.power import roll_power, combined_rarity
+from app.services.power import roll_drawn_power, combined_rarity
 from app.services import quest_progress
 from app.services import activity, guilds, presence_bonus
 from app.schemas.card import CardResponse
@@ -81,10 +81,7 @@ class PackService:
             pack_responses = []
             for card_data in pack_data:
                 rendered_url = await self.renderer.render_and_upload(session, card_data)
-                power = roll_power(
-                    card_data["drop_probability"], card_data["rarity_id"],
-                    card_data["quality_id"], card_data["specialty_id"], card_data["jewelry_id"],
-                )
+                power = roll_drawn_power(card_data)
 
                 user_card = UserCard(
                     user_id=user_id,

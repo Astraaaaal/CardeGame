@@ -64,6 +64,23 @@ def roll_power(
     return random.randint(1, n)
 
 
+def roll_drawn_power(card_data: dict) -> Optional[int]:
+    """
+    Puissance d'une carte sortie du générateur. La chance du moment (présence,
+    bonus de guilde, rareté minimum garantie, booster à plusieurs sets) change
+    la probabilité réelle du tirage (`draw_probability`) et peut donc élargir
+    la plage de tirage — mais le résultat est ramené au maximum de BASE de la
+    carte (`drop_probability`, cf. CardGeneratorService) : la chance donne
+    plus de chances d'atteindre ce maximum, jamais de le dépasser.
+    """
+    axes = (card_data["rarity_id"], card_data["quality_id"], card_data["specialty_id"], card_data["jewelry_id"])
+    base_max = power_range(card_data["drop_probability"], *axes)
+    if base_max is None:
+        return None
+    draw_max = power_range(card_data.get("draw_probability") or card_data["drop_probability"], *axes) or base_max
+    return min(random.randint(1, max(base_max, draw_max)), base_max)
+
+
 def combined_rarity(
     power: Optional[int],
     drop_probability: float,

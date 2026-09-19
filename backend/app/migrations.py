@@ -13,7 +13,7 @@ import json
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from app.services.power import roll_power
+from app.services.power import power_range, roll_power
 
 logger = logging.getLogger(__name__)
 
@@ -511,3 +511,57 @@ async def apply_patches(conn: AsyncConnection) -> None:
             logger.info("Puissance calculée pour %d carte(s) existante(s).", len(rows))
     except Exception as exc:  # noqa: BLE001
         logger.warning("backfill power: %s", exc)
+
+    # Probabilité de BASE de chaque carte (son set, poids normaux) et puissance
+    # plafonnée au maximum qui en découle : les cartes tirées avec de la chance
+    # (présence, guilde, garantie, booster multi-sets) pouvaient dépasser le
+    # maximum affiché. Idempotent : ne réécrit que les cartes qui changent.
+    try:
+        await _normalize_card_powers(conn)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("normalisation des puissances : %s", exc)
+
+
+async def _normalize_card_powers(conn: AsyncConnection) -> None:
+    def weights(table: str) -> dict[str, float]:
+        return {r.id: r.weight for r in rows[table]}
+
+    rows = {}
+    for table in ("rarities", "qualities", "specialties", "jewelries"):
+        rows[table] = (await conn.execute(text(f"SELECT id, weight FROM {table}"))).all()
+    axis = {t: weights(t) for t in rows}
+    totals = {t: sum(w.values()) for t, w in axis.items()}
+    links = (await conn.execute(text("SELECT set_id, character_id, weight FROM character_sets"))).all()
+    link_weight = {(l.set_id, l.character_id): l.weight for l in links}
+    set_totals: dict[str, float] = {}
+    for l in links:
+        set_totals[l.set_id] = set_totals.get(l.set_id, 0) + l.weight
+
+    def frac(table: str, id_: str) -> float:
+        total = totals[table]
+        return (axis[table].get(id_, 0) / total) if total else 0.0
+
+    cards = (await conn.execute(text(
+        "SELECT id, character_id, set_id, rarity_id, quality_id, specialty_id, jewelry_id, "
+        "drop_probability, power FROM user_cards"
+    ))).all()
+    update = text("UPDATE user_cards SET drop_probability = :p, power = :power WHERE id = :id")
+    changed = capped = 0
+    for c in cards:
+        total = set_totals.get(c.set_id, 0)
+        char = (link_weight.get((c.set_id, c.character_id), 0) / total) if total else 0.0
+        base = (char * frac("rarities", c.rarity_id) * frac("qualities", c.quality_id)
+                * frac("specialties", c.specialty_id) * frac("jewelries", c.jewelry_id))
+        if base <= 0:
+            continue  # référentiel incomplet : on ne touche pas à la carte
+        n = power_range(base, c.rarity_id, c.quality_id, c.specialty_id, c.jewelry_id)
+        power = c.power
+        if power is not None and n is not None and power > n:
+            power = n
+            capped += 1
+        old = c.drop_probability or 0.0
+        if power != c.power or abs(old - base) > base * 1e-9:
+            await conn.execute(update, {"p": base, "power": power, "id": c.id})
+            changed += 1
+    if changed:
+        logger.info("Puissances normalisées : %d carte(s) mises à jour, %d ramenée(s) au maximum.", changed, capped)

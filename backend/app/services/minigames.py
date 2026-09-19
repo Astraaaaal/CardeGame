@@ -20,7 +20,7 @@ from app.models.user import User
 from app.services import activities_config, booster_inventory, reroll_inventory
 from app.services.card_generator import CardGeneratorService
 from app.services.card_view import build_card_response
-from app.services.power import roll_power
+from app.services.power import roll_drawn_power
 from app.services.presence_bonus import get_activity
 from app.services.wallet import apply_delta, get_balance
 
@@ -47,8 +47,7 @@ async def _random_card(session: AsyncSession, cfg: dict) -> dict:
         if not pack:
             break
         data = pack[0]
-        power = roll_power(data["drop_probability"], data["rarity_id"], data["quality_id"],
-                           data["specialty_id"], data["jewelry_id"])
+        power = roll_drawn_power(data)
         if power is None:
             continue
         card = UserCard(

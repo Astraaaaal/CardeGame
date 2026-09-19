@@ -22,7 +22,7 @@ from app.models.user import User
 from app.services import activities_config, booster_inventory, guilds, quest_progress
 from app.services.card_generator import CardGeneratorService
 from app.services.card_view import build_card_response
-from app.services.power import roll_power
+from app.services.power import roll_drawn_power
 from app.services.ranking import refresh_all_best_ranks
 from app.services.wallet import apply_delta
 
@@ -181,8 +181,7 @@ async def _generate_rare_card(session: AsyncSession, user: User, booster: Booste
         user_id=user.id, character_id=data["character_id"], set_id=data["set_id"],
         rarity_id=data["rarity_id"], quality_id=data["quality_id"], specialty_id=data["specialty_id"],
         jewelry_id=data["jewelry_id"], booster_id=booster.id, drop_probability=data["drop_probability"],
-        power=roll_power(data["drop_probability"], data["rarity_id"], data["quality_id"],
-                         data["specialty_id"], data["jewelry_id"]),
+        power=roll_drawn_power(data),
     )
     session.add(card)
     user.total_cards += 1
