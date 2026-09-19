@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useGameStore } from "@/stores/gameStore";
 import { useHoldAnimationLock } from "@/stores/animationLockStore";
@@ -29,6 +29,9 @@ export default function PackOpening() {
 
   // Quitter l'écran : on navigue, puis on purge l'état d'ouverture (macrotask,
   // pour ne pas re-rendre ce composant pendant la transition).
+  // Page d'où l'ouverture a été lancée (inventaire ou boutique).
+  const from = (useLocation().state as { from?: string } | null)?.from === "/inventory" ? "/inventory" : "/shop";
+
   const leave = (to: string) => {
     navigate(to);
     setTimeout(resetPackState, 0);
@@ -114,9 +117,9 @@ export default function PackOpening() {
               variant="solid"
               size="md"
               className="w-full"
-              onClick={() => leave("/shop")}
+              onClick={() => leave(from)}
             >
-              Retour à la boutique
+              {from === "/inventory" ? "Retour à l'inventaire" : "Retour à la boutique"}
             </Button>
           </div>
         </FloatingActionBar>

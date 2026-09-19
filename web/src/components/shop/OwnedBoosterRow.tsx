@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { OwnedBooster } from "@/types/booster";
 import { useOpenOwnedBoosters } from "@/hooks/usePackOpening";
 import { useHasPendingTradeProposal } from "@/hooks/useTradePulse";
@@ -15,6 +15,7 @@ const COUNTS = [1, 5, 10] as const;
  */
 export default function OwnedBoosterRow({ owned, showName = false }: { owned: OwnedBooster; showName?: boolean }) {
     const navigate = useNavigate();
+    const { pathname } = useLocation();
     const openOwned = useOpenOwnedBoosters();
     const tradePending = useHasPendingTradeProposal();
     const [choosing, setChoosing] = useState(false);
@@ -24,7 +25,8 @@ export default function OwnedBoosterRow({ owned, showName = false }: { owned: Ow
         setError("");
         openOwned.mutate(
             { booster_id: owned.booster_id, quantity, bonus_id: owned.bonus_id },
-            { onSuccess: () => navigate("/opening"), onError: (e) => setError(errMsg(e)) },
+            // L'écran d'ouverture propose ensuite de revenir d'où l'on vient (boutique ou inventaire).
+            { onSuccess: () => navigate("/opening", { state: { from: pathname } }), onError: (e) => setError(errMsg(e)) },
         );
     };
 
