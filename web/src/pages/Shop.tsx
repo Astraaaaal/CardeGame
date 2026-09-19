@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/stores/authStore";
 import { useGameStore } from "@/stores/gameStore";
 import { useBoosters } from "@/hooks/useBoosters";
-import { usePackOpening, useOpenOwnedBoosters } from "@/hooks/usePackOpening";
+import { usePackOpening } from "@/hooks/usePackOpening";
 import { boostersApi } from "@/api/boosters";
 import { shopApi } from "@/api/shop";
 import type { Booster } from "@/types/booster";
@@ -13,6 +13,7 @@ import type { ShopOffer } from "@/types/shop";
 import Button from "@/components/ui/Button";
 import CoinDisplay from "@/components/player/CoinDisplay";
 import BoosterCard from "@/components/shop/BoosterCard";
+import OwnedBoosterRow from "@/components/shop/OwnedBoosterRow";
 import PriceTag from "@/components/shop/PriceTag";
 import Modal from "@/components/ui/Modal";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -34,7 +35,6 @@ function BoostersTab() {
     const { user } = useAuthStore();
     const { data: boosters, isLoading } = useBoosters();
     const openMutation = usePackOpening();
-    const openOwnedMutation = useOpenOwnedBoosters();
     const tradePending = useHasPendingTradeProposal();
     const qc = useQueryClient();
     const [buyError, setBuyError] = useState("");
@@ -58,13 +58,6 @@ function BoostersTab() {
         },
         onError: (e) => setBuyError(errMsg(e)),
     });
-
-    const handleOpenOwned = (boosterId: string, ownedQuantity: number, bonusId: number | null) => {
-        openOwnedMutation.mutate(
-            { booster_id: boosterId, quantity: ownedQuantity, bonus_id: bonusId },
-            { onSuccess: () => navigate("/opening") },
-        );
-    };
 
     const handleOpen = () => {
         if (!selected) return;
@@ -90,34 +83,6 @@ function BoostersTab() {
 
     return (
         <>
-            {!!inventory?.length && (
-                <div className="max-w-sm mx-auto mb-5 space-y-2">
-                    <h3 className="text-white/50 text-xs font-semibold uppercase tracking-wide">
-                        Boosters reçus — à ouvrir
-                    </h3>
-                    {tradePending && <TradePendingNotice />}
-                    {inventory.map((o) => (
-                        <div key={`${o.booster_id}-${o.bonus_id ?? "base"}`} className="flex items-center justify-between bg-gold/10 border border-gold/30 rounded-xl px-4 py-3">
-                            <div>
-                                <p className="text-white font-semibold text-sm">{o.booster_name}</p>
-                                {o.bonus_label && <p className="text-gold text-xs">{o.bonus_label}</p>}
-                                <p className="text-white/40 text-xs">×{o.quantity} possédé{o.quantity > 1 ? "s" : ""}</p>
-                            </div>
-                            <Button
-                                variant="gold" size="sm"
-                                disabled={tradePending}
-                                loading={openOwnedMutation.isPending
-                                    && openOwnedMutation.variables?.booster_id === o.booster_id
-                                    && (openOwnedMutation.variables?.bonus_id ?? null) === o.bonus_id}
-                                onClick={() => handleOpenOwned(o.booster_id, o.quantity, o.bonus_id)}
-                            >
-                                Ouvrir
-                            </Button>
-                        </div>
-                    ))}
-                </div>
-            )}
-
             {isLoading ? (
                 <LoadingSpinner text="Chargement des boosters..." />
             ) : (
@@ -128,7 +93,11 @@ function BoostersTab() {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                         >
-                            <BoosterCard booster={b} onSelect={setSelected} />
+                            <BoosterCard
+                                booster={b}
+                                onSelect={setSelected}
+                                owned={(inventory ?? []).filter((o) => o.booster_id === b.id)}
+                            />
                         </motion.div>
                     ))}
                 </div>
@@ -176,7 +145,7 @@ function BoostersTab() {
                                 loading={openMutation.isPending}
                                 disabled={cantAfford || tradePending}
                             >
-                                Acheter et ouvrir
+                                Ouvrir{quantity > 1 ? ` ×${quantity}` : ""}
                             </Button>
                             <Button
                                 variant="secondary"
@@ -185,7 +154,7 @@ function BoostersTab() {
                                 disabled={cantAfford}
                                 onClick={() => { setBuyError(""); buyToInventory.mutate({ booster: selected, qty: quantity }); }}
                             >
-                                Acheter → inventaire
+                                Stocker{quantity > 1 ? ` ×${quantity}` : ""}
                             </Button>
                             {buyError && <p className="text-red-400 text-xs text-center">{buyError}</p>}
 
@@ -250,6 +219,7 @@ function ResourcesTab() {
     // Les offres payées en éclats vivent dans l'onglet Premium.
     const offers = allOffers?.filter((o) => o.resource_id !== PREMIUM_RESOURCE_ID);
     const { data: rerollTokens } = useRerollTokens();
+    const { data: boosterInventory } = useQuery({ queryKey: ["booster-inventory"], queryFn: boostersApi.getInventory });
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
     const consumeResultIfPurpose = useCardSelectionStore((s) => s.consumeResultIfPurpose);
     const [feedback, setFeedback] = useState<{ offerId: string; text: string; ok: boolean } | null>(null);
@@ -372,6 +342,12 @@ function ResourcesTab() {
                         const qty: Quantity = multi && canBuy(chosen) ? chosen : 1;
                         const qtyLabel = qty > 1 ? ` ×${qty}` : "";
                         const ownedTokens = o.kind === "reroll" ? (rerollTokens ?? []).filter((t) => t.offer_id === o.id) : [];
+                        // Boosters déjà stockés depuis cette offre : même booster, même bonus.
+                        const ownedBoosters = o.kind === "booster"
+                            ? (boosterInventory ?? []).filter((b) => b.booster_id === o.booster_id
+                                && (b.force_min_rarity_id ?? null) === (o.force_min_rarity_id ?? null)
+                                && (b.rarity_weight_multiplier ?? null) === (o.rarity_weight_multiplier ?? null))
+                            : [];
                         const isBuying = (toInventory: boolean) =>
                             buy.isPending && buy.variables?.offer.id === o.id && !!buy.variables?.toInventory === toInventory;
 
@@ -408,6 +384,9 @@ function ResourcesTab() {
                                     </div>
                                 ))}
                                 {!!ownedTokens.length && tokenError && <p className="text-red-400 text-xs mb-2">{tokenError}</p>}
+                                {ownedBoosters.map((b) => (
+                                    <div key={b.bonus_id ?? "base"} className="mb-2"><OwnedBoosterRow owned={b} /></div>
+                                ))}
 
                                 {multi && !limitReached && (
                                     <div className="flex items-center gap-2 mb-2">
@@ -442,8 +421,8 @@ function ResourcesTab() {
                                     >
                                         {limitReached
                                             ? "Limite atteinte"
-                                            : o.kind === "booster" ? `Acheter et ouvrir${qtyLabel}`
-                                            : o.kind === "reroll" ? "Acheter et utiliser"
+                                            : o.kind === "booster" ? `Ouvrir${qtyLabel}`
+                                            : o.kind === "reroll" ? "Utiliser"
                                             : `Acheter${qtyLabel}`}
                                     </Button>
                                 )}
@@ -456,7 +435,7 @@ function ResourcesTab() {
                                         loading={isBuying(true)}
                                         onClick={() => { setFeedback(null); buy.mutate({ offer: o, toInventory: true, quantity: qty }); }}
                                     >
-                                        Acheter → inventaire{qtyLabel}
+                                        Stocker{qtyLabel}
                                     </Button>
                                 )}
                                 {!limitReached && !canBuy(1) && (
@@ -483,7 +462,9 @@ export default function Shop() {
     const navigate = useNavigate();
     const { user } = useAuthStore();
     const [tab, setTab] = useState<Tab>(() => {
-        if (new URLSearchParams(window.location.search).has("premium")) return "premium";
+        const params = new URLSearchParams(window.location.search);
+        if (params.has("premium")) return "premium";
+        if (params.get("tab") === "resources") return "resources";
         const purpose = useCardSelectionStore.getState().result?.context?.purpose;
         return purpose === "reroll" || purpose === REROLL_TOKEN_PURPOSE ? "resources" : "boosters";
     });

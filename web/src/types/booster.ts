@@ -34,6 +34,8 @@ export interface OwnedBooster {
     /** Booster acheté via une offre à bonus (rareté garantie, chances boostées). */
     bonus_id: number | null;
     bonus_label: string | null;
+    force_min_rarity_id: string | null;
+    rarity_weight_multiplier: number | null;
 }
 
 export interface BuyToInventoryResponse {

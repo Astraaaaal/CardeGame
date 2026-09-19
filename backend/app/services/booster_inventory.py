@@ -88,6 +88,7 @@ async def list_owned(session: AsyncSession, user_id: int) -> list[dict]:
             "booster_id": booster.id, "booster_name": booster.name,
             "booster_cover_url": booster.cover_image_url or None, "quantity": row.quantity,
             "bonus_id": None, "bonus_label": None,
+            "force_min_rarity_id": None, "rarity_weight_multiplier": None,
         })
 
     bonus_rows = (await session.execute(
@@ -102,6 +103,7 @@ async def list_owned(session: AsyncSession, user_id: int) -> list[dict]:
             "booster_id": booster.id, "booster_name": booster.name,
             "booster_cover_url": booster.cover_image_url or None, "quantity": row.quantity,
             "bonus_id": row.id, "bonus_label": row.label or None,
+            "force_min_rarity_id": row.force_min_rarity_id, "rarity_weight_multiplier": row.rarity_weight_multiplier,
         })
     return out
 

@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { boostersApi } from "@/api/boosters";
 import { useAuthStore } from "@/stores/authStore";
-import { useOpenOwnedBoosters } from "@/hooks/usePackOpening";
-import { useHasPendingTradeProposal } from "@/hooks/useTradePulse";
+import OwnedBoosterRow from "@/components/shop/OwnedBoosterRow";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ResourceIcon from "@/components/ui/ResourceIcon";
@@ -28,8 +27,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function Inventory() {
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const tradePending = useHasPendingTradeProposal();
-    const openOwned = useOpenOwnedBoosters();
     const { data: boosters, isLoading } = useQuery({ queryKey: ["booster-inventory"], queryFn: boostersApi.getInventory });
     const { data: cosmetics } = useQuery({ queryKey: ["my-cosmetics"], queryFn: premiumApi.myCosmetics });
     const { data: rerollTokens } = useRerollTokens();
@@ -59,6 +56,10 @@ export default function Inventory() {
                             <ResourceIcon resourceId={r.id} className="w-6 h-6" />
                             <span className="flex-1 text-white text-sm">{r.name}</span>
                             <span className="text-white font-bold tabular-nums">{r.amount.toLocaleString("fr-FR")}</span>
+                            {/* Les ressources se dépensent dans la boutique : pièces → boosters, le reste → offres à ressources. */}
+                            <Button variant="gold" size="sm" onClick={() => navigate(r.id === "coins" ? "/shop" : "/shop?tab=resources")}>
+                                Utiliser
+                            </Button>
                         </div>
                     ))}
                 </Section>
@@ -69,36 +70,9 @@ export default function Inventory() {
                     ) : !boosters?.length ? (
                         <p className="text-white/30 text-sm">Aucun booster en attente.</p>
                     ) : (
-                        <>
-                            {tradePending && (
-                                <p className="text-amber-300/80 text-xs">
-                                    Ouverture indisponible tant qu'une proposition d'échange attend une réponse.
-                                </p>
-                            )}
-                            {boosters.map((b) => (
-                                <div key={`${b.booster_id}-${b.bonus_id ?? "base"}`} className="flex items-center gap-3 bg-gold/10 border border-gold/30 rounded-xl px-4 py-3">
-                                    <span className="text-xl">🎴</span>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-white text-sm font-semibold truncate">{b.booster_name}</p>
-                                        {b.bonus_label && <p className="text-gold text-xs truncate">{b.bonus_label}</p>}
-                                        <p className="text-white/40 text-xs">×{b.quantity}</p>
-                                    </div>
-                                    <Button
-                                        variant="gold" size="sm"
-                                        disabled={tradePending}
-                                        loading={openOwned.isPending
-                                            && openOwned.variables?.booster_id === b.booster_id
-                                            && (openOwned.variables?.bonus_id ?? null) === b.bonus_id}
-                                        onClick={() => openOwned.mutate(
-                                            { booster_id: b.booster_id, quantity: b.quantity, bonus_id: b.bonus_id },
-                                            { onSuccess: () => navigate("/opening") },
-                                        )}
-                                    >
-                                        Ouvrir
-                                    </Button>
-                                </div>
-                            ))}
-                        </>
+                        boosters.map((b) => (
+                            <OwnedBoosterRow key={`${b.booster_id}-${b.bonus_id ?? "base"}`} owned={b} showName />
+                        ))
                     )}
                 </Section>
 

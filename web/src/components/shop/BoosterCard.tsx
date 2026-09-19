@@ -1,13 +1,16 @@
-import type { Booster } from "@/types/booster";
+import type { Booster, OwnedBooster } from "@/types/booster";
+import OwnedBoosterRow from "./OwnedBoosterRow";
 import Button from "@/components/ui/Button";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 
 interface BoosterCardProps {
     booster: Booster;
     onSelect: (booster: Booster) => void;
+    /** Exemplaires déjà possédés de ce booster (avec ou sans bonus). */
+    owned?: OwnedBooster[];
 }
 
-export default function BoosterCard({ booster, onSelect }: BoosterCardProps) {
+export default function BoosterCard({ booster, onSelect, owned = [] }: BoosterCardProps) {
     return (
         <div className="bg-game-surface rounded-2xl overflow-hidden border border-white/10
                     hover:border-accent/50 transition-all duration-200">
@@ -38,13 +41,19 @@ export default function BoosterCard({ booster, onSelect }: BoosterCardProps) {
                     )}
                 </div>
 
+                {owned.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                        {owned.map((o) => <OwnedBoosterRow key={o.bonus_id ?? "base"} owned={o} />)}
+                    </div>
+                )}
+
                 <Button
                     variant="primary"
                     size="sm"
                     className="w-full"
                     onClick={() => onSelect(booster)}
                 >
-                    Ouvrir
+                    Acheter
                 </Button>
             </div>
         </div>
