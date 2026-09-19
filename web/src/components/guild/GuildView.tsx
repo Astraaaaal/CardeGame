@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { guildsApi, type GuildDetail, type GuildRole, type JoinPolicy } from "@/api/guilds";
 import { useAuthStore } from "@/stores/authStore";
 import Button from "@/components/ui/Button";
@@ -13,7 +14,7 @@ const TABS: { key: Tab; label: string }[] = [
     { key: "challenge", label: "Défi" },
     { key: "chest", label: "Coffre" },
     { key: "members", label: "Membres" },
-    { key: "wall", label: "Mur" },
+    { key: "wall", label: "Tchat" },
 ];
 const inputCls = "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30";
 const fmt = (n: number) => n.toLocaleString("fr-FR");
@@ -377,6 +378,7 @@ function MembersTab({ guild }: { guild: GuildDetail }) {
 
 function WallTab() {
     const qc = useQueryClient();
+    const navigate = useNavigate();
     const [text, setText] = useState("");
     const [err, setErr] = useState<string | null>(null);
     const bottom = useRef<HTMLDivElement>(null);
@@ -401,7 +403,13 @@ function WallTab() {
                     ) : (
                         <div key={m.id}>
                             <p className="text-[11px] text-white/40">
-                                <span className="text-accent font-semibold">{m.author}</span> ·{" "}
+                                {m.user_id ? (
+                                    <button className="text-accent font-semibold hover:underline" onClick={() => navigate(`/players/${m.user_id}`)}>
+                                        {m.author}
+                                    </button>
+                                ) : (
+                                    <span className="text-accent font-semibold">{m.author}</span>
+                                )} ·{" "}
                                 {utc(m.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                             </p>
                             <p className="text-white text-sm whitespace-pre-line break-words">{m.body}</p>

@@ -43,6 +43,7 @@ class ShowcaseResponse(BaseModel):
     # "Ajouter en ami" côté vitrine publique.
     friendship_status: str = "self"
     level: int = 1
+    total_power: int = 0
     best_login_streak: int = 0
     current_global_rank: int | None = None
     best_global_rank: int | None = None

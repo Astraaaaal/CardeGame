@@ -6,7 +6,7 @@ import GuildEmblem from "./GuildEmblem";
 import { MY_GUILD_KEY } from "./NoGuild";
 
 const KINDS: { key: RankingKind; label: string; hint: string }[] = [
-    { key: "overall", label: "Général", hint: "Moyenne des rangs en niveau, puissance et coffre." },
+    { key: "overall", label: "Général", hint: "Classement combiné du niveau, de la puissance et du coffre." },
     { key: "level", label: "Niveau", hint: "Niveau de la guilde (XP du coffre et des défis)." },
     { key: "power", label: "Puissance", hint: "Puissance totale des cartes de tous les membres." },
     { key: "chest", label: "Coffre", hint: "Points donnés au coffre depuis la création." },
@@ -17,7 +17,7 @@ const fmt = (n: number) => n.toLocaleString("fr-FR");
 
 function score(kind: RankingKind, r: GuildRankingRow) {
     switch (kind) {
-        case "overall": return `rang moyen ${r.average_rank.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}`;
+        case "overall": return null;  // trié par rang moyen, seule la position compte
         case "level": return `Niv. ${r.level}`;
         case "power": return `⚡ ${fmt(r.power)}`;
         case "chest": return `${fmt(r.chest_total)} pts`;
@@ -51,7 +51,7 @@ export default function GuildRankings() {
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${
                                 r.id === myId ? "bg-accent/10 border-accent/40" : "bg-game-surface border-white/10"
                             }`}>
-                            <span className="text-white/50 font-bold text-sm w-6 text-center shrink-0">{r.rank}</span>
+                            <span className="text-white/50 font-bold text-sm w-8 text-center shrink-0">{r.rank === 1 ? "1er" : `${r.rank}e`}</span>
                             <GuildEmblem icon={r.icon} color={r.color} size={30} />
                             <div className="flex-1 min-w-0">
                                 <p className={`text-sm font-semibold truncate ${r.id === myId ? "text-accent" : "text-white"}`}>
@@ -59,7 +59,7 @@ export default function GuildRankings() {
                                 </p>
                                 <p className="text-white/40 text-[11px]">Niv. {r.level} · {r.members} membres</p>
                             </div>
-                            <span className="text-gold font-bold text-xs shrink-0">{score(kind, r)}</span>
+                            {score(kind, r) && <span className="text-gold font-bold text-xs shrink-0">{score(kind, r)}</span>}
                         </div>
                     ))}
                 </div>

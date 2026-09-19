@@ -37,6 +37,7 @@ export interface Showcase {
     trade_listings: TradeListing[];
     friendship_status: FriendshipStatus;
     level: number;
+    total_power: number;
     best_login_streak: number;
     current_global_rank: number | null;
     guild: GuildTag | null;

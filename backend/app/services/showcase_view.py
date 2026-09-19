@@ -71,7 +71,8 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
                 description=definition.description, category=definition.category,
             ))
 
-    level = current_level_for_power(await get_all_tiers(session), await get_total_power(session, target.id))
+    total_power = await get_total_power(session, target.id)
+    level = current_level_for_power(await get_all_tiers(session), total_power)
 
     async def equipped(cosmetic_id: str | None) -> CosmeticOut | None:
         # Re-vérifie la possession : un cosmétique retiré ne s'affiche plus.
@@ -105,6 +106,7 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
         avatar=avatar, cards=cards, trade_listings=trade_listings,
         friendship_status=friendship_status,
         level=level,
+        total_power=total_power,
         best_login_streak=max(target.best_login_streak, target.login_streak),
         current_global_rank=await current_global_rank(session, target.id),
         best_global_rank=target.best_global_rank,

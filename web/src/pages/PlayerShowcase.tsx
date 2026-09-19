@@ -99,9 +99,10 @@ export default function PlayerShowcase() {
                                 {data.display_name}
                             </h2>
                             <p className="text-white/40 text-xs">@{data.username}</p>
-                            <div className="grid grid-cols-3 gap-2 w-full mt-2">
+                            <div className="grid grid-cols-2 gap-2 w-full mt-2">
                                 {[
                                     { label: "Niveau", value: String(data.level), detail: null },
+                                    { label: "Puissance", value: `⚡ ${data.total_power.toLocaleString("fr-FR")}`, detail: null },
                                     { label: "Meilleure série", value: `${data.best_login_streak} j`, detail: null },
                                     {
                                         label: "Rang",

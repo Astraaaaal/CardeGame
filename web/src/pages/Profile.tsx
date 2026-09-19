@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
-import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import { playerApi } from "@/api/player";
 import type { PlayerStats, TierCount } from "@/types/player";
 import type { Card } from "@/types/card";
@@ -197,13 +196,9 @@ type Tab = "stats" | "showcase";
 
 export default function Profile() {
     const navigate = useNavigate();
-    // Si on revient d'une sélection de carte pour un slot de vitrine (cf.
-    // ShowcaseEditor) ou un slot "à échanger" (cf. TradeListingsEditor),
-    // rouvre directement cet onglet plutôt que de perdre le contexte.
-    const [tab, setTab] = useState<Tab>(() => {
-        const purpose = useCardSelectionStore.getState().result?.context?.purpose;
-        return purpose === "showcase-slot" || purpose === "trade-listing-slot" ? "showcase" : "stats";
-    });
+    // La vitrine s'ouvre en premier (y compris au retour d'une sélection de
+    // carte pour un emplacement de vitrine ou « à échanger »).
+    const [tab, setTab] = useState<Tab>("showcase");
 
     const { user } = useAuthStore();
     const { data: stats, isLoading } = useQuery({
@@ -240,8 +235,8 @@ export default function Profile() {
 
             <div className="flex border-b border-white/5">
                 {([
-                    { key: "stats", label: "Statistiques" },
                     { key: "showcase", label: "Vitrine" },
+                    { key: "stats", label: "Statistiques" },
                 ] as const).map((t) => (
                     <button
                         key={t.key}
