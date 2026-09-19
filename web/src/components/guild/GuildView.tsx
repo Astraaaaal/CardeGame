@@ -394,6 +394,7 @@ function MembersTab({ guild }: { guild: GuildDetail }) {
 }
 
 function WallTab() {
+    const me = useAuthStore((s) => s.user);
     const qc = useQueryClient();
     const navigate = useNavigate();
     const [text, setText] = useState("");
@@ -418,8 +419,18 @@ function WallTab() {
                 {(messages ?? []).map((m) =>
                     m.system ? (
                         <p key={m.id} className="text-center text-[11px] text-white/40 italic">{m.body}</p>
+                    ) : m.user_id === me?.id ? (
+                        // Mes messages : à droite, sans lien vers mon propre profil.
+                        <div key={m.id} className="flex flex-col items-end">
+                            <p className="text-[11px] text-white/40">
+                                {utc(m.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                            <p className="text-white text-sm whitespace-pre-line break-words bg-accent/25 rounded-xl rounded-tr-sm px-3 py-1.5 max-w-[85%]">
+                                <EmojiText text={m.body} />
+                            </p>
+                        </div>
                     ) : (
-                        <div key={m.id}>
+                        <div key={m.id} className="flex flex-col items-start">
                             <p className="text-[11px] text-white/40">
                                 {m.user_id ? (
                                     <button className="text-accent font-semibold hover:underline" onClick={() => navigate(`/players/${m.user_id}`)}>
@@ -430,7 +441,9 @@ function WallTab() {
                                 )} ·{" "}
                                 {utc(m.created_at).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                             </p>
-                            <p className="text-white text-sm whitespace-pre-line break-words"><EmojiText text={m.body} /></p>
+                            <p className="text-white text-sm whitespace-pre-line break-words bg-white/10 rounded-xl rounded-tl-sm px-3 py-1.5 max-w-[85%]">
+                                <EmojiText text={m.body} />
+                            </p>
                         </div>
                     ),
                 )}
