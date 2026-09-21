@@ -75,7 +75,7 @@ export default function AccountEditor() {
                     <Button
                         variant="primary" size="sm"
                         disabled={!displayName.trim() || displayName.trim() === user?.display_name}
-                        loading={updateName.isPending}
+                        loading={updateName.isPending} success={updateName.isSuccess}
                         onClick={() => updateName.mutate()}
                     >
                         Enregistrer
@@ -114,7 +114,7 @@ export default function AccountEditor() {
                     <Button
                         variant="primary" size="sm" className="w-full"
                         disabled={!currentPwd || !newPwd || !confirmPwd}
-                        loading={changePwd.isPending}
+                        loading={changePwd.isPending} success={changePwd.isSuccess}
                         onClick={handlePwdSubmit}
                     >
                         Changer le mot de passe

@@ -343,7 +343,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                             <Button
                                                 variant="primary" size="sm"
                                                 disabled={!username.trim()}
-                                                loading={sendReq.isPending}
+                                                loading={sendReq.isPending} success={sendReq.isSuccess}
                                                 onClick={() => sendReq.mutate()}
                                             >
                                                 Ajouter
@@ -467,7 +467,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                                         <Button
                                                             variant="primary" size="sm"
                                                             disabled={!newGroupName.trim()}
-                                                            loading={createGroup.isPending}
+                                                            loading={createGroup.isPending} success={createGroup.isSuccess}
                                                             onClick={() => createGroup.mutate(newGroupName.trim())}
                                                         >
                                                             Créer
@@ -514,7 +514,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                             <Button
                                                 variant="primary" size="sm"
                                                 disabled={!tradeUsername.trim()}
-                                                loading={sendTradeReq.isPending}
+                                                loading={sendTradeReq.isPending} success={sendTradeReq.isSuccess}
                                                 onClick={() => sendTradeReq.mutate()}
                                             >
                                                 Envoyer
@@ -618,7 +618,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                             <Button
                                 variant="primary" className="flex-1"
                                 disabled={!renamingGroup.name.trim()}
-                                loading={renameGroupM.isPending}
+                                loading={renameGroupM.isPending} success={renameGroupM.isSuccess}
                                 onClick={() => renameGroupM.mutate(renamingGroup)}
                             >
                                 Enregistrer

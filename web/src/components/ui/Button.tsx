@@ -1,9 +1,13 @@
-import { ButtonHTMLAttributes, ReactNode } from "react";
+import { ButtonHTMLAttributes, ReactNode, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: "primary" | "secondary" | "solid" | "danger" | "gold";
     size?: "sm" | "md" | "lg";
     loading?: boolean;
+    /** Passe à vrai quand l'action a réussi (ex. `mutation.isSuccess`) : le
+     * bouton affiche une coche animée un court instant. */
+    success?: boolean;
     children: ReactNode;
 }
 
@@ -26,11 +30,25 @@ export default function Button({
     variant = "primary",
     size = "md",
     loading = false,
+    success = false,
     children,
     className = "",
     disabled,
     ...props
 }: ButtonProps) {
+    // Coche affichée ~1,2 s à chaque passage de `success` de faux à vrai.
+    const [flash, setFlash] = useState(false);
+    const prev = useRef(success);
+    useEffect(() => {
+        if (success && !prev.current) {
+            setFlash(true);
+            const t = setTimeout(() => setFlash(false), 1200);
+            prev.current = success;
+            return () => clearTimeout(t);
+        }
+        prev.current = success;
+    }, [success]);
+
     return (
         <button
             className={`
@@ -58,7 +76,24 @@ export default function Button({
                     Chargement...
                 </span>
             ) : (
-                children
+                <span className="relative inline-flex items-center justify-center">
+                    <span className={flash ? "opacity-0" : undefined}>{children}</span>
+                    <AnimatePresence>
+                        {flash && (
+                            <motion.span
+                                className="absolute inset-0 flex items-center justify-center"
+                                initial={{ scale: 0.3, opacity: 0 }}
+                                animate={{ scale: [0.3, 1.25, 1], opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.35 }}
+                            >
+                                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <motion.path d="M5 13l4 4L19 7" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.3, delay: 0.1 }} />
+                                </svg>
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
+                </span>
             )}
         </button>
     );

@@ -91,7 +91,7 @@ export default function EmailSettings() {
                         <Button
                             variant="primary" size="sm" className="flex-1"
                             disabled={!email.includes("@") || !password}
-                            loading={change.isPending}
+                            loading={change.isPending} success={change.isSuccess}
                             onClick={() => change.mutate()}
                         >
                             {user.email ? "Changer l'adresse" : "Ajouter l'adresse"}

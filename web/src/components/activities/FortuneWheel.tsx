@@ -79,7 +79,7 @@ export default function FortuneWheel() {
 
             {err && <p className="text-red-400 text-xs text-center">{err}</p>}
             <Button
-                variant="gold" className="w-full" disabled={!canSpin || spinning} loading={spin.isPending}
+                variant="gold" className="w-full" disabled={!canSpin || spinning} loading={spin.isPending} success={spin.isSuccess}
                 onClick={() => spin.mutate()}
             >
                 {data.free_available

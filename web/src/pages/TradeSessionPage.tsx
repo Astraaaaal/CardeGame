@@ -305,7 +305,7 @@ export default function TradeSessionPage() {
                             <Button
                                 variant={trade.my_ready ? "secondary" : "primary"}
                                 className="w-full"
-                                loading={setReady.isPending}
+                                loading={setReady.isPending} success={setReady.isSuccess}
                                 onClick={() => setReady.mutate(!trade.my_ready)}
                             >
                                 {trade.my_ready ? "Annuler (je ne suis plus prêt)" : "Je suis prêt"}
@@ -320,7 +320,7 @@ export default function TradeSessionPage() {
                                     variant="gold"
                                     className="w-full"
                                     disabled={trade.my_confirmed}
-                                    loading={confirmTrade.isPending}
+                                    loading={confirmTrade.isPending} success={confirmTrade.isSuccess}
                                     onClick={() => confirmTrade.mutate()}
                                 >
                                     {trade.my_confirmed ? "En attente de l'autre joueur..." : "Confirmer l'échange"}
@@ -335,7 +335,7 @@ export default function TradeSessionPage() {
                                 </Button>
                             </>
                         )}
-                        <Button variant="danger" className="w-full" loading={cancelTrade.isPending} onClick={() => cancelTrade.mutate()}>
+                        <Button variant="danger" className="w-full" loading={cancelTrade.isPending} success={cancelTrade.isSuccess} onClick={() => cancelTrade.mutate()}>
                             Annuler l'échange
                         </Button>
                     </div>

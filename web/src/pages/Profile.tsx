@@ -208,14 +208,17 @@ export default function Profile() {
     const showcaseRef = useRef<EditorSaveHandle>(null);
     const listingsRef = useRef<EditorSaveHandle>(null);
     const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
     const [saveMsg, setSaveMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
     const saveShowcase = async () => {
         setSaving(true);
+        setSaved(false);
         setSaveMsg(null);
         try {
             await Promise.all([showcaseRef.current?.save(), listingsRef.current?.save()]);
             setSaveMsg({ text: "Vitrine enregistrée.", ok: true });
+            setSaved(true);
         } catch (e) {
             setSaveMsg({ text: errMsg(e), ok: false });
         } finally {
@@ -271,7 +274,7 @@ export default function Profile() {
                             <p className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs px-2 py-1 rounded-lg bg-game-panel border border-white/10 ${saveMsg.ok ? "text-green-400" : "text-red-400"}`}>{saveMsg.text}</p>
                         )}
                         <div className="flex items-center gap-2">
-                            <Button variant="primary" size="sm" className="shadow-lg shadow-black/40" loading={saving} onClick={saveShowcase}>
+                            <Button variant="primary" size="sm" className="shadow-lg shadow-black/40" loading={saving} success={saved} onClick={saveShowcase}>
                                 Enregistrer
                             </Button>
                             <button

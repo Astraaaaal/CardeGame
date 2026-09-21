@@ -54,7 +54,7 @@ export default function SupportPanel() {
                 {sent && !err && <p className="text-green-400 text-xs mt-2">Signalement envoyé, merci !</p>}
                 <Button
                     variant="primary" className="w-full mt-3"
-                    disabled={!canSend} loading={submit.isPending}
+                    disabled={!canSend} loading={submit.isPending} success={submit.isSuccess}
                     onClick={() => { setErr(""); submit.mutate(); }}
                 >
                     Envoyer le signalement

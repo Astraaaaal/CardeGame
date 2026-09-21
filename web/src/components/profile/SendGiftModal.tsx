@@ -166,7 +166,7 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
 
                     {err && <p className="text-red-400 text-xs">{err}</p>}
 
-                    <Button variant="gold" className="w-full" disabled={!canSend} loading={send.isPending} onClick={() => send.mutate()}>
+                    <Button variant="gold" className="w-full" disabled={!canSend} loading={send.isPending} success={send.isSuccess} onClick={() => send.mutate()}>
                         Envoyer le cadeau
                     </Button>
                 </div>

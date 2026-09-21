@@ -46,7 +46,7 @@ export default function DeleteAccountModal({ onClose, onDeleted }: DeleteAccount
                         variant="danger"
                         className="flex-1"
                         disabled={!password}
-                        loading={del.isPending}
+                        loading={del.isPending} success={del.isSuccess}
                         onClick={() => del.mutate()}
                     >
                         Supprimer définitivement

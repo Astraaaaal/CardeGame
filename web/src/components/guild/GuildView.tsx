@@ -189,7 +189,7 @@ function ChestTab({ guild }: { guild: GuildDetail }) {
                 <div className="flex gap-2">
                     <input className={inputCls} type="number" min={rate} step={rate} placeholder={`Montant (multiple de ${rate})`}
                         value={amount} onChange={(e) => setAmount(e.target.value)} />
-                    <Button variant="gold" size="sm" loading={donate.isPending} disabled={value < rate}
+                    <Button variant="gold" size="sm" loading={donate.isPending} success={donate.isSuccess} disabled={value < rate}
                         onClick={() => { setMsg(null); donate.mutate(); }}>Donner</Button>
                 </div>
                 {value >= rate && <p className="text-white/40 text-[11px]">→ {fmt(Math.floor(value / rate))} points</p>}
@@ -346,7 +346,7 @@ function MembersTab({ guild }: { guild: GuildDetail }) {
                     <span className="text-white text-sm font-semibold">Inviter un joueur</span>
                     <div className="flex gap-2">
                         <input className={inputCls} placeholder="Pseudo" value={username} onChange={(e) => setUsername(e.target.value)} />
-                        <Button variant="secondary" size="sm" disabled={!username.trim()} loading={invite.isPending}
+                        <Button variant="secondary" size="sm" disabled={!username.trim()} loading={invite.isPending} success={invite.isSuccess}
                             onClick={() => { setMsg(null); invite.mutate(); }}>Inviter</Button>
                     </div>
                 </section>
@@ -386,7 +386,7 @@ function MembersTab({ guild }: { guild: GuildDetail }) {
                 </section>
             )}
 
-            <Button variant="danger" size="sm" className="w-full" loading={leave.isPending} onClick={confirmLeave}>
+            <Button variant="danger" size="sm" className="w-full" loading={leave.isPending} success={leave.isSuccess} onClick={confirmLeave}>
                 Quitter la guilde
             </Button>
         </div>
@@ -456,7 +456,7 @@ function WallTab() {
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); send(); } }} />
                 <EmojiPicker target={input} value={text} onChange={setText} />
-                <Button variant="primary" size="sm" type="submit" loading={post.isPending} disabled={!text.trim()}>Envoyer</Button>
+                <Button variant="primary" size="sm" type="submit" loading={post.isPending} success={post.isSuccess} disabled={!text.trim()}>Envoyer</Button>
             </form>
         </div>
     );

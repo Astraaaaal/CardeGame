@@ -142,7 +142,7 @@ function BoostersTab() {
                                 size="lg"
                                 className="w-full"
                                 onClick={handleOpen}
-                                loading={openMutation.isPending}
+                                loading={openMutation.isPending} success={openMutation.isSuccess}
                                 disabled={cantAfford || tradePending}
                             >
                                 Ouvrir{quantity > 1 ? ` ×${quantity}` : ""}
@@ -150,7 +150,7 @@ function BoostersTab() {
                             <Button
                                 variant="secondary"
                                 className="w-full"
-                                loading={buyToInventory.isPending}
+                                loading={buyToInventory.isPending} success={buyToInventory.isSuccess}
                                 disabled={cantAfford}
                                 onClick={() => { setBuyError(""); buyToInventory.mutate({ booster: selected, qty: quantity }); }}
                             >

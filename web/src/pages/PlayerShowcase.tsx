@@ -122,7 +122,7 @@ export default function PlayerShowcase() {
                                     <Button
                                         variant="secondary"
                                         size="sm"
-                                        loading={addFriend.isPending}
+                                        loading={addFriend.isPending} success={addFriend.isSuccess}
                                         onClick={() => addFriend.mutate(data.username)}
                                     >
                                         + Ajouter en ami

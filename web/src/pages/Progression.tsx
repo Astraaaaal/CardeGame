@@ -60,7 +60,7 @@ function RoadTab() {
                             </div>
                         ))}
                     </div>
-                    <Button variant="gold" size="sm" className="w-full" loading={claim.isPending} onClick={() => claim.mutate(data.pending_rewards)}>
+                    <Button variant="gold" size="sm" className="w-full" loading={claim.isPending} success={claim.isSuccess} onClick={() => claim.mutate(data.pending_rewards)}>
                         Tout récupérer
                     </Button>
                 </div>
@@ -127,7 +127,7 @@ function AchievementRow({ achievement }: { achievement: Achievement }) {
                 </>
             )}
             {unlocked && !claimed && (
-                <Button variant="gold" size="sm" className="w-full mt-1" loading={claim.isPending} onClick={() => claim.mutate()}>
+                <Button variant="gold" size="sm" className="w-full mt-1" loading={claim.isPending} success={claim.isSuccess} onClick={() => claim.mutate()}>
                     Récupérer
                 </Button>
             )}
@@ -217,7 +217,7 @@ function QuestsTab() {
                         <ProgressBar value={q.progress} max={q.threshold} />
                         <p className="text-white/30 text-[11px] mt-1">{q.progress} / {q.threshold}</p>
                         {q.completed && !q.claimed_at && (
-                            <Button variant="gold" size="sm" className="w-full mt-1.5" loading={claim.isPending} onClick={() => claim.mutate(q.id)}>
+                            <Button variant="gold" size="sm" className="w-full mt-1.5" loading={claim.isPending} success={claim.isSuccess} onClick={() => claim.mutate(q.id)}>
                                 Récupérer
                             </Button>
                         )}

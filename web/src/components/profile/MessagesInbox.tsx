@@ -150,7 +150,7 @@ function MessageRow({ message }: { message: AppMessage }) {
 
                     <div className="flex items-center gap-2">
                         {unclaimedReward && (
-                            <Button variant="gold" size="sm" className="flex-1" loading={claim.isPending} onClick={() => claim.mutate()}>
+                            <Button variant="gold" size="sm" className="flex-1" loading={claim.isPending} success={claim.isSuccess} onClick={() => claim.mutate()}>
                                 Récupérer
                             </Button>
                         )}

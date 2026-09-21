@@ -94,7 +94,7 @@ export default function NoGuild({ state }: { state: MyGuildState }) {
                     <GuildEmblem icon={form.icon} color={form.color} size={36} />
                     <span className="text-white text-sm flex-1 truncate">[{form.tag || "TAG"}] {form.name || "Ta guilde"}</span>
                 </div>
-                <Button variant="primary" className="w-full" loading={create.isPending}
+                <Button variant="primary" className="w-full" loading={create.isPending} success={create.isSuccess}
                     disabled={form.name.trim().length < 3 || form.tag.length < 2}
                     onClick={() => { setMsg(null); create.mutate(); }}>
                     Fonder la guilde
