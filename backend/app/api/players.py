@@ -20,6 +20,7 @@ from app.services.showcase_view import build_showcase_response
 from app.services.ranking import refresh_all_best_ranks
 from app.services.wallet import get_balance, apply_delta
 from app.services.trade_requests import create_trade_request
+from app.services import favorites
 
 router = APIRouter()
 
@@ -76,6 +77,7 @@ async def buy_trade_listing(
     await apply_delta(session, seller, listing.resource_id, listing.price)
 
     card.user_id = buyer.id
+    await favorites.release(session, card)
     session.add(card)
     buyer.total_cards += 1
     seller.total_cards = max(0, seller.total_cards - 1)

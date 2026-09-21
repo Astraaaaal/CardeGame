@@ -21,7 +21,7 @@ from app.config import settings
 from app.core.logging_config import setup_logging, logger
 from app.core.ratelimit import check_global_rate_limit, client_ip
 from app.database import init_db
-from app.api import auth, player, players, boosters, collection, admin, admin_content, types, shop, friends, leaderboard, trades, messages, progression, support, premium, activities, guilds
+from app.api import auth, player, players, boosters, collection, admin, admin_content, types, shop, friends, leaderboard, trades, messages, progression, support, premium, activities, guilds, favorites
 
 setup_logging()
 
@@ -90,6 +90,7 @@ app.include_router(premium.admin_router, prefix="/api/admin/premium", tags=["Adm
 app.include_router(activities.router, prefix="/api/activities", tags=["Activités"])
 app.include_router(activities.admin_router, prefix="/api/admin/activities", tags=["Admin — Activités"])
 app.include_router(guilds.router, prefix="/api/guilds", tags=["Guildes"])
+app.include_router(favorites.router, prefix="/api/favorites", tags=["Favoris"])
 
 
 @app.exception_handler(Exception)

@@ -9,6 +9,9 @@ import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import FilterModal from "@/components/collection/FilterModal";
 import ProbabilityModal from "@/components/collection/ProbabilityModal";
+import FavoritesManager, { FAVORITES_KEY } from "@/components/collection/FavoritesManager";
+import { favoritesApi } from "@/api/favorites";
+import { useQuery } from "@tanstack/react-query";
 import BottomNav from "@/components/layout/BottomNav";
 
 const TIER_FILTER_KEYS = [
@@ -36,6 +39,7 @@ const SORT_OPTIONS = [
     { value: "obtained_at", label: "Date d'obtention" },
     { value: "power", label: "Puissance" },
     { value: "luck", label: "Chance" },
+    { value: "favorite", label: "Favoris" },
 ];
 
 export default function Collection() {
@@ -45,6 +49,8 @@ export default function Collection() {
     const [search, setSearch] = useState("");
     const [filterModalOpen, setFilterModalOpen] = useState(false);
     const [probModalOpen, setProbModalOpen] = useState(false);
+    const [favManagerOpen, setFavManagerOpen] = useState(false);
+    const { data: favCats } = useQuery({ queryKey: FAVORITES_KEY, queryFn: favoritesApi.list });
     const scrollRef = useRef<HTMLElement>(null);
     // Empêche un double-tap/double-clic sur "Valider" de déclencher deux
     // resolveSelection()/navigate() (ex: double-appel de confirmSelection).
@@ -172,6 +178,24 @@ export default function Collection() {
                 />
             </div>
 
+            {/* Favoris : filtre par catégorie + gestion */}
+            <div className="px-4 pt-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <span className="shrink-0 text-white/40 text-xs">★</span>
+                {[{ id: undefined as number | undefined, name: "Toutes", color: "" }, ...(favCats ?? [])].map((c) => (
+                    <button key={c.id ?? "all"}
+                        className={`shrink-0 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
+                            filters.favorite_id === c.id ? "bg-accent text-white" : "bg-white/10 text-white/50 hover:bg-white/20"}`}
+                        onClick={() => setFilters((f) => ({ ...f, favorite_id: c.id }))}>
+                        {c.color && <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />}
+                        {c.name}
+                    </button>
+                ))}
+                <button className="shrink-0 px-2.5 py-1 rounded-full text-xs bg-white/10 text-white/60 hover:bg-white/20"
+                    onClick={() => setFavManagerOpen(true)}>
+                    {favCats?.length ? "Gérer" : "+ Créer des favoris"}
+                </button>
+            </div>
+
             {/* Tri + sens */}
             <div className="px-4 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
                 {SORT_OPTIONS.map((opt) => (
@@ -280,6 +304,7 @@ export default function Collection() {
                 onReset={resetTierFilters}
             />
             <ProbabilityModal open={probModalOpen} onClose={() => setProbModalOpen(false)} />
+            <FavoritesManager open={favManagerOpen} onClose={() => setFavManagerOpen(false)} />
         </div>
     );
 }

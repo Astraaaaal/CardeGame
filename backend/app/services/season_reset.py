@@ -13,6 +13,7 @@ from app.models.activity import Expedition, HigherLowerGame, UserActivity
 from app.models.booster_inventory import UserBonusBooster, UserBoosterInventory
 from app.models.card import UserCard
 from app.models.economy import Resource, ShopPurchase, UserResource
+from app.models.favorite import FavoriteCard, FavoriteCategory
 from app.models.guild import (
     Guild, GuildBuff, GuildContribution, GuildInvite, GuildMember, GuildMessage, GuildWeek,
 )
@@ -28,6 +29,7 @@ from app.services.wallet import COINS_ID
 
 # Tables vidées entièrement, dans un ordre compatible avec les clés étrangères.
 _WIPED = (
+    FavoriteCard, FavoriteCategory,
     TradeSessionItem, TradeSession, TradeRequest, TradeListing, Message,
     GuildContribution, GuildBuff, GuildMessage, GuildWeek, GuildInvite, GuildMember, Guild,
     UserAchievement, QuestProgress, UserQuest,

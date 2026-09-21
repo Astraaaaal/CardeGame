@@ -33,6 +33,7 @@ export interface CollectionParams {
     type_names?: string[];
     min_power?: number;
     max_power?: number;
+    favorite_id?: number;
 }
 
 export interface CollectionResponse {
@@ -78,6 +79,8 @@ export interface CardComboParams {
 export interface CardCopy {
     id: string;
     power: number | null;
+    locked: boolean;
+    favorite_ids: number[];
 }
 
 export interface CardCopiesResponse {

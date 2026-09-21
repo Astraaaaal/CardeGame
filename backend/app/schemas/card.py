@@ -41,6 +41,10 @@ class CardGroupResponse(BaseModel):
     """Carte groupée avec compteur (pour la collection)."""
     card: CardResponse
     quantity: int = 1
+    # Couleurs des catégories de favoris où figure au moins un exemplaire,
+    # et nombre d'exemplaires verrouillés (protégés du recyclage).
+    favorite_colors: list[str] = []
+    locked_count: int = 0
 
 
 class CardCopyOut(BaseModel):
@@ -49,6 +53,8 @@ class CardCopyOut(BaseModel):
     ou recycler précisément."""
     id: str
     power: Optional[int] = None
+    locked: bool = False
+    favorite_ids: list[int] = []
 
 
 class CardCopiesResponse(BaseModel):

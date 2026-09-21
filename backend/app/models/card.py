@@ -38,6 +38,8 @@ class UserCard(SQLModel, table=True):
     # Puissance tirée au hasard à l'obtention (cf. app/services/power.py) —
     # None si la carte n'a pas été obtenue par un tirage aléatoire.
     power: Optional[int] = Field(default=None)
+    # Verrou posé par le joueur : l'exemplaire ne peut pas être recyclé.
+    locked: bool = Field(default=False)
 
     # URL de l'image rendue sur Cloudinary (ou chemin local en dev)
     rendered_url: Optional[str] = Field(default=None)

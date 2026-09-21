@@ -3,6 +3,9 @@ Routes collection — Inventaire du joueur (groupé, filtré, trié).
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import delete
+from app.models.social import TradeListing
+from app.models.favorite import FavoriteCard, FavoriteCategory
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, func, col
 from typing import Optional
@@ -79,7 +82,8 @@ async def get_probabilities(session: AsyncSession = Depends(get_session)):
 
 @router.get("/", response_model=CollectionResponse)
 async def get_collection(
-    sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability|obtained_at|power|luck|type)$"),
+    sort_by: str = Query("rarity", pattern="^(rarity|name|quality|specialty|jewelry|probability|obtained_at|power|luck|type|favorite)$"),
+    favorite_id: Optional[int] = Query(None),
     set_id: Optional[str] = Query(None),
     rarity_id: Optional[str] = Query(None),
     rarity_op: str = Query("eq", pattern=_OP_PATTERN),
@@ -123,6 +127,18 @@ async def get_collection(
         and (min_power is None or (c.power or 0) >= min_power)
         and (max_power is None or (c.power or 0) <= max_power)
     ]
+
+    # Favoris : catégories de chaque exemplaire (et filtre éventuel sur l'une d'elles).
+    fav_rows = (await session.execute(
+        select(FavoriteCard.user_card_id, FavoriteCategory.id, FavoriteCategory.color)
+        .join(FavoriteCategory, FavoriteCategory.id == FavoriteCard.category_id)
+        .where(FavoriteCategory.user_id == user.id)
+    )).all()
+    card_favs: dict[str, list[tuple[int, str]]] = {}
+    for card_id, cat_id, color in fav_rows:
+        card_favs.setdefault(card_id, []).append((cat_id, color))
+    if favorite_id is not None:
+        all_cards = [c for c in all_cards if any(cid == favorite_id for cid, _ in card_favs.get(c.id, []))]
 
     if not all_cards:
         return CollectionResponse(total_cards=0, unique_cards=0, groups=[])
@@ -188,6 +204,9 @@ async def get_collection(
                     ),
                 ),
                 "quantity": 1,
+                "favorite_colors": [],
+                "locked_count": 0,
+                "_fav_ids": set(),
             }
         else:
             groups[key]["quantity"] += 1
@@ -205,6 +224,15 @@ async def get_collection(
                     card.power, card.drop_probability, card.rarity_id,
                     card.quality_id, card.specialty_id, card.jewelry_id,
                 )
+
+    # Favoris et verrous agrégés par groupe (sur tous ses exemplaires affichés).
+    for card in all_cards:
+        g = groups[(card.character_id, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id)]
+        g["locked_count"] += 1 if card.locked else 0
+        for cat_id, color in card_favs.get(card.id, []):
+            if cat_id not in g["_fav_ids"]:
+                g["_fav_ids"].add(cat_id)
+                g["favorite_colors"].append(color)
 
     # Trier — "profond" : le nom sert toujours de départage à rang égal.
     # Tri Python stable => on trie d'abord par nom (ordre alphabétique fixe),
@@ -253,7 +281,12 @@ async def get_collection(
         # son maximum — contrairement à un simple % normalisé qui effacerait
         # le poids de la rareté de base.
         group_list.sort(key=lambda g: g["card"].combined_rarity or 0, reverse=True)
+    elif sort_by == "favorite":
+        # Cartes rangées dans le plus de catégories d'abord, puis verrouillées.
+        group_list.sort(key=lambda g: (len(g["_fav_ids"]), g["locked_count"] > 0), reverse=True)
 
+    for g in group_list:
+        g.pop("_fav_ids", None)
     return CollectionResponse(
         total_cards=len(all_cards),
         unique_cards=len(group_list),
@@ -276,7 +309,7 @@ async def get_card_copies(
     sert à choisir un exemplaire précis (échange, cadeau, recyclage ciblé...).
     """
     rows = (await session.execute(
-        select(UserCard.id, UserCard.power).where(
+        select(UserCard.id, UserCard.power, UserCard.locked).where(
             UserCard.user_id == user.id,
             UserCard.character_id == character_id,
             UserCard.rarity_id == rarity_id,
@@ -285,8 +318,14 @@ async def get_card_copies(
             UserCard.jewelry_id == jewelry_id,
         )
     )).all()
+    favs: dict[str, list[int]] = {}
+    for card_id, cat_id in (await session.execute(
+        select(FavoriteCard.user_card_id, FavoriteCard.category_id)
+        .where(FavoriteCard.user_card_id.in_([r.id for r in rows]))
+    )).all():
+        favs.setdefault(card_id, []).append(cat_id)
     copies = sorted(
-        (CardCopyOut(id=r.id, power=r.power) for r in rows),
+        (CardCopyOut(id=r.id, power=r.power, locked=r.locked, favorite_ids=favs.get(r.id, [])) for r in rows),
         key=lambda c: (c.power is None, -(c.power or 0)),
     )
     return CardCopiesResponse(copies=copies)
@@ -336,6 +375,9 @@ async def recycle_cards(
 
     if len(owned) != len(ids):
         raise HTTPException(status_code=404, detail="Une ou plusieurs cartes sont introuvables ou ne t'appartiennent pas.")
+    locked = sum(1 for c in owned if c.locked)
+    if locked:
+        raise HTTPException(status_code=400, detail=f"{locked} exemplaire(s) verrouillé(s) : déverrouille-les pour les recycler.")
     await expeditions.ensure_not_on_expedition(session, ids)
 
     resource = await session.get(Resource, RECYCLE_RESOURCE_ID)
@@ -359,7 +401,15 @@ async def recycle_cards(
             + (specialty.recycle_value if specialty else 0)
             + (jewelry.recycle_value if jewelry else 0)
         )
-        await session.delete(card)
+    # Suppression en une requête (des milliers de cartes d'un coup) ; les
+    # emplacements de vitrine qui les montraient sont libérés.
+    for slot in ("showcase_card_1_id", "showcase_card_2_id", "showcase_card_3_id"):
+        if getattr(user, slot) in ids:
+            setattr(user, slot, None)
+    session.add(user)
+    await session.flush()
+    await session.execute(delete(TradeListing).where(TradeListing.user_card_id.in_(ids)))
+    await session.execute(delete(UserCard).where(UserCard.id.in_(ids), UserCard.user_id == user.id))
 
     user_res = await session.get(UserResource, (user.id, RECYCLE_RESOURCE_ID))
     if not user_res:

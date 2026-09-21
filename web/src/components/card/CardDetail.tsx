@@ -9,6 +9,7 @@ import ConfirmModal from "@/components/ui/ConfirmModal";
 import { CardWithEffects } from "./CardEffects";
 import { errMsg } from "@/utils/errors";
 import { showRewards } from "@/stores/rewardPopupStore";
+import { favoritesApi } from "@/api/favorites";
 
 interface CardDetailProps {
     open: boolean;
@@ -74,10 +75,11 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
             specialty_id: baseCard!.specialty_id,
             jewelry_id: baseCard!.jewelry_id,
         }),
-        enabled: owned > 1 && !!baseCard && !readOnly,
+        enabled: !!baseCard && !readOnly,
     });
 
-    const recycleIds = owned > 1 ? Array.from(selectedIds) : (displayCard ? [displayCard.id] : []);
+    const recycleIds = (owned > 1 ? Array.from(selectedIds) : (displayCard ? [displayCard.id] : []))
+        .filter((id) => !(copiesQ.data?.copies ?? []).some((c) => c.id === id && c.locked));
 
     const recycle = useMutation({
         mutationFn: () => collectionApi.recycle({ card_ids: recycleIds }),
@@ -96,14 +98,36 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
         onError: (e) => { setResult(errMsg(e)); setConfirmingRecycle(false); },
     });
 
-    // Exemplaires regroupés par puissance identique (⚡13 ×5 plutôt que 5 lignes) :
-    // cocher une ligne sélectionne tous les exemplaires de cette puissance.
+    // Exemplaires identiques regroupés (même puissance, mêmes favoris, même verrou :
+    // ⚡13 ×5 plutôt que 5 lignes) ; cocher une ligne sélectionne tous ses exemplaires.
     const copyGroups = Object.values(
-        (copiesQ.data?.copies ?? []).reduce<Record<string, { power: number | null; ids: string[] }>>((acc, c) => {
-            (acc[String(c.power)] ??= { power: c.power, ids: [] }).ids.push(c.id);
+        (copiesQ.data?.copies ?? []).reduce<Record<string, { key: string; power: number | null; locked: boolean; favs: number[]; ids: string[] }>>((acc, c) => {
+            const favs = [...c.favorite_ids].sort((a, b) => a - b);
+            const key = `${c.power}|${c.locked}|${favs.join(",")}`;
+            (acc[key] ??= { key, power: c.power, locked: c.locked, favs, ids: [] }).ids.push(c.id);
             return acc;
         }, {})
     ).sort((a, b) => (b.power ?? -1) - (a.power ?? -1));
+
+    // Favoris / verrou : s'appliquent à la ligne affichée (ou à l'unique exemplaire).
+    const { data: favCats } = useQuery({ queryKey: ["favorites"], queryFn: favoritesApi.list, enabled: !readOnly });
+    const activeRow = copyGroups.find((g) => (focusId ? g.ids.includes(focusId) : owned === 1));
+    const refreshFavs = () => {
+        qc.invalidateQueries({ queryKey: ["card-copies"] });
+        qc.invalidateQueries({ queryKey: ["collection"] });
+        qc.invalidateQueries({ queryKey: ["favorites"] });
+    };
+    const toggleFav = useMutation({
+        mutationFn: ({ id, on }: { id: number; on: boolean }) =>
+            on ? favoritesApi.addCards(id, activeRow!.ids) : favoritesApi.removeCards(id, activeRow!.ids),
+        onSuccess: refreshFavs,
+        onError: (e) => setResult(errMsg(e)),
+    });
+    const toggleLock = useMutation({
+        mutationFn: (locked: boolean) => favoritesApi.lock(activeRow!.ids, locked),
+        onSuccess: refreshFavs,
+        onError: (e) => setResult(errMsg(e)),
+    });
 
     const toggleCopies = (ids: string[]) => {
         setSelectedIds((prev) => {
@@ -214,6 +238,51 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                                 )}
                             </div>
 
+                            {/* Favoris + verrou de l'exemplaire affiché */}
+                            {!readOnly && (
+                                <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
+                                    {!activeRow ? (
+                                        <p className="text-white/40 text-xs">
+                                            ★ Touche un exemplaire dans la liste ci-dessous pour le ranger dans tes favoris ou le verrouiller.
+                                        </p>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-white/60 text-xs">
+                                                    Favoris{activeRow.ids.length > 1 ? ` (×${activeRow.ids.length} exemplaires)` : ""}
+                                                </p>
+                                                <button
+                                                    className={`text-xs px-2 py-1 rounded-full border ${activeRow.locked ? "bg-gold/20 border-gold/50 text-gold" : "border-white/15 text-white/60"}`}
+                                                    disabled={toggleLock.isPending}
+                                                    onClick={() => toggleLock.mutate(!activeRow.locked)}
+                                                    title="Un exemplaire verrouillé ne peut pas être recyclé"
+                                                >
+                                                    {activeRow.locked ? "🔒 Verrouillé" : "🔓 Verrouiller"}
+                                                </button>
+                                            </div>
+                                            {favCats?.length ? (
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {favCats.map((c) => {
+                                                        const on = activeRow.favs.includes(c.id);
+                                                        return (
+                                                            <button key={c.id} disabled={toggleFav.isPending}
+                                                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${on ? "text-white" : "text-white/50 border-white/10"}`}
+                                                                style={on ? { borderColor: c.color, background: `${c.color}33` } : undefined}
+                                                                onClick={() => toggleFav.mutate({ id: c.id, on: !on })}>
+                                                                <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />
+                                                                {c.name}{on ? " ✓" : ""}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <p className="text-white/40 text-xs">Crée des catégories de favoris depuis la collection (bouton « + Créer des favoris »).</p>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Recyclage */}
                             {!readOnly && (
                                 <div className="mt-3 pt-3 border-t border-white/10">
@@ -234,7 +303,7 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                                                         const focused = !!focusId && g.ids.includes(focusId);
                                                         return (
                                                             <div
-                                                                key={String(g.power)}
+                                                                key={g.key}
                                                                 className={`flex items-center gap-2 text-sm cursor-pointer rounded px-1 -mx-1 ${
                                                                     focused ? "bg-accent/20 text-white" : "text-white/80 hover:bg-white/5"
                                                                 }`}
@@ -242,7 +311,9 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                                                             >
                                                                 <input
                                                                     type="checkbox"
-                                                                    checked={g.ids.every((id) => selectedIds.has(id))}
+                                                                    disabled={g.locked}
+                                                                    title={g.locked ? "Verrouillé : impossible de recycler" : undefined}
+                                                                    checked={!g.locked && g.ids.every((id) => selectedIds.has(id))}
                                                                     onClick={(e) => e.stopPropagation()}
                                                                     onChange={() => toggleCopies(g.ids)}
                                                                 />
@@ -250,6 +321,11 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                                                                 {g.ids.length > 1 && (
                                                                     <span className="text-white/40 text-xs">×{g.ids.length}</span>
                                                                 )}
+                                                                {g.locked && <span className="text-[11px]">🔒</span>}
+                                                                {g.favs.map((id) => {
+                                                                    const cat = favCats?.find((c) => c.id === id);
+                                                                    return cat ? <span key={id} className="w-2 h-2 rounded-full" style={{ background: cat.color }} /> : null;
+                                                                })}
                                                                 {focused && <span className="ml-auto text-accent text-[11px]">affiché</span>}
                                                             </div>
                                                         );

@@ -31,4 +31,8 @@ export interface Card {
 export interface CardGroup {
     card: Card;
     quantity: number;
+    /** Couleurs des catégories de favoris où figure au moins un exemplaire. */
+    favorite_colors?: string[];
+    /** Exemplaires verrouillés (protégés du recyclage). */
+    locked_count?: number;
 }

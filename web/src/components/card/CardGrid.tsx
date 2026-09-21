@@ -52,6 +52,14 @@ export default function CardGrid({
                                     className={isSingleExcluded ? "opacity-30 pointer-events-none" : undefined}
                                 />
                             </div>
+                            {(!!g.favorite_colors?.length || !!g.locked_count) && (
+                                <div className="absolute -top-1 -left-1 flex items-center gap-0.5 bg-game-bg/80 rounded-full px-1 py-0.5 pointer-events-none">
+                                    {g.favorite_colors?.slice(0, 4).map((c) => (
+                                        <span key={c} className="w-2.5 h-2.5 rounded-full border border-black/40" style={{ background: c }} />
+                                    ))}
+                                    {!!g.locked_count && <span className="text-[9px] leading-none">🔒</span>}
+                                </div>
+                            )}
                             {g.quantity > 1 && (
                                 <span className="absolute -top-1 -right-1 bg-gold text-game-bg
                              text-xs font-bold rounded-full w-5 h-5

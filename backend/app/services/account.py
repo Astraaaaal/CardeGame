@@ -10,6 +10,7 @@ from sqlmodel import select
 
 from app.models.user import User
 from app.models.card import UserCard
+from app.models.favorite import FavoriteCard, FavoriteCategory
 from app.models.economy import UserResource, ShopPurchase
 from app.models.social import FriendRequest, TradeRequest, TradeListing, CloseFriend, FriendGroup, FriendGroupMember
 from app.models.token import RefreshToken
@@ -62,6 +63,10 @@ async def delete_account(session: AsyncSession, user: User) -> None:
         avatar_character_id=None, showcase_card_1_id=None, showcase_card_2_id=None, showcase_card_3_id=None))
     await session.execute(delete(RefreshToken).where(RefreshToken.user_id == user_id))
     await session.execute(delete(TradeListing).where(TradeListing.user_id == user_id))
+    cat_ids = (await session.execute(select(FavoriteCategory.id).where(FavoriteCategory.user_id == user_id))).scalars().all()
+    if cat_ids:
+        await session.execute(delete(FavoriteCard).where(FavoriteCard.category_id.in_(cat_ids)))
+        await session.execute(delete(FavoriteCategory).where(FavoriteCategory.id.in_(cat_ids)))
     await session.execute(delete(UserCard).where(UserCard.user_id == user_id))
     await session.execute(delete(UserResource).where(UserResource.user_id == user_id))
     await session.execute(delete(ShopPurchase).where(ShopPurchase.user_id == user_id))

@@ -22,7 +22,7 @@ class ResourceCatalogItem(BaseModel):
 
 
 class RecycleByIdsRequest(BaseModel):
-    card_ids: list[str] = Field(min_length=1, max_length=999)
+    card_ids: list[str] = Field(min_length=1, max_length=20_000)
 
 
 class RecycleByIdsResponse(BaseModel):
