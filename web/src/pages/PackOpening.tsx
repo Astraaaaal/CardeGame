@@ -10,6 +10,8 @@ import CardDetail from "@/components/card/CardDetail";
 import Button from "@/components/ui/Button";
 import FloatingActionBar from "@/components/ui/FloatingActionBar";
 
+// Résumé : nombre de cartes animées (les plus chanceuses), les autres s'affichent directement.
+const ANIMATED_CARDS = 15;
 // Couleur du flash d'arrivée dans le résumé (rares et mieux).
 const SUMMARY_GLOW: Record<string, string> = { rare: "#3b9dff", epic: "#a855f7", legendary: "#fbbf24" };
 
@@ -89,9 +91,19 @@ export default function PackOpening() {
               // Cascade : les cartes arrivent une à une, les plus chanceuses en
               // dernier (la grille garde la meilleure en premier), avec un flash
               // de la couleur de leur rareté pour les rares et mieux.
-              const arrival = allCards.length - 1 - i;
-              const step = Math.min(0.09, 2.4 / Math.max(1, allCards.length));
-              const delay = arrival * step + (arrival >= allCards.length - 3 ? 0.25 : 0);
+              // Seules les 15 plus chanceuses (en tête de grille) sont animées :
+              // les autres sont déjà en place, pour ne pas faire attendre.
+              const animated = Math.min(allCards.length, ANIMATED_CARDS);
+              if (i >= animated) {
+                return (
+                  <div key={i}>
+                    <CardImage card={c} size="sm" onClick={() => setSelectedCard(c)} />
+                  </div>
+                );
+              }
+              const arrival = animated - 1 - i;
+              const step = Math.min(0.12, 2.4 / animated);
+              const delay = arrival * step + (arrival >= animated - 3 ? 0.25 : 0);
               const glow = SUMMARY_GLOW[c.rarity_id];
               return (
               <motion.div
