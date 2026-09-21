@@ -14,6 +14,16 @@ import { useRerollTokens, useRerollTokenUse } from "@/hooks/useRerollTokens";
 
 const AXIS_LABEL: Record<string, string> = { rarity: "rareté", quality: "qualité", specialty: "spécialité", jewelry: "bijou" };
 
+type Tab = "resources" | "boosters" | "rerolls" | "cosmetics";
+type Sort = "quantity" | "name" | "recent";
+const SORT_LABEL: Record<Sort, string> = { quantity: "Quantité", name: "Nom", recent: "Récent" };
+const TAB_SORTS: Record<Tab, Sort[]> = {
+    resources: ["quantity", "name"],
+    boosters: ["quantity", "name", "recent"],
+    rerolls: ["quantity", "name", "recent"],
+    cosmetics: ["name", "recent"],
+};
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <section>
@@ -21,6 +31,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
             <div className="space-y-2">{children}</div>
         </section>
     );
+}
+
+/** Tri générique : quantité décroissante, nom alphabétique, ou plus récent (ordre d'arrivée inversé). */
+function sortItems<T>(items: T[], sort: Sort, get: { qty?: (x: T) => number; name: (x: T) => string }): T[] {
+    const list = [...items];
+    if (sort === "recent") return list.reverse();
+    if (sort === "quantity" && get.qty) return list.sort((a, b) => get.qty!(b) - get.qty!(a) || get.name(a).localeCompare(get.name(b)));
+    return list.sort((a, b) => get.name(a).localeCompare(get.name(b)));
+}
+
+function readStored<T extends string>(key: string, fallback: T): T {
+    try { return (sessionStorage.getItem(key) as T | null) ?? fallback; } catch { return fallback; }
 }
 
 /** Tout ce que le joueur possède en dehors des cartes (ressources, boosters à ouvrir...). */
@@ -33,6 +55,19 @@ export default function Inventory() {
     const [rerollError, setRerollError] = useState("");
     const rerollToken = useRerollTokenUse("/inventory", setRerollError);
     const equippedIds = [cosmetics?.equipped_avatar_frame_id, cosmetics?.equipped_showcase_background_id];
+
+    const [tab, setTabState] = useState<Tab>(() => readStored("inventory-tab", "resources"));
+    const [sorts, setSorts] = useState<Record<Tab, Sort>>(() => {
+        try { return { ...{ resources: "quantity", boosters: "quantity", rerolls: "quantity", cosmetics: "name" }, ...JSON.parse(sessionStorage.getItem("inventory-sorts") ?? "{}") }; }
+        catch { return { resources: "quantity", boosters: "quantity", rerolls: "quantity", cosmetics: "name" }; }
+    });
+    const setTab = (t: Tab) => { setTabState(t); try { sessionStorage.setItem("inventory-tab", t); } catch { /* indisponible */ } };
+    const setSort = (s: Sort) => {
+        const next = { ...sorts, [tab]: s };
+        setSorts(next);
+        try { sessionStorage.setItem("inventory-sorts", JSON.stringify(next)); } catch { /* indisponible */ }
+    };
+    const sort = sorts[tab];
 
     const resources = [
         { id: "coins", name: "Pièces", amount: user?.coins ?? 0 },
@@ -49,9 +84,33 @@ export default function Inventory() {
                 <span className="w-14" />
             </header>
 
-            <main className="flex-1 px-4 py-6 max-w-sm mx-auto w-full space-y-6">
-                <Section title="Ressources">
-                    {resources.map((r) => (
+            <div className="flex border-b border-white/5">
+                {([
+                    ["resources", "Ressources", resources.length],
+                    ["boosters", "Boosters", boosters?.reduce((n, b) => n + b.quantity, 0) ?? 0],
+                    ["rerolls", "Rerolls", rerollTokens?.reduce((n, t) => n + t.quantity, 0) ?? 0],
+                    ["cosmetics", "Cosmétiques", cosmetics?.owned.length ?? 0],
+                ] as [Tab, string, number][]).map(([key, label, count]) => (
+                    <button key={key}
+                        className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tab === key ? "text-accent border-b-2 border-accent" : "text-white/40 hover:text-white/70"}`}
+                        onClick={() => setTab(key)}>
+                        {label}{count ? <span className="ml-1 text-white/30">{count}</span> : null}
+                    </button>
+                ))}
+            </div>
+
+            <main className="flex-1 px-4 py-4 max-w-sm mx-auto w-full space-y-4">
+                <div className="flex items-center gap-1.5 text-[11px] text-white/40">
+                    Trier par
+                    {TAB_SORTS[tab].map((s) => (
+                        <button key={s}
+                            className={`px-2.5 py-0.5 rounded-full font-bold ${sort === s ? "bg-accent text-white" : "bg-white/10 text-white/60"}`}
+                            onClick={() => setSort(s)}>{SORT_LABEL[s]}</button>
+                    ))}
+                </div>
+
+                {tab === "resources" && <Section title="Ressources">
+                    {sortItems(resources, sort, { qty: (r) => r.amount, name: (r) => r.name }).map((r) => (
                         <div key={r.id} className="flex items-center gap-3 bg-game-surface border border-white/10 rounded-xl px-4 py-3">
                             <ResourceIcon resourceId={r.id} className="w-6 h-6" />
                             <span className="flex-1 text-white text-sm">{r.name}</span>
@@ -62,24 +121,25 @@ export default function Inventory() {
                             </Button>
                         </div>
                     ))}
-                </Section>
+                </Section>}
 
-                <Section title="Boosters à ouvrir">
+                {tab === "boosters" && <Section title="Boosters à ouvrir">
                     {isLoading ? (
                         <LoadingSpinner text="Chargement..." />
                     ) : !boosters?.length ? (
                         <p className="text-white/30 text-sm">Aucun booster en attente.</p>
                     ) : (
-                        boosters.map((b) => (
+                        sortItems(boosters, sort, { qty: (b) => b.quantity, name: (b) => `${b.booster_name} ${b.bonus_label ?? ""}` }).map((b) => (
                             <OwnedBoosterRow key={`${b.booster_id}-${b.bonus_id ?? "base"}`} owned={b} showName />
                         ))
                     )}
-                </Section>
+                </Section>}
 
-                {!!rerollTokens?.length && (
+                {tab === "rerolls" && (
                     <Section title="Rerolls">
+                        {!rerollTokens?.length && <p className="text-white/30 text-sm">Aucun reroll en stock.</p>}
                         {rerollError && <p className="text-red-400 text-xs">{rerollError}</p>}
-                        {rerollTokens.map((t) => (
+                        {sortItems(rerollTokens ?? [], sort, { qty: (t) => t.quantity, name: (t) => t.label }).map((t) => (
                             <div key={t.id} className="flex items-center gap-3 bg-accent/10 border border-accent/30 rounded-xl px-4 py-3">
                                 <span className="text-xl">🎲</span>
                                 <div className="flex-1 min-w-0">
@@ -102,9 +162,10 @@ export default function Inventory() {
                     </Section>
                 )}
 
-                {!!cosmetics?.owned.length && (
+                {tab === "cosmetics" && (
                     <Section title="Cosmétiques">
-                        {cosmetics.owned.map((c) => (
+                        {!cosmetics?.owned.length && <p className="text-white/30 text-sm">Aucun cosmétique pour l'instant.</p>}
+                        {sortItems(cosmetics?.owned ?? [], sort, { name: (c) => c.name }).map((c) => (
                             <div key={c.id} className="flex items-center gap-3 bg-game-surface border border-white/10 rounded-xl px-4 py-3">
                                 <CosmeticPreview cosmetic={c} size={40} />
                                 <div className="flex-1 min-w-0">
