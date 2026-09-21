@@ -29,26 +29,42 @@ async def grant(session: AsyncSession, user_id: int, booster_id: str, quantity: 
     session.add(row)
 
 
+EXTRA_BONUS_FIELDS = ("min_quality_id", "min_jewelry_id", "specialty_weight_multiplier")
+
+
+def extra_bonus(row) -> dict:
+    """Bonus de la machine d'amélioration portés par une ligne (ou un dict), pour les transmettre."""
+    get = row.get if isinstance(row, dict) else (lambda f, d=None: getattr(row, f, d))
+    return {f: get(f) for f in EXTRA_BONUS_FIELDS}
+
+
 async def grant_bonus(
     session: AsyncSession, user_id: int, booster_id: str,
     force_min_rarity_id: str | None, rarity_weight_multiplier: float | None, label: str, quantity: int = 1,
+    extras: dict | None = None,
 ) -> None:
     """Crédite un booster à bonus ; sans bonus, retombe sur le stock simple."""
-    if not force_min_rarity_id and not rarity_weight_multiplier:
+    extras = {f: (extras or {}).get(f) for f in EXTRA_BONUS_FIELDS}
+    if not force_min_rarity_id and not rarity_weight_multiplier and not any(extras.values()):
         await grant(session, user_id, booster_id, quantity)
         return
+
+    def same(column, value):
+        return column.is_(None) if value is None else column == value
+
     row = (await session.execute(
         select(UserBonusBooster).where(
             UserBonusBooster.user_id == user_id,
             UserBonusBooster.booster_id == booster_id,
-            UserBonusBooster.force_min_rarity_id == force_min_rarity_id,
-            UserBonusBooster.rarity_weight_multiplier == rarity_weight_multiplier,
+            same(UserBonusBooster.force_min_rarity_id, force_min_rarity_id),
+            same(UserBonusBooster.rarity_weight_multiplier, rarity_weight_multiplier),
+            *(same(getattr(UserBonusBooster, f), v) for f, v in extras.items()),
         )
     )).scalars().first()
     if not row:
         row = UserBonusBooster(
             user_id=user_id, booster_id=booster_id, force_min_rarity_id=force_min_rarity_id,
-            rarity_weight_multiplier=rarity_weight_multiplier, label=label, quantity=0,
+            rarity_weight_multiplier=rarity_weight_multiplier, label=label, quantity=0, **extras,
         )
     row.quantity += quantity
     session.add(row)
@@ -89,6 +105,7 @@ async def list_owned(session: AsyncSession, user_id: int) -> list[dict]:
             "booster_cover_url": booster.cover_image_url or None, "quantity": row.quantity,
             "bonus_id": None, "bonus_label": None,
             "force_min_rarity_id": None, "rarity_weight_multiplier": None,
+            **{f: None for f in EXTRA_BONUS_FIELDS},
         })
 
     bonus_rows = (await session.execute(
@@ -104,6 +121,7 @@ async def list_owned(session: AsyncSession, user_id: int) -> list[dict]:
             "booster_cover_url": booster.cover_image_url or None, "quantity": row.quantity,
             "bonus_id": row.id, "bonus_label": row.label or None,
             "force_min_rarity_id": row.force_min_rarity_id, "rarity_weight_multiplier": row.rarity_weight_multiplier,
+            **extra_bonus(row),
         })
     return out
 
@@ -133,12 +151,14 @@ async def open_owned(
 
     force_min_rarity_id = None
     rarity_weight_multiplier = None
+    extras: dict = {}
     if bonus_id is not None:
         row = await session.get(UserBonusBooster, bonus_id)
         if not row or row.user_id != user.id or row.booster_id != booster_id or row.quantity < quantity:
             raise HTTPException(400, f"Tu ne possèdes que {row.quantity if row and row.user_id == user.id else 0} exemplaire(s) de ce booster.")
         force_min_rarity_id = row.force_min_rarity_id
         rarity_weight_multiplier = row.rarity_weight_multiplier
+        extras = extra_bonus(row)
     else:
         row = await session.get(UserBoosterInventory, (user.id, booster_id))
         if not row or row.quantity < quantity:
@@ -155,6 +175,7 @@ async def open_owned(
         session, user.id, booster, quantity,
         force_min_rarity_id=force_min_rarity_id,
         rarity_weight_multiplier=rarity_weight_multiplier,
+        **extras,
     )
     user.total_cards += total_new_cards
     user.packs_opened += quantity

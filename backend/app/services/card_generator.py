@@ -4,6 +4,7 @@ Migration directe de src/engine/card_generator.py mais avec la BDD.
 """
 
 import random
+from types import SimpleNamespace
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -24,6 +25,9 @@ class CardGeneratorService:
         guaranteed_rare: bool,
         force_min_rarity_id: Optional[str] = None,
         rarity_weight_multiplier: Optional[float] = None,
+        force_min_quality_id: Optional[str] = None,
+        force_min_jewelry_id: Optional[str] = None,
+        specialty_weight_multiplier: Optional[float] = None,
     ) -> list[dict]:
         """
         Génère un pack complet de cartes, en piochant dans un ou plusieurs sets.
@@ -58,6 +62,9 @@ class CardGeneratorService:
                 characters, rarities, qualities, specialties, jewelries,
                 min_rarity_id=min_rarity_id,
                 rarity_weight_multiplier=rarity_weight_multiplier,
+                min_quality_id=force_min_quality_id if is_last else None,
+                min_jewelry_id=force_min_jewelry_id if is_last else None,
+                specialty_weight_multiplier=specialty_weight_multiplier,
             )
             cards.append(card)
 
@@ -91,6 +98,9 @@ class CardGeneratorService:
         jewelries: list,
         min_rarity_id: Optional[str] = None,
         rarity_weight_multiplier: Optional[float] = None,
+        min_quality_id: Optional[str] = None,
+        min_jewelry_id: Optional[str] = None,
+        specialty_weight_multiplier: Optional[float] = None,
     ) -> dict:
         """Génère une seule carte aléatoire."""
         # 1. Personnage pondéré. Chaque entrée = un lien (personnage, set) : un
@@ -105,22 +115,31 @@ class CardGeneratorService:
         )
         rarity = random.choices(rarity_pool, weights=rarity_weights, k=1)[0]
 
-        # 3. Qualité
-        quality = self._weighted_pick(qualities)
+        # 3. Qualité (minimum garanti éventuel)
+        quality_pool = self._min_pool(qualities, "quality", min_quality_id)
+        quality = self._weighted_pick(quality_pool)
 
-        # 4. Spécialité
-        specialty = self._weighted_pick(specialties)
+        # 4. Spécialité (chances des spécialités autres que « normale » éventuellement multipliées)
+        specialty_pool = specialties
+        if specialty_weight_multiplier:
+            specialty_pool = [
+                SimpleNamespace(id=s.id, weight=s.weight * (specialty_weight_multiplier if s.id != "normal" else 1), orig=s)
+                for s in specialties
+            ]
+        specialty_pick = self._weighted_pick(specialty_pool)
+        specialty = getattr(specialty_pick, "orig", specialty_pick)
 
-        # 5. Jewelry
-        jewelry = self._weighted_pick(jewelries)
+        # 5. Jewelry (minimum garanti éventuel)
+        jewelry_pool = self._min_pool(jewelries, "jewelry", min_jewelry_id)
+        jewelry = self._weighted_pick(jewelry_pool)
 
         # 6. Probabilités : celle du tirage réel (pool/poids ajustés par la
         #    chance ou une garantie) et celle de BASE de la carte — son set
         #    seul, poids de rareté normaux — qui fixe sa puissance maximum et
         #    reste celle affichée (identique à un reroll, cf. services/reroll.py).
         draw_prob = self._calculate_probability(
-            characters, character, rarity, quality, specialty, jewelry,
-            rarity_pool, rarity_weights, qualities, specialties, jewelries,
+            characters, character, rarity, quality, specialty_pick, jewelry,
+            rarity_pool, rarity_weights, quality_pool, specialty_pool, jewelry_pool,
         )
         same_set = [c for c in characters if c["set_id"] == character["set_id"]]
         drop_prob = self._calculate_probability(
@@ -219,6 +238,13 @@ class CardGeneratorService:
         """Charge tous les enregistrements d'une table de référence."""
         result = await session.execute(select(model))
         return result.scalars().all()
+
+    @staticmethod
+    def _min_pool(items, axis: str, min_id: Optional[str]):
+        if not min_id:
+            return items
+        filtered = [i for i in items if rank(axis, i.id) >= rank(axis, min_id)]
+        return filtered or items
 
     @staticmethod
     def _weighted_pick(items):

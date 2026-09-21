@@ -30,5 +30,9 @@ class UserBonusBooster(SQLModel, table=True):
     booster_id: str = Field(foreign_key="boosters.id", max_length=30)
     force_min_rarity_id: Optional[str] = Field(default=None, max_length=20)
     rarity_weight_multiplier: Optional[float] = Field(default=None)
+    # Bonus ajoutés par la machine d'amélioration (cf. services/machine.py).
+    min_quality_id: Optional[str] = Field(default=None, max_length=20)
+    min_jewelry_id: Optional[str] = Field(default=None, max_length=20)
+    specialty_weight_multiplier: Optional[float] = Field(default=None)
     label: str = Field(default="", max_length=100)
     quantity: int = Field(default=0)

@@ -21,6 +21,7 @@ from app.services.gift_policy import can_send_gift
 from app.services import quest_progress
 from app.services import booster_inventory, expeditions, message_rewards, reroll_inventory
 from app.services.premium import ensure_tradeable
+from app.services import favorites
 
 MAX_RECIPIENTS_PER_SEND = 200
 
@@ -94,6 +95,7 @@ async def claim(session: AsyncSession, message: Message) -> Message:
             error = "Cette carte n'est plus disponible."
         else:
             card.user_id = recipient.id
+            await favorites.release(session, card)
             session.add(card)
             recipient.total_cards += 1
             session.add(recipient)
@@ -107,7 +109,7 @@ async def claim(session: AsyncSession, message: Message) -> Message:
             await booster_inventory.grant_bonus(
                 session, recipient.id, message.reward_booster_id,
                 bonus.get("force_min_rarity_id"), bonus.get("rarity_weight_multiplier"),
-                bonus.get("label") or "", message.reward_booster_qty,
+                bonus.get("label") or "", message.reward_booster_qty, extras=booster_inventory.extra_bonus(bonus),
             )
         else:
             await booster_inventory.grant(session, recipient.id, message.reward_booster_id, message.reward_booster_qty)
@@ -181,6 +183,7 @@ async def send_gift(
                 "force_min_rarity_id": row.force_min_rarity_id,
                 "rarity_weight_multiplier": row.rarity_weight_multiplier,
                 "label": row.label,
+                **booster_inventory.extra_bonus(row),
             }
         else:
             await booster_inventory.consume(session, sender.id, booster_id, amount)

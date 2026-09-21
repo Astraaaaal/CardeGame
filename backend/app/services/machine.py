@@ -1,0 +1,372 @@
+"""
+Machine d'amélioration et convertisseur de ressources (onglet Activités).
+
+Machine : on paie des pièces pour améliorer d'un cran un booster ou un reroll
+possédé. L'amélioration proposée dépend du jour (rotation réglable) et parfois
+d'un événement aléatoire commun à tous (jour risqué, soldes, jour de chance).
+Chaque cran est plus cher et moins probable que le précédent ; un échec coûte
+le paiement (l'objet reste, sauf jour risqué) et rend le prochain essai un peu
+plus probable mais plus cher. Tout revient à zéro après une réussite.
+
+Convertisseur : échange pièces ↔ poussière avec perte, quelques fois par jour,
+pour compléter une ressource qui manque — pas pour s'enrichir.
+"""
+
+import random
+from datetime import datetime
+
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+
+from app.models.booster import Booster
+from app.models.booster_inventory import UserBonusBooster, UserBoosterInventory
+from app.models.reference import Jewelry, Quality, Rarity
+from app.models.reroll_inventory import UserRerollToken
+from app.models.user import User
+from app.services import activities_config, booster_inventory, reroll_inventory
+from app.services.presence_bonus import get_activity
+from app.services.reroll import reroll_axes
+from app.services.tier_order import rank
+from app.services.wallet import apply_delta, get_balance
+
+# Améliorations de booster : champ du bonus modifié et paliers successifs.
+BOOSTER_LADDERS = {
+    "rarity_chances": ("rarity_weight_multiplier", [1.5, 2.0, 3.0, 5.0]),
+    "rarity_guarantee": ("force_min_rarity_id", ["rare", "epic", "legendary"]),
+    "quality_guarantee": ("min_quality_id", ["preserved", "excellent", "graded", "mint", "authentic"]),
+    "jewelry_guarantee": ("min_jewelry_id", ["silver", "gold", "diamond", "prismatic"]),
+    "specialty_chances": ("specialty_weight_multiplier", [1.5, 2.0, 3.0, 5.0]),
+}
+_AXIS_OF_FIELD = {"force_min_rarity_id": "rarity", "min_quality_id": "quality", "min_jewelry_id": "jewelry"}
+REROLL_KINDS = ("reroll_guarantee", "reroll_axis", "reroll_boost")
+REROLL_BOOSTS = [1.5, 2.0, 3.0]
+AXES = ("rarity", "quality", "specialty", "jewelry")
+AXIS_LABEL = {"rarity": "rareté", "quality": "qualité", "specialty": "spécialité", "jewelry": "bijou"}
+KIND_LABEL = {
+    "rarity_chances": "Chances de rareté boostées",
+    "rarity_guarantee": "Rareté garantie",
+    "quality_guarantee": "Qualité garantie",
+    "jewelry_guarantee": "Bijou garanti",
+    "specialty_chances": "Chances de spécialité boostées",
+    "reroll_guarantee": "Reroll garanti",
+    "reroll_axis": "Axe de reroll en plus",
+    "reroll_boost": "Chances de reroll boostées",
+}
+_WEEKDAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+
+
+# ─────────────────────────────  JOUR ET ÉVÉNEMENT  ─────────────────────────────
+
+def today_plan(cfg: dict, now: datetime | None = None) -> dict:
+    now = now or datetime.utcnow()
+    machine = cfg["machine"]
+    kinds = [k for k in machine["rotation"].get(str(now.weekday()), []) if k in KIND_LABEL]
+    # Événement du jour : même tirage pour tout le monde (graine = la date).
+    roll = random.Random(now.date().isoformat()).random()
+    event, acc = None, 0.0
+    for e in machine["events"]:
+        acc += float(e.get("chance", 0))
+        if roll < acc:
+            event = e
+            break
+    return {"weekday": _WEEKDAYS[now.weekday()], "kinds": kinds, "event": event}
+
+
+# ─────────────────────────────  NIVEAUX  ─────────────────────────────
+
+def _numeric_level(ladder: list[float], value) -> tuple[int, float | None]:
+    level = sum(1 for v in ladder if value and v <= value)
+    nxt = next((v for v in ladder if not value or v > value), None)
+    return level, nxt
+
+
+def _id_level(axis: str, ladder: list[str], value) -> tuple[int, str | None]:
+    current = rank(axis, value) if value else -1
+    level = sum(1 for v in ladder if value and rank(axis, v) <= current)
+    nxt = next((v for v in ladder if rank(axis, v) > current), None)
+    return level, nxt
+
+
+def booster_step(kind: str, bonus: dict) -> tuple[int, object]:
+    """(niveau actuel, valeur suivante ou None si déjà au maximum) pour ce type d'amélioration."""
+    field, ladder = BOOSTER_LADDERS[kind]
+    if field in _AXIS_OF_FIELD:
+        return _id_level(_AXIS_OF_FIELD[field], ladder, bonus.get(field))
+    return _numeric_level(ladder, bonus.get(field))
+
+
+def reroll_step(kind: str, token) -> tuple[int, object]:
+    if kind == "reroll_guarantee":
+        if token.reroll_mode == "random" and reroll_axes(token):
+            return 0, "guaranteed_min"
+        return 1, None
+    if kind == "reroll_axis":
+        axes = reroll_axes(token)
+        missing = [a for a in AXES if a not in axes]
+        return len(axes), (missing or None)
+    if not reroll_axes(token):
+        return 0, None  # reroll de puissance seule : pas de chances à booster
+    return _numeric_level(REROLL_BOOSTS, token.reroll_boost)
+
+
+def _cost_and_chance(cfg: dict, level: int, failures: int, event: dict | None) -> tuple[int, float]:
+    m = cfg["machine"]
+    cost = m["base_cost"] * m["level_cost_factor"] ** level * m["failure_cost_factor"] ** failures
+    chance = m["base_chance"] * m["level_chance_factor"] ** level + m["failure_chance_step"] * failures
+    if event:
+        cost *= float(event.get("cost_factor", 1))
+        chance += float(event.get("success_bonus", 0))
+    return max(1, int(round(cost))), round(min(m["max_chance"], max(0.01, chance)), 3)
+
+
+# ─────────────────────────────  LIBELLÉS  ─────────────────────────────
+
+async def _names(session: AsyncSession) -> dict[str, str]:
+    names = {}
+    for model in (Rarity, Quality, Jewelry):
+        for row in (await session.execute(select(model))).scalars().all():
+            names[row.id] = row.name
+    return names
+
+
+def _fmt(v: float) -> str:
+    return f"{v:g}".replace(".", ",")
+
+
+def describe_bonus(bonus: dict, names: dict) -> str:
+    bits = []
+    if bonus.get("force_min_rarity_id"):
+        bits.append(f"{names.get(bonus['force_min_rarity_id'], bonus['force_min_rarity_id'])} garantie")
+    if bonus.get("rarity_weight_multiplier"):
+        bits.append(f"rareté ×{_fmt(bonus['rarity_weight_multiplier'])}")
+    if bonus.get("min_quality_id"):
+        bits.append(f"qualité {names.get(bonus['min_quality_id'], bonus['min_quality_id'])} min.")
+    if bonus.get("min_jewelry_id"):
+        bits.append(f"bijou {names.get(bonus['min_jewelry_id'], bonus['min_jewelry_id'])} min.")
+    if bonus.get("specialty_weight_multiplier"):
+        bits.append(f"spécialité ×{_fmt(bonus['specialty_weight_multiplier'])}")
+    return " · ".join(bits)
+
+
+def describe_reroll(rules: dict) -> str:
+    axes = [AXIS_LABEL[a] for a in AXES if rules.get(f"reroll_{a}")]
+    label = "Reroll " + (" + ".join(axes) if axes else "puissance")
+    label += " (garanti)" if rules.get("reroll_mode") == "guaranteed_min" else " (aléatoire)"
+    if rules.get("reroll_boost"):
+        label += f" · chances ×{_fmt(rules['reroll_boost'])}"
+    return label
+
+
+def _next_label(kind: str, nxt, names: dict) -> str:
+    if kind in ("rarity_chances", "specialty_chances", "reroll_boost"):
+        return f"chances ×{_fmt(nxt)}"
+    if kind == "reroll_guarantee":
+        return "mode garanti (égal ou mieux)"
+    if kind == "reroll_axis":
+        return "un axe de plus au hasard"
+    return f"{names.get(nxt, nxt)} minimum" if kind != "rarity_guarantee" else f"{names.get(nxt, nxt)} garantie"
+
+
+# ─────────────────────────────  ÉTAT  ─────────────────────────────
+
+def _booster_bonus(owned: dict) -> dict:
+    return {
+        "force_min_rarity_id": owned.get("force_min_rarity_id"),
+        "rarity_weight_multiplier": owned.get("rarity_weight_multiplier"),
+        **{f: owned.get(f) for f in booster_inventory.EXTRA_BONUS_FIELDS},
+    }
+
+
+async def machine_state(session: AsyncSession, user: User) -> dict:
+    cfg = await activities_config.get_config(session)
+    plan = today_plan(cfg)
+    row = await get_activity(session, user.id)
+    failures = row.machine_failures or {}
+    names = await _names(session)
+    items = []
+
+    for owned in await booster_inventory.list_owned(session, user.id):
+        bonus = _booster_bonus(owned)
+        upgrades = []
+        for kind in plan["kinds"]:
+            if kind not in BOOSTER_LADDERS:
+                continue
+            level, nxt = booster_step(kind, bonus)
+            if nxt is None:
+                continue
+            cost, chance = _cost_and_chance(cfg, level, failures.get(kind, 0), plan["event"])
+            upgrades.append({"kind": kind, "label": KIND_LABEL[kind], "next": _next_label(kind, nxt, names),
+                             "level": level, "cost": cost, "chance": chance})
+        items.append({
+            "item": "booster", "booster_id": owned["booster_id"], "bonus_id": owned["bonus_id"],
+            "name": owned["booster_name"], "detail": describe_bonus(bonus, names) or "sans bonus",
+            "quantity": owned["quantity"], "upgrades": upgrades,
+        })
+
+    tokens = (await session.execute(
+        select(UserRerollToken).where(UserRerollToken.user_id == user.id, UserRerollToken.quantity > 0)
+        .order_by(UserRerollToken.id)
+    )).scalars().all()
+    for token in tokens:
+        upgrades = []
+        for kind in plan["kinds"]:
+            if kind not in REROLL_KINDS:
+                continue
+            level, nxt = reroll_step(kind, token)
+            if nxt is None:
+                continue
+            cost, chance = _cost_and_chance(cfg, level, failures.get(kind, 0), plan["event"])
+            upgrades.append({"kind": kind, "label": KIND_LABEL[kind],
+                             "next": _next_label(kind, nxt[0] if isinstance(nxt, list) else nxt, names),
+                             "level": level, "cost": cost, "chance": chance})
+        items.append({
+            "item": "reroll", "token_id": token.id, "name": token.label or "Reroll",
+            "detail": describe_reroll(reroll_inventory.rules_of(token)), "quantity": token.quantity, "upgrades": upgrades,
+        })
+
+    return {
+        "weekday": plan["weekday"],
+        "today": [{"kind": k, "label": KIND_LABEL[k]} for k in plan["kinds"]],
+        "event": {"id": plan["event"]["id"], "label": plan["event"]["label"]} if plan["event"] else None,
+        "rotation": [
+            {"weekday": _WEEKDAYS[int(d)], "labels": [KIND_LABEL[k] for k in kinds if k in KIND_LABEL]}
+            for d, kinds in sorted(cfg["machine"]["rotation"].items(), key=lambda kv: int(kv[0]))
+        ],
+        "items": items,
+    }
+
+
+# ─────────────────────────────  AMÉLIORATION  ─────────────────────────────
+
+async def upgrade(session: AsyncSession, user: User, item: str, kind: str, booster_id: str | None = None,
+                  bonus_id: int | None = None, token_id: int | None = None) -> dict:
+    cfg = await activities_config.get_config(session)
+    plan = today_plan(cfg)
+    if kind not in plan["kinds"]:
+        raise HTTPException(400, "Cette amélioration n'est pas disponible aujourd'hui.")
+    row = await get_activity(session, user.id)
+    failures = dict(row.machine_failures or {})
+    names = await _names(session)
+    event = plan["event"]
+
+    # Objet ciblé et amélioration visée.
+    if item == "booster":
+        if kind not in BOOSTER_LADDERS or not booster_id:
+            raise HTTPException(400, "Amélioration invalide pour un booster.")
+        if bonus_id is not None:
+            source = await session.get(UserBonusBooster, bonus_id)
+            if not source or source.user_id != user.id or source.booster_id != booster_id or source.quantity < 1:
+                raise HTTPException(400, "Tu ne possèdes plus ce booster.")
+            bonus = {"force_min_rarity_id": source.force_min_rarity_id,
+                     "rarity_weight_multiplier": source.rarity_weight_multiplier,
+                     **booster_inventory.extra_bonus(source)}
+        else:
+            source = await session.get(UserBoosterInventory, (user.id, booster_id))
+            if not source or source.quantity < 1:
+                raise HTTPException(400, "Tu ne possèdes plus ce booster.")
+            bonus = {"force_min_rarity_id": None, "rarity_weight_multiplier": None,
+                     **{f: None for f in booster_inventory.EXTRA_BONUS_FIELDS}}
+        level, nxt = booster_step(kind, bonus)
+    elif item == "reroll":
+        if kind not in REROLL_KINDS or token_id is None:
+            raise HTTPException(400, "Amélioration invalide pour un reroll.")
+        source = await session.get(UserRerollToken, token_id)
+        if not source or source.user_id != user.id or source.quantity < 1:
+            raise HTTPException(400, "Tu ne possèdes plus ce reroll.")
+        level, nxt = reroll_step(kind, source)
+    else:
+        raise HTTPException(400, "Objet invalide.")
+    if nxt is None:
+        raise HTTPException(400, "Cet objet est déjà au maximum pour cette amélioration.")
+
+    cost, chance = _cost_and_chance(cfg, level, failures.get(kind, 0), event)
+    if await get_balance(session, user, "coins") < cost:
+        raise HTTPException(400, f"Il faut {cost} pièces pour cet essai.")
+    await apply_delta(session, user, "coins", -cost)
+
+    success = random.random() < chance
+    destroyed = False
+    result_label = None
+    if success:
+        failures[kind] = 0
+        source.quantity -= 1
+        session.add(source)
+        if item == "booster":
+            field = BOOSTER_LADDERS[kind][0]
+            bonus[field] = nxt
+            booster = await session.get(Booster, booster_id)
+            description = describe_bonus(bonus, names)
+            await booster_inventory.grant_bonus(
+                session, user.id, booster_id, bonus["force_min_rarity_id"], bonus["rarity_weight_multiplier"],
+                (description[:1].upper() + description[1:])[:100], 1,
+                extras={f: bonus[f] for f in booster_inventory.EXTRA_BONUS_FIELDS},
+            )
+            result_label = f"{booster.name if booster else booster_id} ({description})"
+        else:
+            rules = reroll_inventory.rules_of(source)
+            if kind == "reroll_guarantee":
+                rules["reroll_mode"] = "guaranteed_min"
+            elif kind == "reroll_axis":
+                rules[f"reroll_{random.choice(nxt)}"] = True
+                rules["reroll_mode"] = rules.get("reroll_mode") or "random"
+            else:
+                rules["reroll_boost"] = nxt
+            result_label = describe_reroll(rules)
+            await reroll_inventory.grant_rules(session, user.id, None, result_label[:100], rules, 1)
+    else:
+        failures[kind] = failures.get(kind, 0) + 1
+        if event and event.get("lose_on_fail"):
+            destroyed = True
+            source.quantity -= 1
+            session.add(source)
+
+    row.machine_failures = failures
+    session.add(row)
+    await session.commit()
+    return {"success": success, "destroyed": destroyed, "cost": cost, "chance": chance, "result": result_label,
+            "state": await machine_state(session, user)}
+
+
+# ─────────────────────────────  CONVERTISSEUR  ─────────────────────────────
+
+def _roll_converter_day(row) -> None:
+    today = datetime.utcnow().date()
+    if row.converter_day != today:
+        row.converter_day = today
+        row.converter_uses = 0
+
+
+async def converter_state(session: AsyncSession, user: User) -> dict:
+    cfg = (await activities_config.get_config(session))["converter"]
+    row = await get_activity(session, user.id)
+    _roll_converter_day(row)
+    session.add(row)
+    await session.commit()
+    return {"daily_uses": cfg["daily_uses"], "uses_left": max(0, cfg["daily_uses"] - row.converter_uses),
+            "pairs": cfg["pairs"]}
+
+
+async def convert(session: AsyncSession, user: User, from_id: str, to_id: str, amount: int) -> dict:
+    cfg = (await activities_config.get_config(session))["converter"]
+    pair = next((p for p in cfg["pairs"] if p["from"] == from_id and p["to"] == to_id), None)
+    if not pair:
+        raise HTTPException(400, "Conversion indisponible.")
+    row = await get_activity(session, user.id)
+    _roll_converter_day(row)
+    if row.converter_uses >= cfg["daily_uses"]:
+        raise HTTPException(400, "Plus de conversions disponibles aujourd'hui.")
+    give, get = int(pair["give"]), int(pair["get"])
+    if amount < give or amount % give:
+        raise HTTPException(400, f"Montant en multiples de {give}.")
+    if amount > int(pair["max_in"]):
+        raise HTTPException(400, f"{pair['max_in']} au maximum par conversion.")
+    if await get_balance(session, user, from_id) < amount:
+        raise HTTPException(400, "Solde insuffisant.")
+    gained = amount // give * get
+    await apply_delta(session, user, from_id, -amount)
+    await apply_delta(session, user, to_id, gained)
+    row.converter_uses += 1
+    session.add(row)
+    await session.commit()
+    return {"spent": amount, "gained": gained, "state": await converter_state(session, user)}

@@ -81,11 +81,13 @@ export default function HigherLowerGame() {
                 </div>
                 <p className="text-white/40 text-[11px]">
                     Mise de {data.min_stake} à {data.max_stake.toLocaleString("fr-FR")}. Chaque bonne réponse multiplie le gain
-                    par {data.multiplier.toLocaleString("fr-FR")} ({data.max_steps} au plus) ; une erreur fait tout perdre.
+                    selon sa difficulté (pari facile = petit gain, pari risqué = gros gain). Égalité : rien ne change mais la
+                    manche compte. Encaissement possible à partir de {data.min_cashout_step} manches, {data.max_steps} au plus ;
+                    une erreur fait tout perdre.
                 </p>
                 {err && <p className="text-red-400 text-xs">{err}</p>}
                 <Button
-                    variant="primary" className="w-full" loading={start.isPending}
+                    variant="primary" className="w-full" loading={start.isPending} success={start.isSuccess}
                     disabled={stake < data.min_stake || stake > data.max_stake || stake > balance}
                     onClick={() => start.mutate()}
                 >
@@ -100,7 +102,7 @@ export default function HigherLowerGame() {
         <div className="space-y-3">
             <div className="flex items-center justify-between text-xs text-white/50">
                 <span>Mise {game.stake.toLocaleString("fr-FR")} {unit(game.resource_id)}</span>
-                <span>Étape {game.step} / {game.max_steps}</span>
+                <span>Manche {game.step} / {game.max_steps} · ×{game.total_multiplier.toLocaleString("fr-FR")}</span>
             </div>
             <div className="flex items-center justify-center gap-4">
                 <div className="w-32"><CardImage card={game.current_card} size="md" /></div>
@@ -111,20 +113,30 @@ export default function HigherLowerGame() {
             <p className="text-center text-gold font-extrabold text-lg">⚡ {game.current_card.power?.toLocaleString("fr-FR")}</p>
             {last?.outcome && last.status === "active" && (
                 <p className="text-center text-sm text-white/70">
-                    {OUTCOME_LABEL[last.outcome]} La carte précédente avait ⚡ {last.previous_card?.power?.toLocaleString("fr-FR")}.
+                    {OUTCOME_LABEL[last.outcome]}
+                    {last.won_multiplier ? ` ×${last.won_multiplier.toLocaleString("fr-FR")}` : ""}
+                    {" "}La carte précédente avait ⚡ {last.previous_card?.power?.toLocaleString("fr-FR")}.
                 </p>
             )}
             {err && <p className="text-red-400 text-xs text-center">{err}</p>}
             <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary" disabled={busy} onClick={() => guess.mutate({ id: game.id, g: "higher" })}>Plus ▲</Button>
-                <Button variant="secondary" disabled={busy} onClick={() => guess.mutate({ id: game.id, g: "lower" })}>Moins ▼</Button>
+                {(["higher", "lower"] as const).map((g) => {
+                    const m = game.odds[g];
+                    return (
+                        <Button key={g} variant="secondary" disabled={busy || m == null} onClick={() => guess.mutate({ id: game.id, g })}>
+                            <span className="flex flex-col items-center leading-tight">
+                                <span>{g === "higher" ? "Plus ▲" : "Moins ▼"}</span>
+                                <span className="text-[11px] text-gold">{m == null ? "impossible" : `×${m.toLocaleString("fr-FR")}`}</span>
+                            </span>
+                        </Button>
+                    );
+                })}
             </div>
-            <Button variant="gold" className="w-full" disabled={busy} loading={cashout.isPending} onClick={() => cashout.mutate(game.id)}>
-                Encaisser {game.cashout_value.toLocaleString("fr-FR")} {unit(game.resource_id)}
+            <Button variant="gold" className="w-full" disabled={busy || !game.can_cashout} loading={cashout.isPending} success={cashout.isSuccess} onClick={() => cashout.mutate(game.id)}>
+                {game.can_cashout
+                    ? `Encaisser ${game.cashout_value.toLocaleString("fr-FR")} ${unit(game.resource_id)}`
+                    : `Encaisser dès la manche ${game.min_cashout_step} (${game.cashout_value.toLocaleString("fr-FR")})`}
             </Button>
-            <p className="text-center text-white/40 text-[11px]">
-                Prochaine bonne réponse : {game.next_value.toLocaleString("fr-FR")} {unit(game.resource_id)}
-            </p>
         </div>
     );
 }

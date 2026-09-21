@@ -16,7 +16,7 @@ from app.services import activity
 from app.services.ranking import refresh_all_best_ranks
 from app.services.reroll import apply_reroll, reroll_axes  # noqa: F401 (reroll_axes réexporté pour trade_session)
 
-_RULE_FIELDS = ("reroll_rarity", "reroll_quality", "reroll_specialty", "reroll_jewelry", "reroll_power", "reroll_mode")
+_RULE_FIELDS = ("reroll_rarity", "reroll_quality", "reroll_specialty", "reroll_jewelry", "reroll_power", "reroll_mode", "reroll_boost")
 
 
 async def grant(session: AsyncSession, user_id: int, offer: ShopOffer, quantity: int) -> None:
@@ -26,7 +26,7 @@ async def grant(session: AsyncSession, user_id: int, offer: ShopOffer, quantity:
 
 def rules_of(source) -> dict:
     """Règles d'un reroll (offre ou reroll possédé), sérialisables (cadeaux)."""
-    return {f: getattr(source, f) for f in _RULE_FIELDS}
+    return {f: getattr(source, f, None) for f in _RULE_FIELDS}
 
 
 async def grant_rules(
@@ -65,6 +65,7 @@ def to_out(row: UserRerollToken) -> dict:
     return {
         "id": row.id, "offer_id": row.offer_id, "label": row.label, "quantity": row.quantity,
         "axes": reroll_axes(row), "reroll_power": row.reroll_power, "reroll_mode": row.reroll_mode,
+        "reroll_boost": row.reroll_boost,
     }
 
 

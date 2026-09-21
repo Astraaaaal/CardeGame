@@ -25,4 +25,7 @@ class UserRerollToken(SQLModel, table=True):
     reroll_jewelry: bool = Field(default=False)
     reroll_power: bool = Field(default=False)
     reroll_mode: Optional[str] = Field(default=None, max_length=20)
+    # Machine d'amélioration : multiplie les chances des paliers meilleurs que
+    # l'actuel sur les axes relancés (None = chances normales).
+    reroll_boost: Optional[float] = Field(default=None)
     quantity: int = Field(default=0)

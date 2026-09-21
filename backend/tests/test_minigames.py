@@ -1,6 +1,7 @@
 """
-Mini-jeux : « plus ou moins » (mise débitée, gain ×1,8 par bonne réponse,
-égalité sans perte, défaite = mise perdue, encaissement) et roue de la
+Mini-jeux : « plus ou moins » (gain selon la probabilité réelle du pari,
+égalité neutre qui compte comme une manche, encaissement dès 3 manches,
+défaite = mise perdue) et roue de la
 fortune (tour gratuit quotidien, tours payants plafonnés).
 """
 
@@ -19,27 +20,45 @@ def _fake_cards(monkeypatch, powers):
     async def fake(session, cfg):
         return {"character_name": "Test", "power": queue.pop(0)}
 
+    async def fake_sample(session, cfg):
+        return list(range(1, 1001))  # puissances uniformes de 1 à 1000
+
     monkeypatch.setattr(minigames, "_random_card", fake)
+    monkeypatch.setattr(minigames, "_power_sample", fake_sample)
 
 
-async def test_higher_lower_win_tie_then_cash_out(session, monkeypatch):
+async def test_gain_depends_on_the_real_odds(session, monkeypatch):
+    _fake_cards(monkeypatch, [])
+    cfg = await activities_config.get_config(session)
+    odds = await minigames._guess_multipliers(session, cfg, 100)
+    # 900 cartes au-dessus sur 1000 (1 égalité) : pari facile, gain faible.
+    assert odds["higher"] == round(0.98 * 0.999 / 0.9, 2)
+    assert odds["lower"] == round(0.98 * 0.999 / 0.099, 2)  # 99 cartes en dessous : pari risqué
+    assert (await minigames._guess_multipliers(session, cfg, 20))["lower"] == 20  # plafonné
+    assert (await minigames._guess_multipliers(session, cfg, 1000))["higher"] is None
+
+
+async def test_higher_lower_tie_counts_and_cashout_from_step_three(session, monkeypatch):
     user = await make_user(session)
-    _fake_cards(monkeypatch, [100, 500, 500, 900])
+    _fake_cards(monkeypatch, [500, 500, 750, 900, 100])
 
     game = await minigames.higher_lower_start(session, user, "coins", 100)
     assert user.coins == 400
-
-    res = await minigames.higher_lower_guess(session, user, game["id"], "higher")  # 100 -> 500
-    assert (res["outcome"], res["step"]) == ("win", 1)
     res = await minigames.higher_lower_guess(session, user, game["id"], "lower")  # 500 -> 500
-    assert (res["outcome"], res["step"]) == ("tie", 1)
-    res = await minigames.higher_lower_guess(session, user, game["id"], "higher")  # 500 -> 900
-    assert res["step"] == 2 and res["cashout_value"] == 324  # 100 × 1,8²
+    assert (res["outcome"], res["step"], res["total_multiplier"]) == ("tie", 1, 1.0)
+    res = await minigames.higher_lower_guess(session, user, game["id"], "higher")  # 500 -> 750 (p = 0,5)
+    assert (res["outcome"], res["step"]) == ("win", 2) and not res["can_cashout"]
+    with pytest.raises(HTTPException):
+        await minigames.higher_lower_cashout(session, user, game["id"])  # avant 3 manches
+
+    res = await minigames.higher_lower_guess(session, user, game["id"], "higher")  # 750 -> 900 (p = 0,25)
+    assert res["step"] == 3 and res["can_cashout"]
+    m1 = round(0.98 * 0.999 / 0.5, 2)
+    m2 = round(0.98 * 0.999 / 0.25, 2)
+    assert res["cashout_value"] == int(100 * m1 * m2)
 
     await minigames.higher_lower_cashout(session, user, game["id"])
-    assert user.coins == 400 + 324
-    with pytest.raises(HTTPException):
-        await minigames.higher_lower_guess(session, user, game["id"], "higher")
+    assert user.coins == 400 + int(100 * m1 * m2)
 
 
 async def test_higher_lower_loss_and_rules(session, monkeypatch):

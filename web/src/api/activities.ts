@@ -65,11 +65,15 @@ export interface HigherLowerGameState {
     stake: number;
     step: number;
     max_steps: number;
-    multiplier: number;
+    min_cashout_step: number;
+    total_multiplier: number;
     current_card: Card;
     cashout_value: number;
-    next_value: number;
+    can_cashout: boolean;
+    /** Gain d'une bonne réponse (null = réponse impossible). */
+    odds: { higher?: number | null; lower?: number | null };
     outcome?: "win" | "tie" | "lose";
+    won_multiplier?: number | null;
     previous_card?: Card;
 }
 
@@ -77,8 +81,8 @@ export interface HigherLowerState {
     game: HigherLowerGameState | null;
     min_stake: number;
     max_stake: number;
-    multiplier: number;
     max_steps: number;
+    min_cashout_step: number;
 }
 
 export interface WheelState {
@@ -102,7 +106,60 @@ export interface WheelSpin {
     state: WheelState;
 }
 
+export interface MachineUpgrade {
+    kind: string;
+    label: string;
+    next: string;
+    level: number;
+    cost: number;
+    chance: number;
+}
+
+export interface MachineItem {
+    item: "booster" | "reroll";
+    booster_id?: string;
+    bonus_id?: number | null;
+    token_id?: number;
+    name: string;
+    detail: string;
+    quantity: number;
+    upgrades: MachineUpgrade[];
+}
+
+export interface MachineState {
+    weekday: string;
+    today: { kind: string; label: string }[];
+    event: { id: string; label: string } | null;
+    rotation: { weekday: string; labels: string[] }[];
+    items: MachineItem[];
+}
+
+export interface MachineResult {
+    success: boolean;
+    destroyed: boolean;
+    cost: number;
+    chance: number;
+    result: string | null;
+    state: MachineState;
+}
+
+export interface ConverterState {
+    daily_uses: number;
+    uses_left: number;
+    pairs: { from: string; to: string; give: number; get: number; max_in: number }[];
+}
+
 export const activitiesApi = {
+    machine: () => api.get<MachineState>("/activities/machine").then((r) => r.data),
+    upgrade: (item: MachineItem, kind: string) =>
+        api.post<MachineResult>("/activities/machine/upgrade", {
+            item: item.item, kind, booster_id: item.booster_id, bonus_id: item.bonus_id ?? null, token_id: item.token_id,
+        }).then((r) => r.data),
+    converter: () => api.get<ConverterState>("/activities/converter").then((r) => r.data),
+    convert: (fromId: string, toId: string, amount: number) =>
+        api.post<{ spent: number; gained: number; state: ConverterState }>("/activities/converter", {
+            from_id: fromId, to_id: toId, amount,
+        }).then((r) => r.data),
     presence: () => api.get<PresenceStatus>("/activities/presence").then((r) => r.data),
     ping: () => api.post<PresenceStatus>("/activities/presence/ping").then((r) => r.data),
     expeditions: () => api.get<ExpeditionsOverview>("/activities/expeditions").then((r) => r.data),

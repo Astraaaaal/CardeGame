@@ -75,7 +75,43 @@ DEFAULTS: dict = {
             "workshop": {"label": "+10 jauges d'atelier par jour (7 j)", "cost": 300, "hours": 168, "value": 10},
         },
     },
-    "higher_lower": {"min_stake": 50, "max_stake": 5000, "multiplier": 1.8, "max_steps": 10},
+    # Gain de chaque bonne réponse = (1 - marge) × (1 - P(égalité)) / P(réussite),
+    # plafonné ; encaissement possible à partir de `min_cashout_step` manches.
+    "higher_lower": {"min_stake": 50, "max_stake": 5000, "max_steps": 10, "house_edge": 0.02,
+                     "min_cashout_step": 3, "max_step_multiplier": 20},
+    # Machine d'amélioration : l'amélioration du jour suit la rotation (0 = lundi),
+    # avec parfois un événement aléatoire (identique pour tous ce jour-là).
+    "machine": {
+        "rotation": {
+            "0": ["rarity_chances"], "1": ["rarity_guarantee"], "2": ["quality_guarantee"],
+            "3": ["jewelry_guarantee"], "4": ["specialty_chances"], "5": ["reroll_axis", "reroll_boost"],
+            "6": ["reroll_guarantee"],
+        },
+        "events": [
+            {"id": "risky", "label": "Jour risqué : -60 % sur le prix, mais un échec détruit l'objet",
+             "chance": 0.08, "cost_factor": 0.4, "success_bonus": 0, "lose_on_fail": True},
+            {"id": "sale", "label": "Soldes : -50 % sur le prix", "chance": 0.07, "cost_factor": 0.5,
+             "success_bonus": 0, "lose_on_fail": False},
+            {"id": "lucky", "label": "Jour de chance : +15 % de réussite", "chance": 0.05, "cost_factor": 1,
+             "success_bonus": 0.15, "lose_on_fail": False},
+        ],
+        "base_cost": 400,
+        "level_cost_factor": 1.8,
+        "failure_cost_factor": 1.25,
+        "base_chance": 0.35,
+        "level_chance_factor": 0.7,
+        "failure_chance_step": 0.05,
+        "max_chance": 0.9,
+    },
+    # Convertisseur : un nombre d'utilisations par jour, une quantité maximale
+    # par conversion ; `give` de la ressource de départ donnent `get` de l'autre.
+    "converter": {
+        "daily_uses": 3,
+        "pairs": [
+            {"from": "coins", "to": "dust", "give": 10, "get": 1, "max_in": 2000},
+            {"from": "dust", "to": "coins", "give": 1, "get": 5, "max_in": 200},
+        ],
+    },
     "wheel": {
         "extra_spin_cost": 200,
         "extra_spins_per_day": 5,

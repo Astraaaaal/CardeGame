@@ -1,12 +1,15 @@
 """
 Mini-jeux : « plus ou moins » (deviner si la carte suivante est plus ou moins
-puissante, gain multiplié à chaque bonne réponse) et roue de la fortune (un
+puissante ; chaque bonne réponse multiplie le gain selon sa probabilité réelle,
+avec une petite marge : le jeu est perdant à long terme) et roue de la fortune (un
 tour gratuit par jour, les suivants en pièces). Mises uniquement en pièces ou
 en poussière : jamais la monnaie premium, pour rester hors du cadre des jeux
 d'argent. Tout le hasard est tiré côté serveur.
 """
 
+import bisect
 import random
+import time
 from datetime import datetime
 
 from fastapi import HTTPException
@@ -16,6 +19,7 @@ from sqlmodel import select
 from app.models.activity import HigherLowerGame
 from app.models.booster import Booster, BoosterSet
 from app.models.card import UserCard
+from app.models.reference import Jewelry, Quality, Rarity, Specialty
 from app.models.user import User
 from app.services import activities_config, booster_inventory, reroll_inventory
 from app.services.card_generator import CardGeneratorService
@@ -33,17 +37,21 @@ WHEEL_REROLL_RULES = {
 
 # ─────────────────────────────  PLUS OU MOINS  ─────────────────────────────
 
+async def _reward_set_ids(session: AsyncSession, cfg: dict) -> list[str]:
+    booster = await session.get(Booster, cfg["reward_booster_id"])
+    if not booster:
+        return []
+    return list((await session.execute(
+        select(BoosterSet.set_id).where(BoosterSet.booster_id == booster.id)
+    )).scalars().all() or [booster.set_id])
+
+
 async def _random_card(session: AsyncSession, cfg: dict) -> dict:
     """Carte tirée au hasard dans les sets du booster de récompense (non attribuée)."""
-    booster = await session.get(Booster, cfg["reward_booster_id"])
-    set_ids = []
-    if booster:
-        set_ids = (await session.execute(
-            select(BoosterSet.set_id).where(BoosterSet.booster_id == booster.id)
-        )).scalars().all() or [booster.set_id]
+    set_ids = await _reward_set_ids(session, cfg)
     generator = CardGeneratorService()
     for _ in range(5):
-        pack = await generator.generate_pack(session, list(set_ids), cards_count=1, guaranteed_rare=False)
+        pack = await generator.generate_pack(session, set_ids, cards_count=1, guaranteed_rare=False)
         if not pack:
             break
         data = pack[0]
@@ -59,18 +67,69 @@ async def _random_card(session: AsyncSession, cfg: dict) -> dict:
     raise HTTPException(503, "Aucune carte disponible pour ce mini-jeu.")
 
 
-def _payout(game: HigherLowerGame, cfg: dict) -> int:
-    return int(game.stake * cfg["higher_lower"]["multiplier"] ** game.step)
+# Distribution des puissances des cartes tirées : échantillon simulé (même
+# générateur, même tirage de puissance), mis en cache quelques minutes.
+_SAMPLE_SIZE = 6000
+_SAMPLE_TTL_S = 600
+_sample_cache: dict = {}
 
 
-def _game_out(game: HigherLowerGame, cfg: dict, **extra) -> dict:
+async def _power_sample(session: AsyncSession, cfg: dict) -> list[int]:
+    set_ids = await _reward_set_ids(session, cfg)
+    key = tuple(sorted(set_ids))
+    cached = _sample_cache.get(key)
+    if cached and time.monotonic() - cached[0] < _SAMPLE_TTL_S:
+        return cached[1]
+    gen = CardGeneratorService()
+    characters = await gen._get_characters_for_sets(session, list(set_ids))
+    refs = [await gen._get_all(session, m) for m in (Rarity, Quality, Specialty, Jewelry)]
+    powers = []
+    if characters:
+        for _ in range(_SAMPLE_SIZE):
+            power = roll_drawn_power(gen._generate_single(characters, *refs))
+            if power is not None:
+                powers.append(power)
+    powers.sort()
+    _sample_cache[key] = (time.monotonic(), powers)
+    return powers
+
+
+async def _guess_multipliers(session: AsyncSession, cfg: dict, power: int) -> dict:
+    """Gain d'une bonne réponse « plus » / « moins » depuis cette puissance
+    (None si la réponse est impossible). L'égalité est neutre (×1)."""
     hl = cfg["higher_lower"]
+    sample = await _power_sample(session, cfg)
+    n = len(sample)
+    if not n:
+        return {"higher": None, "lower": None}
+    below = bisect.bisect_left(sample, power) / n
+    above = (n - bisect.bisect_right(sample, power)) / n
+    tie = 1 - below - above
+
+    def mult(p: float):
+        if p <= 0:
+            return None
+        return round(min(hl["max_step_multiplier"], (1 - hl["house_edge"]) * (1 - tie) / p), 2)
+
+    return {"higher": mult(above), "lower": mult(below)}
+
+
+def _payout(game: HigherLowerGame) -> int:
+    return int(game.stake * (game.total_multiplier or 1.0))
+
+
+async def _game_out(session: AsyncSession, game: HigherLowerGame, cfg: dict, **extra) -> dict:
+    hl = cfg["higher_lower"]
+    active = game.status == "active"
+    odds = await _guess_multipliers(session, cfg, game.current_card.get("power") or 0) if active else {}
     return {
         "id": game.id, "status": game.status, "resource_id": game.resource_id, "stake": game.stake,
-        "step": game.step, "max_steps": hl["max_steps"], "multiplier": hl["multiplier"],
+        "step": game.step, "max_steps": hl["max_steps"], "min_cashout_step": hl["min_cashout_step"],
+        "total_multiplier": round(game.total_multiplier or 1.0, 2),
         "current_card": game.current_card,
-        "cashout_value": _payout(game, cfg) if game.status == "active" else game.payout,
-        "next_value": int(game.stake * hl["multiplier"] ** (game.step + 1)),
+        "cashout_value": _payout(game) if active else game.payout,
+        "can_cashout": active and game.step >= hl["min_cashout_step"],
+        "odds": odds,
         **extra,
     }
 
@@ -82,9 +141,9 @@ async def higher_lower_state(session: AsyncSession, user: User) -> dict:
     )).scalars().first()
     hl = cfg["higher_lower"]
     return {
-        "game": _game_out(game, cfg) if game else None,
+        "game": await _game_out(session, game, cfg) if game else None,
         "min_stake": hl["min_stake"], "max_stake": hl["max_stake"],
-        "multiplier": hl["multiplier"], "max_steps": hl["max_steps"],
+        "max_steps": hl["max_steps"], "min_cashout_step": hl["min_cashout_step"],
     }
 
 
@@ -109,7 +168,7 @@ async def higher_lower_start(session: AsyncSession, user: User, resource_id: str
     session.add(game)
     await session.commit()
     await session.refresh(game)
-    return _game_out(game, cfg)
+    return await _game_out(session, game, cfg)
 
 
 async def _active_game(session: AsyncSession, user: User, game_id: int) -> HigherLowerGame:
@@ -123,8 +182,8 @@ async def _active_game(session: AsyncSession, user: User, game_id: int) -> Highe
     return game
 
 
-async def _cash_out(session: AsyncSession, user: User, game: HigherLowerGame, cfg: dict) -> None:
-    game.payout = _payout(game, cfg)
+async def _cash_out(session: AsyncSession, user: User, game: HigherLowerGame) -> None:
+    game.payout = _payout(game)
     game.status = "cashed"
     await apply_delta(session, user, game.resource_id, game.payout)
 
@@ -135,33 +194,41 @@ async def higher_lower_guess(session: AsyncSession, user: User, game_id: int, gu
     cfg = await activities_config.get_config(session)
     game = await _active_game(session, user, game_id)
     previous = game.current_card
+    odds = await _guess_multipliers(session, cfg, previous.get("power") or 0)
+    if odds.get(guess) is None:
+        raise HTTPException(400, "Réponse impossible : aucune carte ne peut faire mieux.")
     card = await _random_card(session, cfg)
     before, after = previous["power"], card["power"]
 
     if after == before:
-        outcome = "tie"  # égalité : on continue sans perdre
+        outcome = "tie"  # égalité : neutre (×1), mais compte comme une manche
+        game.step += 1
     elif (after > before) == (guess == "higher"):
         outcome = "win"
         game.step += 1
+        game.total_multiplier = (game.total_multiplier or 1.0) * odds[guess]
     else:
         outcome = "lose"
         game.status = "lost"
         game.payout = 0
     game.current_card = card
     if game.status == "active" and game.step >= cfg["higher_lower"]["max_steps"]:
-        await _cash_out(session, user, game, cfg)
+        await _cash_out(session, user, game)
     session.add(game)
     await session.commit()
-    return _game_out(game, cfg, outcome=outcome, previous_card=previous)
+    return await _game_out(session, game, cfg, outcome=outcome, previous_card=previous,
+                           won_multiplier=odds[guess] if outcome == "win" else None)
 
 
 async def higher_lower_cashout(session: AsyncSession, user: User, game_id: int) -> dict:
     cfg = await activities_config.get_config(session)
     game = await _active_game(session, user, game_id)
-    await _cash_out(session, user, game, cfg)
+    if game.step < cfg["higher_lower"]["min_cashout_step"]:
+        raise HTTPException(400, f"Encaissement possible à partir de {cfg['higher_lower']['min_cashout_step']} manches.")
+    await _cash_out(session, user, game)
     session.add(game)
     await session.commit()
-    return _game_out(game, cfg)
+    return await _game_out(session, game, cfg)
 
 
 # ─────────────────────────────  ROUE DE LA FORTUNE  ─────────────────────────────

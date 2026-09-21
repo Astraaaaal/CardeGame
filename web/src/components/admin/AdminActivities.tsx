@@ -12,6 +12,22 @@ const labelCls = "block text-white/60 text-xs mb-1";
 
 type Section = Exclude<keyof ActivitiesConfig, "reward_booster_id">;
 
+/** Réglage avancé édité en JSON (rotation, événements, paires de conversion). */
+function JsonField({ label, value, onChange }: { label: string; value: unknown; onChange: (v: unknown) => void }) {
+    const [text, setText] = useState(() => JSON.stringify(value, null, 1));
+    const [bad, setBad] = useState(false);
+    return (
+        <div>
+            <label className={labelCls}>{label}</label>
+            <textarea className={`${inputCls} font-mono text-[11px] ${bad ? "border-red-500" : ""}`} rows={6} value={text}
+                onChange={(e) => {
+                    setText(e.target.value);
+                    try { onChange(JSON.parse(e.target.value)); setBad(false); } catch { setBad(true); }
+                }} />
+        </div>
+    );
+}
+
 // Champs numériques simples, par section : [clé, libellé, pas].
 const FIELDS: { section: Section; title: string; fields: [string, string, number][] }[] = [
     { section: "presence", title: "Présence (bonus de chance)", fields: [
@@ -33,8 +49,18 @@ const FIELDS: { section: Section; title: string; fields: [string, string, number
         ["gauges_per_day", "Jauges par jour", 1],
     ] },
     { section: "higher_lower", title: "Plus ou moins", fields: [
-        ["min_stake", "Mise minimum", 1], ["max_stake", "Mise maximum", 1], ["multiplier", "Gain par étape", 0.1],
-        ["max_steps", "Étapes maximum", 1],
+        ["min_stake", "Mise minimum", 1], ["max_stake", "Mise maximum", 1], ["max_steps", "Manches maximum", 1],
+        ["min_cashout_step", "Encaisser à partir de (manches)", 1], ["house_edge", "Marge maison (0,02 = 2 %)", 0.01],
+        ["max_step_multiplier", "Gain maximum d'une manche", 1],
+    ] },
+    { section: "machine", title: "Machine d'amélioration", fields: [
+        ["base_cost", "Prix de base (pièces)", 10], ["level_cost_factor", "Prix ×, par cran déjà obtenu", 0.1],
+        ["failure_cost_factor", "Prix ×, par échec", 0.05], ["base_chance", "Chance de base (0-1)", 0.01],
+        ["level_chance_factor", "Chance ×, par cran déjà obtenu", 0.05], ["failure_chance_step", "Chance +, par échec", 0.01],
+        ["max_chance", "Chance maximum", 0.01],
+    ] },
+    { section: "converter", title: "Convertisseur", fields: [
+        ["daily_uses", "Conversions par jour", 1],
     ] },
     { section: "wheel", title: "Roue de la fortune", fields: [
         ["extra_spin_cost", "Prix d'un tour (pièces)", 1], ["extra_spins_per_day", "Tours payants par jour", 1],
@@ -91,6 +117,24 @@ export default function AdminActivities() {
                             </div>
                         ))}
                     </div>
+                    {section === "machine" && (
+                        <>
+                            <JsonField
+                                label="Rotation (0 = lundi … 6 = dimanche) : rarity_chances, rarity_guarantee, quality_guarantee, jewelry_guarantee, specialty_chances, reroll_guarantee, reroll_axis, reroll_boost"
+                                value={cfg.machine.rotation}
+                                onChange={(v) => setCfg({ ...cfg, machine: { ...cfg.machine, rotation: v as ActivitiesConfig["machine"]["rotation"] } })} />
+                            <JsonField
+                                label="Événements aléatoires (chance par jour, cost_factor, success_bonus, lose_on_fail)"
+                                value={cfg.machine.events}
+                                onChange={(v) => setCfg({ ...cfg, machine: { ...cfg.machine, events: v as ActivitiesConfig["machine"]["events"] } })} />
+                        </>
+                    )}
+                    {section === "converter" && (
+                        <JsonField
+                            label="Conversions (from → to : give donnent get, max_in au maximum par conversion)"
+                            value={cfg.converter.pairs}
+                            onChange={(v) => setCfg({ ...cfg, converter: { ...cfg.converter, pairs: v as ActivitiesConfig["converter"]["pairs"] } })} />
+                    )}
                     {section === "wheel" && (
                         <div className="space-y-1.5">
                             <p className={labelCls}>Cases (type, id de ressource ou booster, quantité, poids)</p>

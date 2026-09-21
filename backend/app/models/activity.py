@@ -35,6 +35,13 @@ class UserActivity(SQLModel, table=True):
     wheel_free_used: bool = Field(default=False)
     wheel_extra_spins: int = Field(default=0)
 
+    # Machine d'amélioration : échecs consécutifs par type d'amélioration
+    # (chaque échec augmente un peu la chance et le prix du prochain essai).
+    machine_failures: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=True))
+    # Convertisseur de ressources : conversions du jour.
+    converter_day: Optional[date] = Field(default=None)
+    converter_uses: int = Field(default=0)
+
 
 class Expedition(SQLModel, table=True):
     """Une équipe de 1 à 3 cartes partie en mission. Le butin est tiré au départ
@@ -64,6 +71,9 @@ class HigherLowerGame(SQLModel, table=True):
     resource_id: str = Field(max_length=30)
     stake: int = Field(default=0)
     step: int = Field(default=0)
+    # Produit des gains des bonnes réponses (chacun dépend de la probabilité
+    # du pari, cf. services/minigames.py) : le gain encaissable = mise × ce total.
+    total_multiplier: float = Field(default=1.0)
     current_card: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False, default=dict))
     status: str = Field(default="active", max_length=10)  # active | cashed | lost
     payout: int = Field(default=0)

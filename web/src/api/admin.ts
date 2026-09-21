@@ -187,7 +187,20 @@ export interface ActivitiesConfig {
         taps_per_gauge: number; max_taps_per_second: number; coins_per_gauge: number; dust_chance: number;
         dust_amount: number; fragments_per_booster: number; gauges_per_day: number;
     };
-    higher_lower: { min_stake: number; max_stake: number; multiplier: number; max_steps: number };
+    higher_lower: {
+        min_stake: number; max_stake: number; max_steps: number;
+        house_edge: number; min_cashout_step: number; max_step_multiplier: number;
+    };
+    machine: {
+        rotation: Record<string, string[]>;
+        events: { id: string; label: string; chance: number; cost_factor: number; success_bonus: number; lose_on_fail: boolean }[];
+        base_cost: number; level_cost_factor: number; failure_cost_factor: number;
+        base_chance: number; level_chance_factor: number; failure_chance_step: number; max_chance: number;
+    };
+    converter: {
+        daily_uses: number;
+        pairs: { from: string; to: string; give: number; get: number; max_in: number }[];
+    };
     wheel: {
         extra_spin_cost: number; extra_spins_per_day: number;
         segments: { label: string; kind: "resource" | "booster" | "reroll"; id: string; amount: number; weight: number }[];

@@ -44,6 +44,9 @@ class PackService:
         quantity: int,
         force_min_rarity_id: Optional[str] = None,
         rarity_weight_multiplier: Optional[float] = None,
+        min_quality_id: Optional[str] = None,
+        min_jewelry_id: Optional[str] = None,
+        specialty_weight_multiplier: Optional[float] = None,
     ) -> tuple[list[list[CardResponse]], int]:
         """
         Génère `quantity` packs pour `booster`, les insère en BDD et retourne
@@ -76,6 +79,9 @@ class PackService:
                 guaranteed_rare=booster.guaranteed_rare,
                 force_min_rarity_id=force_min_rarity_id,
                 rarity_weight_multiplier=rarity_weight_multiplier,
+                force_min_quality_id=min_quality_id,
+                force_min_jewelry_id=min_jewelry_id,
+                specialty_weight_multiplier=specialty_weight_multiplier,
             )
 
             pack_responses = []

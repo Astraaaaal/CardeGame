@@ -27,6 +27,7 @@ from app.services.wallet import get_balance, apply_delta, COINS_ID
 from app.services import booster_inventory, expeditions, quest_progress, reroll_inventory
 from app.services.presence import is_online as _is_online
 from app.services.premium import ensure_tradeable
+from app.services import favorites
 
 
 _AXIS_LABEL = {"rarity": "rareté", "quality": "qualité", "specialty": "spécialité", "jewelry": "bijou"}
@@ -459,6 +460,7 @@ async def _execute_trade(session: AsyncSession, trade: TradeSession) -> list[str
         if item.item_type == "card":
             card = await session.get(UserCard, item.user_card_id)
             card.user_id = other_id
+            await favorites.release(session, card)
             session.add(card)
             if item.owner_id == trade.user_a_id:
                 cards_from_a += 1
@@ -470,6 +472,7 @@ async def _execute_trade(session: AsyncSession, trade: TradeSession) -> list[str
                 await booster_inventory.grant_bonus(
                     session, other_id, item.booster_id, row.force_min_rarity_id,
                     row.rarity_weight_multiplier, row.label or "", item.amount,
+                    extras=booster_inventory.extra_bonus(row),
                 )
             else:
                 await booster_inventory.consume(session, item.owner_id, item.booster_id, item.amount)

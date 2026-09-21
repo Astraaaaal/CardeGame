@@ -5,13 +5,15 @@ import BottomNav from "@/components/layout/BottomNav";
 import ExpeditionsTab, { EXPEDITION_PURPOSE } from "@/components/activities/ExpeditionsTab";
 import WorkshopTab from "@/components/activities/WorkshopTab";
 import MiniGamesTab from "@/components/activities/MiniGamesTab";
+import MachineTab from "@/components/activities/MachineTab";
 
-type Tab = "expeditions" | "workshop" | "minigames";
+type Tab = "expeditions" | "workshop" | "minigames" | "machine";
 
 const TABS: { key: Tab; label: string }[] = [
     { key: "expeditions", label: "Expéditions" },
     { key: "workshop", label: "Atelier" },
     { key: "minigames", label: "Mini-jeux" },
+    { key: "machine", label: "Machine" },
 ];
 
 /** Activités hors combat : expéditions, atelier, mini-jeux. */
@@ -60,6 +62,7 @@ export default function Activities() {
                 {tab === "expeditions" && <ExpeditionsTab />}
                 {tab === "workshop" && <WorkshopTab />}
                 {tab === "minigames" && <MiniGamesTab />}
+                {tab === "machine" && <MachineTab />}
             </main>
 
             <BottomNav />

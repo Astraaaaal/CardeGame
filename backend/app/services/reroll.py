@@ -73,7 +73,11 @@ async def apply_reroll(session: AsyncSession, card: UserCard, rules) -> None:
             filtered = [i for i in items if rank(axis, i.id) >= current_rank]
             if filtered:
                 pool = filtered
-        picked = random.choices(pool, weights=[i.weight for i in pool], k=1)[0]
+        # Bonus de la machine : chances multipliées pour les paliers meilleurs que l'actuel.
+        boost = getattr(rules, "reroll_boost", None)
+        current_rank = rank(axis, getattr(card, _FIELD_MAP[axis]))
+        weights = [i.weight * (boost if boost and rank(axis, i.id) > current_rank else 1) for i in pool]
+        picked = random.choices(pool, weights=weights, k=1)[0]
         setattr(card, _FIELD_MAP[axis], picked.id)
 
     card.drop_probability = await _recompute_probability(session, card)

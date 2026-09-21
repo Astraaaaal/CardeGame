@@ -12,7 +12,7 @@ from app.database import get_session
 from app.models.user import User
 from pydantic import BaseModel, Field
 
-from app.services import activities_config, expeditions, minigames, presence_bonus, workshop
+from app.services import activities_config, expeditions, machine, minigames, presence_bonus, workshop
 
 router = APIRouter()
 admin_router = APIRouter(dependencies=[Depends(require_admin)])
@@ -156,6 +156,41 @@ async def wheel_spin(
     session: AsyncSession = Depends(get_session),
 ):
     return await minigames.wheel_spin(session, user)
+
+
+class UpgradeBody(BaseModel):
+    item: str = Field(pattern="^(booster|reroll)$")
+    kind: str = Field(max_length=40)
+    booster_id: str | None = None
+    bonus_id: int | None = None
+    token_id: int | None = None
+
+
+class ConvertBody(BaseModel):
+    from_id: str = Field(max_length=30)
+    to_id: str = Field(max_length=30)
+    amount: int = Field(ge=1, le=10_000_000)
+
+
+@router.get("/machine")
+async def machine_state(user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    return await machine.machine_state(session, user)
+
+
+@router.post("/machine/upgrade", dependencies=[Depends(rate_limit(30, 60))])
+async def machine_upgrade(body: UpgradeBody, user: User = Depends(get_current_user),
+                          session: AsyncSession = Depends(get_session)):
+    return await machine.upgrade(session, user, body.item, body.kind, body.booster_id, body.bonus_id, body.token_id)
+
+
+@router.get("/converter")
+async def converter_state(user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    return await machine.converter_state(session, user)
+
+
+@router.post("/converter", dependencies=[Depends(rate_limit(20, 60))])
+async def convert(body: ConvertBody, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    return await machine.convert(session, user, body.from_id, body.to_id, body.amount)
 
 
 @admin_router.get("/config")
