@@ -24,3 +24,7 @@ class GameConfig(SQLModel, table=True):
     # Réglages des activités (présence, expéditions, atelier, mini-jeux),
     # fusionnés avec les valeurs par défaut de app/services/activities_config.py.
     activities: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=True))
+    # Jeu fermé (pause entre deux versions) : seul l'admin peut se connecter,
+    # la page de connexion affiche `closed_message` (cf. services/game_status.py).
+    game_closed: bool = Field(default=False)
+    closed_message: str = Field(default="")

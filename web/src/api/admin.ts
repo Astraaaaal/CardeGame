@@ -299,3 +299,23 @@ export interface PremiumProductInput {
     active: boolean;
     sort_order: number;
 }
+
+// Jeu fermé / remise à zéro des comptes (routes /api/admin/*).
+const httpRoot = axios.create({ baseURL: `${API_URL}/api/admin` });
+httpRoot.interceptors.request.use((config) => {
+    config.headers.set("X-Admin-Key", adminKey.get());
+    return config;
+});
+
+export interface GameStatusAdmin {
+    closed: boolean;
+    message: string;
+    default_message: string;
+}
+
+export const adminMaintenanceApi = {
+    getStatus: () => httpRoot.get<GameStatusAdmin>("/game-status").then((r) => r.data),
+    setStatus: (b: { closed: boolean; message: string }) => httpRoot.put<GameStatusAdmin>("/game-status", b).then((r) => r.data),
+    resetAccounts: (confirm: string) =>
+        httpRoot.post<{ users: number; cards_removed: number }>("/reset-accounts", { confirm }).then((r) => r.data),
+};

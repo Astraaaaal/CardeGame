@@ -2,7 +2,7 @@
 Routes d'authentification — Register, Login, Refresh, Logout.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -18,10 +18,16 @@ from app.schemas.auth import (
     PasswordResetRequest,
     PasswordResetConfirm,
 )
-from app.services import account_email
+from app.services import account_email, game_status
 from app.services.auth_service import AuthService
 
 router = APIRouter()
+
+
+@router.get("/status")
+async def public_status(session: AsyncSession = Depends(get_session)):
+    """État public du jeu (fermé ou non, message affiché sur la page de connexion)."""
+    return await game_status.get_status(session)
 auth_service = AuthService()
 
 
@@ -33,8 +39,10 @@ auth_service = AuthService()
 async def register(
     request: RegisterRequest,
     session: AsyncSession = Depends(get_session),
+    x_admin_key: str = Header(default=""),
 ):
     """Inscription d'un nouveau joueur."""
+    await game_status.ensure_open(session, x_admin_key)
     if settings.BETA_INVITE_CODE and request.invite_code.strip() != settings.BETA_INVITE_CODE:
         raise HTTPException(status_code=403, detail="Code d'invitation invalide.")
     user = await auth_service.register(
@@ -77,8 +85,10 @@ async def confirm_password_reset(request: PasswordResetConfirm, session: AsyncSe
 async def login(
     request: LoginRequest,
     session: AsyncSession = Depends(get_session),
+    x_admin_key: str = Header(default=""),
 ):
     """Connexion — retourne un access token + refresh token."""
+    await game_status.ensure_open(session, x_admin_key)
     tokens = await auth_service.login(
         session, request.username, request.password
     )
@@ -93,8 +103,10 @@ async def login(
 async def refresh(
     request: RefreshRequest,
     session: AsyncSession = Depends(get_session),
+    x_admin_key: str = Header(default=""),
 ):
     """Renouvelle les tokens via un refresh token valide."""
+    await game_status.ensure_open(session, x_admin_key)
     tokens = await auth_service.refresh_tokens(
         session, request.refresh_token
     )

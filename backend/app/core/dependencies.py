@@ -13,6 +13,7 @@ from app.config import settings
 from app.database import get_session
 from app.core.security import decode_token
 from app.models.user import User
+from app.services import game_status
 from app.services.presence import LAST_SEEN_THROTTLE_S
 
 bearer_scheme = HTTPBearer()
@@ -34,11 +35,13 @@ async def require_admin(x_admin_key: str = Header(default="")):
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     session: AsyncSession = Depends(get_session),
+    x_admin_key: str = Header(default=""),
 ) -> User:
     """
     Extrait et vérifie le JWT Bearer, retourne le User correspondant.
     Utilisable comme dependency dans les routes protégées.
     """
+    await game_status.ensure_open(session, x_admin_key)
     token = credentials.credentials
     payload = decode_token(token)
 

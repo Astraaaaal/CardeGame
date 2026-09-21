@@ -2,6 +2,11 @@ import api from "./client";
 import type { LoginRequest, RegisterRequest, TokenResponse, MessageResponse } from "@/types/auth";
 
 export const authApi = {
+    status: async (): Promise<{ closed: boolean; message: string }> => {
+        const res = await api.get("/auth/status");
+        return res.data;
+    },
+
     register: async (data: RegisterRequest): Promise<MessageResponse> => {
         const res = await api.post("/auth/register", data);
         return res.data;

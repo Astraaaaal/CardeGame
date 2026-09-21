@@ -21,6 +21,7 @@ import Modal from "@/components/ui/Modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import AdminMessagesComposer from "@/components/admin/AdminMessagesComposer";
 import AdminActivities from "@/components/admin/AdminActivities";
+import AdminMaintenance from "@/components/admin/AdminMaintenance";
 import GrantsEditor from "@/components/admin/GrantsEditor";
 import LimitFields from "@/components/admin/LimitFields";
 import { LIMIT_PERIOD_LABEL } from "@/utils/purchaseLimits";
@@ -882,7 +883,7 @@ function SettingsPanel() {
 
 /* ─────────────────────────────── Panneau ────────────────────────────── */
 
-type Tab ="characters" | "boosters" | "sets" | "types" | "resources" | "offers" | "premium" | "activities" | "messages" | "progression" | "settings" | "bugReports";
+type Tab ="characters" | "boosters" | "sets" | "types" | "resources" | "offers" | "premium" | "activities" | "messages" | "progression" | "settings" | "bugReports" | "maintenance";
 
 function Panel() {
     const navigate = useNavigate();
@@ -1018,7 +1019,7 @@ function Panel() {
             </header>
 
             <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar">
-                {(["characters", "boosters", "sets", "types", "resources", "offers", "premium", "activities", "messages", "progression", "settings", "bugReports"] as Tab[]).map((t) => (
+                {(["characters", "boosters", "sets", "types", "resources", "offers", "premium", "activities", "messages", "progression", "settings", "bugReports", "maintenance"] as Tab[]).map((t) => (
                     <button
                         key={t}
                         className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${tab === t ? "bg-accent text-white" : "bg-white/10 text-white/50 hover:bg-white/20"
@@ -1028,14 +1029,14 @@ function Panel() {
                         {{
                             characters: "Personnages", boosters: "Boosters", sets: "Sets",
                             types: "Types", resources: "Ressources", offers: "Offres shop", premium: "Premium", activities: "Activités",
-                            messages: "Messagerie", progression: "Progression", settings: "Réglages", bugReports: "Signalements",
+                            messages: "Messagerie", progression: "Progression", settings: "Réglages", bugReports: "Signalements", maintenance: "Maintenance",
                         }[t]}
                     </button>
                 ))}
             </div>
 
             {/* Le « + Nouveau » ne vaut que pour les onglets de contenu listé. */}
-                {!["messages", "progression", "settings", "bugReports", "premium", "activities"].includes(tab) && (
+                {!["messages", "progression", "settings", "bugReports", "premium", "activities", "maintenance"].includes(tab) && (
                 <div className="px-4 pb-2">
                     <input
                         type="search"
@@ -1049,7 +1050,7 @@ function Panel() {
 
             <main className="flex-1 overflow-y-auto px-4 pb-6 space-y-2">
                 {/* Le « + Nouveau » ne vaut que pour les onglets de contenu listé. */}
-                {!["messages", "progression", "settings", "bugReports", "premium", "activities"].includes(tab) && (
+                {!["messages", "progression", "settings", "bugReports", "premium", "activities", "maintenance"].includes(tab) && (
                     <Button
                         variant="secondary"
                         size="sm"
@@ -1082,6 +1083,7 @@ function Panel() {
                 {tab === "bugReports" && <AdminBugReports />}
                 {tab === "premium" && <AdminPremium />}
                 {tab === "activities" && <AdminActivities />}
+                {tab === "maintenance" && <AdminMaintenance />}
 
                 {tab === "sets" &&
                     (setsQ.isLoading ? <p className="text-white/40 text-sm">…</p> :

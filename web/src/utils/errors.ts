@@ -10,6 +10,10 @@ export function errMsg(e: unknown): string {
     if (e && typeof e === "object" && "response" in e) {
         const detail = (e as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
         if (typeof detail === "string") return detail;
+        // Jeu fermé : { code: "game_closed", message }
+        if (detail && typeof detail === "object" && "message" in detail && typeof (detail as { message: unknown }).message === "string") {
+            return (detail as { message: string }).message;
+        }
         if (Array.isArray(detail) && detail.length > 0) {
             return detail
                 .map((d) => {

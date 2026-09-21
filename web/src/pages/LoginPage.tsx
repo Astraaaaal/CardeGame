@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import Button from "@/components/ui/Button";
 import PasswordInput from "@/components/ui/PasswordInput";
 import { useLogin, useRegister } from "@/hooks/useAuth";
@@ -23,6 +24,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 export default function LoginPage() {
     const [mode, setMode] = useState<Mode>("login");
+    const { data: gameStatus } = useQuery({ queryKey: ["game-status"], queryFn: authApi.status, staleTime: 30_000 });
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [email, setEmail] = useState("");
@@ -111,12 +113,18 @@ export default function LoginPage() {
             >
                 {/* Logo / Titre */}
                 <div className="text-center mb-8">
-                    <h1 className="text-4xl font-extrabold text-white mb-2 inline-flex items-baseline gap-2">
+                    <h1 className="text-4xl font-extrabold text-white mb-2">
                         Carde<span className="text-accent">Game</span>
-                        <span className="text-xs font-bold tracking-wide text-white/40">BÊTA</span>
                     </h1>
                     <p className="text-white/50 text-sm">{subtitle}</p>
                 </div>
+
+                {gameStatus?.closed && (
+                    <div className="bg-accent/10 border border-accent/40 rounded-2xl p-4 mb-4 text-center">
+                        <p className="text-white font-bold mb-1">Merci pour la bêta ! 💙</p>
+                        <p className="text-white/70 text-sm whitespace-pre-line">{gameStatus.message}</p>
+                    </div>
+                )}
 
                 <form
                     onSubmit={handleSubmit}

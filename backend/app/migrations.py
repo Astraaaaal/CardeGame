@@ -130,6 +130,8 @@ _STATEMENTS = [
     # Boutique premium (fermée par défaut) et monnaie non échangeable.
     "ALTER TABLE game_config ADD COLUMN IF NOT EXISTS premium_shop_enabled BOOLEAN NOT NULL DEFAULT FALSE",
     "ALTER TABLE game_config ADD COLUMN IF NOT EXISTS premium_testers VARCHAR NOT NULL DEFAULT ''",
+    "ALTER TABLE game_config ADD COLUMN IF NOT EXISTS game_closed BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE game_config ADD COLUMN IF NOT EXISTS closed_message VARCHAR NOT NULL DEFAULT ''",
     "ALTER TABLE resources ADD COLUMN IF NOT EXISTS tradeable BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE shop_offers ADD COLUMN IF NOT EXISTS cosmetic_id VARCHAR(40)",
     # Cadeaux : boosters à bonus (bonus conservé) et rerolls de l'inventaire.

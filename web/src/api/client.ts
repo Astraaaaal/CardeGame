@@ -18,6 +18,10 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
     }
+    // Clé admin saisie dans le panneau admin (cet onglet) : permet de jouer
+    // même quand le jeu est fermé (cf. backend services/game_status.py).
+    const adminKey = sessionStorage.getItem("admin_key");
+    if (adminKey && config.headers) config.headers["X-Admin-Key"] = adminKey;
     return config;
 });
 
@@ -52,6 +56,17 @@ api.interceptors.response.use(
         // mot de passe, code invalide...) : on la laisse remonter au formulaire
         // au lieu de rediriger (ce qui rechargeait la page et effaçait le message).
         const isAuthRoute = /\/api\/auth\//.test(originalRequest?.url ?? "") || /^\/auth\//.test(originalRequest?.url ?? "");
+
+        // Jeu fermé : on déconnecte et on renvoie vers la page de connexion,
+        // qui affiche le message (sauf sur les routes d'auth, où le formulaire l'affiche).
+        const detail = (error.response?.data as { detail?: { code?: string } } | undefined)?.detail;
+        if (error.response?.status === 503 && detail?.code === "game_closed" && !isAuthRoute) {
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
+            localStorage.removeItem("auth-storage");
+            if (!PUBLIC_PATHS.includes(window.location.pathname)) window.location.href = "/login";
+            return Promise.reject(error);
+        }
 
         if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
             if (isRefreshing) {

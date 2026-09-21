@@ -138,12 +138,11 @@ export default function MainMenu() {
       {/* Content */}
       <main className="flex-1 flex flex-col items-center justify-center gap-6 px-4">
         <motion.h1
-          className="text-3xl font-extrabold text-white text-center inline-flex items-baseline gap-2"
+          className="text-3xl font-extrabold text-white text-center"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
           Carde<span className="text-accent">Game</span>
-          <span className="text-xs font-bold tracking-wide text-white/40">BÊTA</span>
         </motion.h1>
 
         <div className="w-full max-w-sm space-y-3">
