@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { BoosterIcon } from "@/components/ui/ItemIcon";
+import { toast } from "@/stores/toastStore";
 import { useSearchParams, Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { premiumApi } from "@/api/premium";
 import { shopApi } from "@/api/shop";
 import type { ShopOffer } from "@/types/shop";
-import { formatEuros } from "@/types/premium";
+import { formatEuros, type PremiumProduct } from "@/types/premium";
 import { showRewards } from "@/stores/rewardPopupStore";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -14,6 +16,35 @@ import { LIMIT_WHEN_LABEL, LIMIT_PERIOD_LABEL } from "@/utils/purchaseLimits";
 
 export const PREMIUM_RESOURCE_ID = "shards";
 
+type Category = "cosmetic" | "booster" | "bundle" | "card";
+const CATEGORIES: { key: Category; label: string }[] = [
+    { key: "cosmetic", label: "Cosmétiques" },
+    { key: "booster", label: "Boosters" },
+    { key: "bundle", label: "Lots" },
+    { key: "card", label: "Cartes" },
+];
+const categoryOf = (o: ShopOffer): Category =>
+    o.kind === "cosmetic" ? "cosmetic" : o.kind === "booster" ? "booster" : o.kind === "bundle" ? "bundle" : "card";
+
+const isShardPack = (p: PremiumProduct) =>
+    p.grants.length === 1 && p.grants[0].kind === "resource" && p.grants[0].id === PREMIUM_RESOURCE_ID;
+const shardsOf = (p: PremiumProduct) => p.grants.find((g) => g.id === PREMIUM_RESOURCE_ID)?.amount ?? 0;
+
+/** Visuel d'un pack d'éclats : plus de cristaux pour les gros packs. */
+function ShardStack({ level }: { level: number }) {
+    const count = Math.min(6, level + 1);
+    return (
+        <div className="h-12 flex items-end justify-center -space-x-1">
+            {Array.from({ length: count }, (_, i) => (
+                <span key={i} className="text-cyan-300 drop-shadow-[0_0_6px_rgba(103,232,249,0.6)] leading-none"
+                    style={{ fontSize: 18 + ((i * 7) % 4) * 3 + level * 2, transform: `translateY(${(i % 2) * -4}px)` }}>
+                    ✦
+                </span>
+            ))}
+        </div>
+    );
+}
+
 /**
  * Onglet premium : lots en euros (paiement Stripe) et catalogue payé en
  * Éclats (cosmétiques, boosters, cartes). Visible seulement quand la
@@ -22,7 +53,9 @@ export const PREMIUM_RESOURCE_ID = "shards";
 export default function PremiumTab() {
     const qc = useQueryClient();
     const [params, setParams] = useSearchParams();
-    const [feedback, setFeedback] = useState<{ key: string; text: string; ok: boolean } | null>(null);
+    const setFeedback = (f: { key: string; text: string; ok: boolean } | null) => {
+        if (f) (f.ok ? toast.success : toast.error)(f.text);
+    };
     const paymentReturn = params.get("premium");
 
     const { data: status } = useQuery({ queryKey: ["premium-status"], queryFn: premiumApi.status });
@@ -35,6 +68,18 @@ export default function PremiumTab() {
     const { data: offers } = useQuery({ queryKey: ["shop-offers"], queryFn: shopApi.list });
     // Le reroll passe par la sélection de carte de l'onglet Ressources : pas proposé ici.
     const catalog = (offers ?? []).filter((o) => o.resource_id === PREMIUM_RESOURCE_ID && o.kind !== "reroll");
+    const [category, setCategory] = useState<Category>("cosmetic");
+    const available = CATEGORIES.filter((c) => catalog.some((o) => categoryOf(o) === c.key));
+    const activeCategory = available.some((c) => c.key === category) ? category : available[0]?.key;
+    const shownCatalog = catalog.filter((o) => categoryOf(o) === activeCategory);
+
+    // Packs d'éclats seuls (grille) vs lots mêlant plusieurs contenus (cartes larges).
+    const shardPacks = (products ?? []).filter(isShardPack).sort((x, y) => x.price_cents - y.price_cents);
+    const bundles = (products ?? []).filter((p) => !isShardPack(p));
+    const baseRate = shardPacks.length ? shardsOf(shardPacks[0]) / shardPacks[0].price_cents : 0;
+    const bestPackId = shardPacks.length > 1
+        ? shardPacks.reduce((best, p) => (shardsOf(p) / p.price_cents > shardsOf(best) / best.price_cents ? p : best)).id
+        : null;
 
     // Retour de la page de paiement : le crédit arrive par webhook, quelques secondes après.
     useEffect(() => {
@@ -98,73 +143,131 @@ export default function PremiumTab() {
                 </div>
             )}
 
-            <section>
-                <h3 className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-2">Éclats et lots</h3>
+            <section className="space-y-4">
                 {isLoading ? (
                     <LoadingSpinner text="Chargement..." />
                 ) : !products?.length ? (
                     <p className="text-white/30 text-sm">Aucune offre pour l'instant.</p>
                 ) : (
-                    <div className="space-y-3">
-                        {products.map((p) => (
-                            <div key={p.id} className="bg-game-surface rounded-2xl p-4 border border-purple-400/30">
-                                <div className="flex items-center justify-between mb-1">
-                                    <h4 className="text-white font-bold">{p.name}</h4>
-                                    <span className="text-white font-bold">{formatEuros(p.price_cents)}</span>
+                    <>
+                        {shardPacks.length > 0 && (
+                            <div>
+                                <h3 className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-2">Éclats</h3>
+                                {!status.payments_available && (
+                                    <p className="text-white/40 text-[11px] mb-2">Paiement bientôt disponible.</p>
+                                )}
+                                <div className="grid grid-cols-2 gap-3">
+                                    {shardPacks.map((p, i) => {
+                                        const shards = shardsOf(p);
+                                        const bonus = baseRate ? Math.round(((shards / p.price_cents) / baseRate - 1) * 100) : 0;
+                                        const best = p.id === bestPackId;
+                                        return (
+                                            <div key={p.id}
+                                                className={`relative rounded-2xl p-3 pt-4 border flex flex-col items-center text-center gap-1.5 bg-gradient-to-b from-purple-600/15 to-game-surface ${
+                                                    best ? "border-gold/70 shadow-lg shadow-gold/10" : "border-purple-400/30"}`}>
+                                                {best && (
+                                                    <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gold text-game-bg text-[10px] font-extrabold px-2 py-0.5 rounded-full">
+                                                        Meilleure offre
+                                                    </span>
+                                                )}
+                                                {bonus > 0 && (
+                                                    <span className="absolute top-1.5 right-1.5 bg-green-500/90 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full">
+                                                        +{bonus} %
+                                                    </span>
+                                                )}
+                                                <ShardStack level={i} />
+                                                <p className="text-white font-extrabold text-lg tabular-nums leading-none">
+                                                    {shards.toLocaleString("fr-FR")}
+                                                </p>
+                                                <p className="text-white/40 text-[10px] -mt-1">éclats</p>
+                                                <Button
+                                                    variant="gold" size="sm" className="w-full mt-auto"
+                                                    disabled={!status.payments_available || p.already_purchased}
+                                                    loading={checkout.isPending && checkout.variables === p.id}
+                                                    onClick={() => checkout.mutate(p.id)}
+                                                >
+                                                    {formatEuros(p.price_cents)}
+                                                </Button>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                                {p.description && <p className="text-white/40 text-xs mb-2">{p.description}</p>}
-                                <ul className="text-white/70 text-sm space-y-0.5 mb-3">
-                                    {p.grants.map((g, i) => (
-                                        <li key={i}>• {g.kind === "cosmetic" ? g.name : `${g.amount.toLocaleString("fr-FR")} × ${g.name}`}</li>
-                                    ))}
-                                </ul>
-                                {p.limit_period !== "none" && (
-                                    <p className="text-white/40 text-[11px]">
-                                        {p.limit_count} {LIMIT_PERIOD_LABEL[p.limit_period]}
-                                    </p>
-                                )}
-                                {p.once_per_account && p.limit_period === "none" && (
-                                    <p className="text-amber-300/80 text-xs mb-2">
-                                        {p.already_purchased ? "Déjà acheté (une fois par compte)." : "Achetable une seule fois par compte."}
-                                    </p>
-                                )}
-                                <Button
-                                    variant="gold" size="sm" className="w-full"
-                                    disabled={!status.payments_available || p.already_purchased}
-                                    loading={checkout.isPending && checkout.variables === p.id}
-                                    onClick={() => { setFeedback(null); checkout.mutate(p.id); }}
-                                >
-                                    {status.payments_available ? `Acheter — ${formatEuros(p.price_cents)}` : "Paiement bientôt disponible"}
-                                </Button>
-                                {feedback?.key === p.id && (
-                                    <p className={`text-xs mt-2 ${feedback.ok ? "text-green-400" : "text-red-400"}`}>{feedback.text}</p>
-                                )}
                             </div>
-                        ))}
+                        )}
+
+                        {bundles.length > 0 && (
+                            <div>
+                                <h3 className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-2">Lots</h3>
+                                <div className="space-y-3">
+                                    {bundles.map((p) => (
+                                        <div key={p.id} className="bg-gradient-to-r from-purple-600/20 to-cyan-500/10 rounded-2xl p-4 border border-purple-400/40">
+                                            <div className="flex items-center justify-between mb-1">
+                                                <h4 className="text-white font-bold">{p.name}</h4>
+                                                {p.once_per_account && (
+                                                    <span className="text-[10px] font-bold text-amber-300 border border-amber-300/40 rounded-full px-2 py-0.5">
+                                                        1 par compte
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {p.description && <p className="text-white/50 text-xs mb-2">{p.description}</p>}
+                                            <div className="flex flex-wrap gap-1.5 mb-3">
+                                                {p.grants.map((g, i) => (
+                                                    <span key={i} className="text-xs text-white bg-black/30 rounded-lg px-2 py-1">
+                                                        {g.kind === "cosmetic" ? g.name : `${g.amount.toLocaleString("fr-FR")} ${g.name}`}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            {p.limit_period !== "none" && (
+                                                <p className="text-white/40 text-[11px] mb-2">{p.limit_count} {LIMIT_PERIOD_LABEL[p.limit_period]}</p>
+                                            )}
+                                            <Button
+                                                variant="gold" size="sm" className="w-full"
+                                                disabled={!status.payments_available || p.already_purchased}
+                                                loading={checkout.isPending && checkout.variables === p.id}
+                                                onClick={() => checkout.mutate(p.id)}
+                                            >
+                                                {p.already_purchased ? "Déjà acheté"
+                                                    : status.payments_available ? `Acheter — ${formatEuros(p.price_cents)}` : "Paiement bientôt disponible"}
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         <p className="text-white/30 text-[11px] leading-snug">
-                            Contenu numérique livré immédiatement après le paiement : en validant ton achat, tu
-                            demandes son exécution immédiate et renonces à ton droit de rétractation.
+                            Contenu numérique livré immédiatement : en validant ton achat, tu renonces à ton droit de rétractation.
                             Voir les <Link to="/legal" className="underline">conditions de vente</Link>.
                         </p>
-                    </div>
+                    </>
                 )}
             </section>
 
             <section>
-                <h3 className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-2">Catalogue en éclats</h3>
-                {catalog.length === 0 ? (
+                <h3 className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-2">Dépenser mes éclats</h3>
+                {catalog.length > 0 && (
+                    <div className="flex gap-1.5 mb-3">
+                        {CATEGORIES.filter((c) => catalog.some((o) => categoryOf(o) === c.key)).map((c) => (
+                            <button key={c.key}
+                                className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${category === c.key ? "bg-accent text-white" : "bg-white/10 text-white/60"}`}
+                                onClick={() => setCategory(c.key)}>
+                                {c.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                {shownCatalog.length === 0 ? (
                     <p className="text-white/30 text-sm">Aucun article pour l'instant.</p>
                 ) : (
                     <div className="grid grid-cols-2 gap-3">
-                        {catalog.map((o) => {
+                        {shownCatalog.map((o) => {
                             const cosmetic = cosmetics?.find((c) => c.id === o.cosmetic_id);
                             const cantAfford = status.shards < o.price;
                             const limited = o.limit_period !== "none";
                             const limitReached = limited && o.purchases_in_period >= o.limit_count;
                             return (
                                 <div key={o.id} className="bg-game-surface rounded-2xl p-3 border border-white/10 flex flex-col gap-2">
-                                    <div className="h-16 flex items-center justify-center">
-                                        {cosmetic ? <CosmeticPreview cosmetic={cosmetic} size={52} /> : <span className="text-3xl">🎴</span>}
+                                    <div className="h-24 rounded-xl bg-black/20 flex items-center justify-center">
+                                        {cosmetic ? <CosmeticPreview cosmetic={cosmetic} size={72} /> : <BoosterIcon className="w-12 h-12 text-white/70" />}
                                     </div>
                                     <div className="min-h-[2.5rem]">
                                         <p className="text-white text-sm font-semibold leading-tight">{o.name}</p>
@@ -188,9 +291,6 @@ export default function PremiumTab() {
                                     >
                                         {limitReached ? "Limite atteinte" : `✦ ${o.price.toLocaleString("fr-FR")}`}
                                     </Button>
-                                    {feedback?.key === o.id && (
-                                        <p className={`text-[11px] ${feedback.ok ? "text-green-400" : "text-red-400"}`}>{feedback.text}</p>
-                                    )}
                                 </div>
                             );
                         })}
