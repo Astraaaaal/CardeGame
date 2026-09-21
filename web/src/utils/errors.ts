@@ -24,5 +24,12 @@ export function errMsg(e: unknown): string {
                 .join(" — ");
         }
     }
-    return "Erreur.";
+    // Pas de réponse du serveur (réseau coupé, serveur qui redémarre…).
+    if (e && typeof e === "object" && "request" in e && !(e as { response?: unknown }).response) {
+        return "Impossible de joindre le serveur : vérifie ta connexion et réessaie.";
+    }
+    const status = (e as { response?: { status?: number } })?.response?.status;
+    if (status && status >= 500) return "Le serveur a rencontré un problème. Réessaie dans un instant.";
+    if (status === 429) return "Doucement ! Trop d'actions d'un coup, réessaie dans quelques secondes.";
+    return "Une erreur inattendue est survenue.";
 }

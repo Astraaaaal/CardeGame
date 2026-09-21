@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { BoosterIcon, RerollIcon } from "@/components/ui/ItemIcon";
 import { motion, AnimatePresence } from "framer-motion";
 import { shopApi } from "@/api/shop";
 import { boostersApi } from "@/api/boosters";
@@ -76,7 +77,7 @@ function RewardRow({ item, resourceName, boosterName }: {
     if (item.kind === "reroll_token") {
         return (
             <div className="flex items-center gap-3 bg-accent/10 border border-accent/30 rounded-xl px-4 py-3">
-                <span className="text-xl">🎲</span>
+                <RerollIcon className="w-6 h-6 text-white/80" />
                 <span className="text-white font-bold text-lg">×{item.quantity}</span>
                 <span className="text-white/70 text-sm">{item.name}</span>
             </div>
@@ -84,7 +85,7 @@ function RewardRow({ item, resourceName, boosterName }: {
     }
     return (
         <div className="flex items-center gap-3 bg-gold/10 border border-gold/30 rounded-xl px-4 py-3">
-            <span className="text-xl">🎴</span>
+            <BoosterIcon className="w-6 h-6 text-white/80" />
             <span className="text-white font-bold text-lg">×{item.quantity}</span>
             <span className="text-white/70 text-sm">{item.name ?? boosterName(item.boosterId)}</span>
         </div>

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { BoosterIcon, RerollIcon } from "@/components/ui/ItemIcon";
+import { toast } from "@/stores/toastStore";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { messagesApi } from "@/api/messages";
 import type { AppMessage } from "@/types/message";
@@ -16,7 +18,7 @@ function fmt(iso: string): string {
 function MessageRow({ message }: { message: AppMessage }) {
     const qc = useQueryClient();
     const [open, setOpen] = useState(false);
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
 
     const markRead = useMutation({
         mutationFn: () => messagesApi.markRead(message.id),
@@ -117,7 +119,7 @@ function MessageRow({ message }: { message: AppMessage }) {
                     )}
                     {message.reward_reroll_label && message.reward_reroll_qty != null && (
                         <div className="flex items-center gap-2 bg-black/20 rounded-lg p-3">
-                            <span className="text-lg">🎲</span>
+                            <RerollIcon className="w-5 h-5 text-white/80" />
                             <span className="text-white text-sm">
                                 {message.reward_reroll_label} ×{message.reward_reroll_qty}
                             </span>
@@ -131,7 +133,7 @@ function MessageRow({ message }: { message: AppMessage }) {
                             ) : r.kind === "resource" && r.resource_id ? (
                                 <ResourceIcon resourceId={r.resource_id} className="w-5 h-5" />
                             ) : (
-                                <span className="text-lg">{r.kind === "booster" ? "🎴" : "🎲"}</span>
+                                r.kind === "booster" ? <BoosterIcon className="w-5 h-5 text-white/80" /> : <RerollIcon className="w-5 h-5 text-white/80" />
                             )}
                             <span className="text-white text-sm">
                                 {r.kind === "resource" ? `${r.quantity.toLocaleString("fr-FR")} ${r.name}`
@@ -146,12 +148,11 @@ function MessageRow({ message }: { message: AppMessage }) {
                     {message.claim_error && (
                         <p className="text-red-400 text-xs">{message.claim_error}</p>
                     )}
-                    {err && <p className="text-red-400 text-xs">{err}</p>}
 
                     <div className="flex items-center gap-2">
                         {unclaimedReward && (
                             <Button variant="gold" size="sm" className="flex-1" loading={claim.isPending} success={claim.isSuccess} onClick={() => claim.mutate()}>
-                                Récupérer
+                                {message.tax > 0 ? `Récupérer (taxe ${message.tax.toLocaleString("fr-FR")} pièces)` : "Récupérer"}
                             </Button>
                         )}
                         {message.claimed_at && message.has_reward && (

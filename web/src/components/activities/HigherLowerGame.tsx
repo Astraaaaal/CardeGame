@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "@/stores/toastStore";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { activitiesApi, type HigherLowerGameState } from "@/api/activities";
 import { useAuthStore } from "@/stores/authStore";
@@ -19,7 +20,7 @@ export default function HigherLowerGame() {
     const [resourceId, setResourceId] = useState("coins");
     const [stake, setStake] = useState(100);
     const [last, setLast] = useState<HigherLowerGameState | null>(null);
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
 
     const refresh = (game: HigherLowerGameState | null) => {
         qc.setQueryData(HL_KEY, (old: typeof data) => (old ? { ...old, game: game?.status === "active" ? game : null } : old));
@@ -80,12 +81,9 @@ export default function HigherLowerGame() {
                     <span className="text-white/40 text-xs shrink-0">solde {balance.toLocaleString("fr-FR")}</span>
                 </div>
                 <p className="text-white/40 text-[11px]">
-                    Mise de {data.min_stake} à {data.max_stake.toLocaleString("fr-FR")}. Chaque bonne réponse multiplie le gain
-                    selon sa difficulté (pari facile = petit gain, pari risqué = gros gain). Égalité : rien ne change mais la
-                    manche compte. Encaissement possible à partir de {data.min_cashout_step} manches, {data.max_steps} au plus ;
-                    une erreur fait tout perdre.
+                    Mise {data.min_stake} à {data.max_stake.toLocaleString("fr-FR")}. Pari risqué = gros gain. Encaisse dès la
+                    manche {data.min_cashout_step} ; une erreur fait tout perdre.
                 </p>
-                {err && <p className="text-red-400 text-xs">{err}</p>}
                 <Button
                     variant="primary" className="w-full" loading={start.isPending} success={start.isSuccess}
                     disabled={stake < data.min_stake || stake > data.max_stake || stake > balance}
@@ -118,7 +116,6 @@ export default function HigherLowerGame() {
                     {" "}La carte précédente avait ⚡ {last.previous_card?.power?.toLocaleString("fr-FR")}.
                 </p>
             )}
-            {err && <p className="text-red-400 text-xs text-center">{err}</p>}
             <div className="grid grid-cols-2 gap-2">
                 {(["higher", "lower"] as const).map((g) => {
                     const m = game.odds[g];

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useToastMessage } from "@/hooks/useToastMessage";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
 import { useAuthStore } from "@/stores/authStore";
@@ -13,7 +14,7 @@ export default function EmailSettings() {
     const [editing, setEditing] = useState(!user?.email);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [, setMsg] = useToastMessage();
 
     const refresh = (player: Parameters<typeof setUser>[0]) => {
         setUser(player);
@@ -119,7 +120,6 @@ export default function EmailSettings() {
                 />
             </div>
 
-            {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
         </div>
     );
 }

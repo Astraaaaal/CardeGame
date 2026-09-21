@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useToastMessage } from "@/hooks/useToastMessage";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
@@ -17,12 +18,12 @@ export default function AccountEditor() {
     const qc = useQueryClient();
 
     const [displayName, setDisplayName] = useState(user?.display_name ?? "");
-    const [nameMsg, setNameMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [, setNameMsg] = useToastMessage();
 
     const [currentPwd, setCurrentPwd] = useState("");
     const [newPwd, setNewPwd] = useState("");
     const [confirmPwd, setConfirmPwd] = useState("");
-    const [pwdMsg, setPwdMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [, setPwdMsg] = useToastMessage();
 
     const updateName = useMutation({
         mutationFn: () => playerApi.updateProfile(displayName.trim()),
@@ -81,11 +82,6 @@ export default function AccountEditor() {
                         Enregistrer
                     </Button>
                 </div>
-                {nameMsg && (
-                    <p className={`text-xs mt-2 ${nameMsg.ok ? "text-green-400" : "text-red-400"}`}>
-                        {nameMsg.text}
-                    </p>
-                )}
             </div>
 
             <div className="bg-game-surface rounded-2xl border border-white/10 p-4">
@@ -120,11 +116,6 @@ export default function AccountEditor() {
                         Changer le mot de passe
                     </Button>
                 </div>
-                {pwdMsg && (
-                    <p className={`text-xs mt-2 ${pwdMsg.ok ? "text-green-400" : "text-red-400"}`}>
-                        {pwdMsg.text}
-                    </p>
-                )}
                 <p className="text-white/30 text-xs mt-3">
                     Changer le mot de passe te déconnecte de toutes tes sessions — tu devras te reconnecter.
                 </p>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "@/stores/toastStore";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FAVORITE_COLORS, favoritesApi, type FavoriteCategory } from "@/api/favorites";
 import Modal from "@/components/ui/Modal";
@@ -28,7 +29,7 @@ export default function FavoritesManager({ open, onClose }: { open: boolean; onC
     const [name, setName] = useState("");
     const [color, setColor] = useState(FAVORITE_COLORS[0]);
     const [editing, setEditing] = useState<FavoriteCategory | null>(null);
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
 
     const onSuccess = (list: FavoriteCategory[]) => {
         qc.setQueryData(FAVORITES_KEY, list);
@@ -51,8 +52,7 @@ export default function FavoritesManager({ open, onClose }: { open: boolean; onC
         <Modal open={open} onClose={onClose} title="Mes favoris">
             <div className="space-y-4">
                 <p className="text-white/40 text-xs">
-                    Range tes exemplaires dans des catégories (jusqu'à {MAX}) depuis le détail d'une carte, puis filtre ta
-                    collection par catégorie. Un exemplaire peut être dans plusieurs catégories.
+                    Jusqu'à {MAX} catégories. Range tes cartes depuis leur détail, puis filtre ta collection.
                 </p>
                 {(cats ?? []).map((c) => (
                     editing?.id === c.id ? (
@@ -87,7 +87,6 @@ export default function FavoritesManager({ open, onClose }: { open: boolean; onC
                         <ColorPicker value={color} onChange={setColor} />
                     </div>
                 )}
-                {err && <p className="text-red-400 text-xs">{err}</p>}
             </div>
         </Modal>
     );

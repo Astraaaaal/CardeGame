@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { BoosterIcon, RerollIcon } from "@/components/ui/ItemIcon";
+import { toast } from "@/stores/toastStore";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { messagesApi } from "@/api/messages";
@@ -45,7 +47,7 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
     const [pickedCard, setPickedCard] = useState<{ id: string; preview: Card } | null>(initialState?.pickedCard ?? null);
     const [pickedItem, setPickedItem] = useState<InventoryItem | null>(null);
     const [itemPickerOpen, setItemPickerOpen] = useState(false);
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
 
     const send = useMutation({
         mutationFn: () => {
@@ -72,6 +74,7 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
             qc.invalidateQueries({ queryKey: ["reroll-tokens"] });
             onSent?.();
             onClose();
+            toast.success(`Cadeau envoyé à ${username.trim()} !`);
         },
         onError: (e) => setErr(errMsg(e)),
     });
@@ -85,6 +88,7 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
             excludeIds: [],
             returnTo,
             context: { purpose: "gift", origin, username, subject, body },
+            restoreOnCancel: true,
         });
         onClose();
         navigate("/collection");
@@ -142,7 +146,7 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
                             {pickedItem.kind === "resource" ? (
                                 <ResourceIcon resourceId={pickedItem.resourceId} className="w-6 h-6" />
                             ) : (
-                                <span className="text-xl">{pickedItem.kind === "booster" ? "🎴" : "🎲"}</span>
+                                pickedItem.kind === "booster" ? <BoosterIcon className="w-6 h-6 text-white/80" /> : <RerollIcon className="w-6 h-6 text-white/80" />
                             )}
                             <span className="flex-1 text-white text-sm font-bold">
                                 {pickedItem.kind === "resource"
@@ -164,7 +168,6 @@ export default function SendGiftModal({ presetUsername, returnTo, origin, initia
                         </div>
                     )}
 
-                    {err && <p className="text-red-400 text-xs">{err}</p>}
 
                     <Button variant="gold" className="w-full" disabled={!canSend} loading={send.isPending} success={send.isSuccess} onClick={() => send.mutate()}>
                         Envoyer le cadeau

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import LevelWatcher from "@/components/player/LevelWatcher";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
@@ -22,6 +23,7 @@ import Activities from "@/pages/Activities";
 import Guild from "@/pages/Guild";
 import TradeWatcher from "@/components/trade/TradeWatcher";
 import RewardPopup from "@/components/player/RewardPopup";
+import Toaster from "@/components/ui/Toaster";
 import { usePresencePing } from "@/hooks/usePresence";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -45,12 +47,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     // Signal de présence (bonus de chance, coffre d'absence) tant que l'appli est affichée.
     usePresencePing();
     return (
         <div className="max-w-mobile mx-auto min-h-screen">
             <TradeWatcher />
             <RewardPopup />
+            <Toaster />
+            {isAuthenticated && <LevelWatcher />}
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/admin" element={<AdminPanel />} />

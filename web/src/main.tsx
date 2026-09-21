@@ -1,7 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { toast } from "@/stores/toastStore";
+import { errMsg } from "@/utils/errors";
 import App from "./App";
 import "./styles/globals.css";
 import "./styles/card.css";
@@ -13,6 +15,14 @@ if ("caches" in window) {
 }
 
 const queryClient = new QueryClient({
+    // Filet global : toute action qui échoue affiche son erreur dans le bandeau
+    // (sauf l'admin et les formulaires de connexion, qui gardent leurs messages).
+    mutationCache: new MutationCache({
+        onError: (error, _vars, _ctx, mutation) => {
+            if (mutation.meta?.silentError || window.location.pathname.startsWith("/admin")) return;
+            toast.error(errMsg(error));
+        },
+    }),
     defaultOptions: {
         queries: {
             retry: 1,

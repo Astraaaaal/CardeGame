@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toast } from "@/stores/toastStore";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,9 +31,9 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
         useCardSelectionStore.getState().result?.context?.origin === "inbox" ? "messages" : "friends"
     );
     const [username, setUsername] = useState("");
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
     const [tradeUsername, setTradeUsername] = useState("");
-    const [tradeErr, setTradeErr] = useState("");
+    const setTradeErr = (m: string | null) => { if (m) toast.error(m); };
     const [toRemove, setToRemove] = useState<{ id: number; name: string } | null>(null);
 
     const [giftOpen, setGiftOpen] = useState(false);
@@ -105,7 +106,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
 
     const sendReq = useMutation({
         mutationFn: () => friendsApi.send(username.trim()),
-        onSuccess: () => { setUsername(""); setErr(""); refreshAll(); },
+        onSuccess: () => { toast.success(`Demande d'ami envoyée à ${username.trim()}.`); setUsername(""); setErr(""); refreshAll(); },
         onError: (e) => setErr(errMsg(e)),
     });
     const acceptReq = useMutation({
@@ -122,12 +123,13 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
     });
     const proposeTrade = useMutation({
         mutationFn: (userId: number) => friendsApi.proposeTrade(userId),
-        onSuccess: () => { setErr(""); refreshTrades(); },
+        onSuccess: () => { toast.success("Proposition d'échange envoyée."); setErr(""); refreshTrades(); },
         onError: (e) => setErr(errMsg(e)),
     });
     const sendTradeReq = useMutation({
         mutationFn: () => friendsApi.sendTrade(tradeUsername.trim()),
         onSuccess: () => {
+            toast.success(`Proposition d'échange envoyée à ${tradeUsername.trim()}.`);
             setTradeUsername(""); setTradeErr("");
             refreshTrades();
         },
@@ -145,6 +147,10 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
             navigate(`/trade/${session.id}`);
         },
         onError: (e) => setTradeErr(errMsg(e)),
+    });
+    const moveGroup = useMutation({
+        mutationFn: ({ id, direction }: { id: number; direction: -1 | 1 }) => friendsApi.moveGroup(id, direction),
+        onSuccess: (list) => qc.setQueryData(["friend-groups"], list),
     });
     const toggleCloseFriend = useMutation({
         mutationFn: ({ userId, isClose }: { userId: number; isClose: boolean }) =>
@@ -349,7 +355,6 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                                 Ajouter
                                             </Button>
                                         </div>
-                                        {err && <p className="text-red-400 text-xs">{err}</p>}
 
                                         {friendsQ.isLoading ? (
                                             <p className="text-white/40 text-sm">Chargement...</p>
@@ -420,7 +425,7 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                                     ) : closeFriends.map(renderFriendRow)}
                                                 </CollapsibleSection>
 
-                                                {groups.map((g) => {
+                                                {groups.map((g, gi) => {
                                                     const members = friendsInGroup(g.id);
                                                     return (
                                                         <CollapsibleSection
@@ -429,6 +434,22 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                                             badge={members.length}
                                                             actions={
                                                                 <>
+                                                                    <button
+                                                                        className="text-white/30 hover:text-white text-xs disabled:opacity-20"
+                                                                        title="Monter"
+                                                                        disabled={gi === 0 || moveGroup.isPending}
+                                                                        onClick={() => moveGroup.mutate({ id: g.id, direction: -1 })}
+                                                                    >
+                                                                        ↑
+                                                                    </button>
+                                                                    <button
+                                                                        className="text-white/30 hover:text-white text-xs disabled:opacity-20"
+                                                                        title="Descendre"
+                                                                        disabled={gi === groups.length - 1 || moveGroup.isPending}
+                                                                        onClick={() => moveGroup.mutate({ id: g.id, direction: 1 })}
+                                                                    >
+                                                                        ↓
+                                                                    </button>
                                                                     <button
                                                                         className="text-white/30 hover:text-white text-xs"
                                                                         title="Renommer"
@@ -520,7 +541,6 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                                                 Envoyer
                                             </Button>
                                         </div>
-                                        {tradeErr && <p className="text-red-400 text-xs">{tradeErr}</p>}
                                         <div>
                                             <p className="text-white/40 text-xs font-semibold mb-2 mt-2 uppercase tracking-wide">
                                                 Reçues

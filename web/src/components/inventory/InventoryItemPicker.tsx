@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BoosterIcon, RerollIcon } from "@/components/ui/ItemIcon";
 import { useQuery } from "@tanstack/react-query";
 import { boostersApi } from "@/api/boosters";
 import { useAuthStore } from "@/stores/authStore";
@@ -51,12 +52,12 @@ export default function InventoryItemPicker({ title = "Choisis quoi offrir", con
     }));
     const boosterOptions: Option[] = (boosters ?? []).filter((b) => b.quantity > 0).map((b) => ({
         key: `b-${b.booster_id}-${b.bonus_id ?? "base"}`, label: b.booster_name, sublabel: b.bonus_label, available: b.quantity,
-        icon: <span>🎴</span>,
+        icon: <BoosterIcon />,
         toItem: (n) => ({ kind: "booster", boosterId: b.booster_id, bonusId: b.bonus_id, name: b.bonus_label ?? b.booster_name, amount: n }),
     }));
     const rerollOptions: Option[] = (tokens ?? []).filter((t) => t.quantity > 0).map((t) => ({
         key: `t-${t.id}`, label: t.label, available: t.quantity,
-        icon: <span>🎲</span>,
+        icon: <RerollIcon />,
         toItem: (n) => ({ kind: "reroll", tokenId: t.id, name: t.label, amount: n }),
     }));
 

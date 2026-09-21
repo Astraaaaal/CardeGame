@@ -37,7 +37,6 @@ export default function VerifyEmail() {
                 <LoadingSpinner text="Confirmation en cours..." />
             ) : (
                 <div className="bg-game-surface rounded-2xl p-6 border border-white/10 max-w-sm w-full space-y-4">
-                    <p className="text-4xl">{state.ok ? "✅" : "⚠️"}</p>
                     <p className={state.ok ? "text-green-400" : "text-red-400"}>{state.text}</p>
                     <Link to={isAuthenticated ? "/" : "/login"} className="inline-block text-accent font-semibold">
                         {isAuthenticated ? "Retour au jeu" : "Se connecter"}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useToastMessage } from "@/hooks/useToastMessage";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
@@ -20,7 +21,7 @@ export default function SettingsEditor() {
     const qc = useQueryClient();
     const navigate = useNavigate();
     const logout = useLogout();
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [, setMsg] = useToastMessage();
     const [deleteOpen, setDeleteOpen] = useState(false);
 
     const { data, isLoading } = useQuery({ queryKey: ["player-settings"], queryFn: playerApi.getSettings });
@@ -102,9 +103,6 @@ export default function SettingsEditor() {
                 </div>
             </div>
 
-            {msg && (
-                <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>
-            )}
 
             <div className="bg-game-surface rounded-2xl border border-white/10 p-4">
                 <Button variant="secondary" size="sm" className="w-full" onClick={() => { logout(); navigate("/login"); }}>

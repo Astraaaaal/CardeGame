@@ -9,6 +9,7 @@ export function useLogin() {
     const queryClient = useQueryClient();
 
     return useMutation({
+        meta: { silentError: true },  // la page de connexion affiche ses propres erreurs
         mutationFn: async (data: LoginRequest) => {
             const tokens = await authApi.login(data);
             setTokens(tokens.access_token, tokens.refresh_token);
@@ -24,6 +25,7 @@ export function useLogin() {
 
 export function useRegister() {
     return useMutation({
+        meta: { silentError: true },
         mutationFn: (data: RegisterRequest) => authApi.register(data),
     });
 }

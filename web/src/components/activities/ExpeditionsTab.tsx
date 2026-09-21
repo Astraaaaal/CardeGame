@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "@/stores/toastStore";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { activitiesApi, type ExpeditionOut } from "@/api/activities";
@@ -75,7 +76,7 @@ export default function ExpeditionsTab() {
     const consumeResultIfPurpose = useCardSelectionStore((s) => s.consumeResultIfPurpose);
     const { data, isLoading } = useQuery({ queryKey: EXPEDITIONS_KEY, queryFn: activitiesApi.expeditions });
     const [durations, setDurations] = useState<Record<number, number>>({});
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
     const handled = useRef(false);
 
     const start = useMutation({
@@ -136,7 +137,6 @@ export default function ExpeditionsTab() {
                 Envoie jusqu'à {data.max_cards} cartes en mission : plus elles sont puissantes et plus la mission est
                 longue, plus le butin est gros. Les cartes parties ne peuvent être ni échangées, ni recyclées, ni offertes.
             </p>
-            {err && <p className="text-red-400 text-xs">{err}</p>}
             {data.slots.map(({ slot, expedition }) => (
                 <div key={slot} className="bg-game-surface rounded-2xl border border-white/10 p-4">
                     <p className="text-white/40 text-[11px] font-semibold uppercase tracking-wide mb-2">Expédition {slot + 1}</p>

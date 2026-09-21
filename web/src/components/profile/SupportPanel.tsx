@@ -50,7 +50,6 @@ export default function SupportPanel() {
                         onChange={(e) => { setBody(e.target.value); setSent(false); }}
                     />
                 </div>
-                {err && <p className="text-red-400 text-xs mt-2">{err}</p>}
                 {sent && !err && <p className="text-green-400 text-xs mt-2">Signalement envoyé, merci !</p>}
                 <Button
                     variant="primary" className="w-full mt-3"

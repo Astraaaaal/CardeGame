@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "@/stores/toastStore";
 import { motion } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { activitiesApi, type WheelSpin } from "@/api/activities";
@@ -15,7 +16,7 @@ export default function FortuneWheel() {
     const { data } = useQuery({ queryKey: WHEEL_KEY, queryFn: activitiesApi.wheel });
     const [rotation, setRotation] = useState(0);
     const [spinning, setSpinning] = useState(false);
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
 
     const spin = useMutation({
         mutationFn: activitiesApi.spinWheel,
@@ -77,7 +78,6 @@ export default function FortuneWheel() {
                 </motion.div>
             </div>
 
-            {err && <p className="text-red-400 text-xs text-center">{err}</p>}
             <Button
                 variant="gold" className="w-full" disabled={!canSpin || spinning} loading={spin.isPending} success={spin.isSuccess}
                 onClick={() => spin.mutate()}

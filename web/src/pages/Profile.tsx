@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useToastMessage } from "@/hooks/useToastMessage";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
@@ -209,7 +210,7 @@ export default function Profile() {
     const listingsRef = useRef<EditorSaveHandle>(null);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
-    const [saveMsg, setSaveMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [, setSaveMsg] = useToastMessage();
 
     const saveShowcase = async () => {
         setSaving(true);
@@ -270,9 +271,6 @@ export default function Profile() {
             {tab === "showcase" && (
                 <FloatingActionBar betweenNav>
                     <div className="relative">
-                        {saveMsg && (
-                            <p className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs px-2 py-1 rounded-lg bg-game-panel border border-white/10 ${saveMsg.ok ? "text-green-400" : "text-red-400"}`}>{saveMsg.text}</p>
-                        )}
                         <div className="flex items-center gap-2">
                             <Button variant="primary" size="sm" className="shadow-lg shadow-black/40" loading={saving} success={saved} onClick={saveShowcase}>
                                 Enregistrer

@@ -121,7 +121,7 @@ export default function LoginPage() {
 
                 {gameStatus?.closed && (
                     <div className="bg-accent/10 border border-accent/40 rounded-2xl p-4 mb-4 text-center">
-                        <p className="text-white font-bold mb-1">Merci pour la bêta ! 💙</p>
+                        <p className="text-white font-bold mb-1">Merci pour la bêta !</p>
                         <p className="text-white/70 text-sm whitespace-pre-line">{gameStatus.message}</p>
                     </div>
                 )}

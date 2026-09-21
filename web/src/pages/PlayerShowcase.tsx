@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { toast } from "@/stores/toastStore";
+import { useToastMessage } from "@/hooks/useToastMessage";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { showcaseApi } from "@/api/showcase";
@@ -21,9 +23,9 @@ export default function PlayerShowcase() {
     const qc = useQueryClient();
     const id = Number(userId);
     const isSelf = user?.id === id;
-    const [msg, setMsg] = useState<{ slot: number; text: string; ok: boolean } | null>(null);
+    const setMsg = (m: { slot: number; text: string; ok: boolean }) => (m.ok ? toast.success : toast.error)(m.text);
     const [detailCard, setDetailCard] = useState<Card | null>(null);
-    const [friendMsg, setFriendMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [, setFriendMsg] = useToastMessage();
 
     const { data, isLoading } = useQuery({
         queryKey: ["showcase", id],
@@ -39,7 +41,7 @@ export default function PlayerShowcase() {
             qc.setQueryData(["showcase", id], updated);
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["collection"] });
-            setMsg({ slot, text: "Achat réussi !", ok: true });
+            
         },
         onError: (e, slot) => setMsg({ slot, text: errMsg(e), ok: false }),
     });
@@ -127,11 +129,6 @@ export default function PlayerShowcase() {
                                     >
                                         + Ajouter en ami
                                     </Button>
-                                    {friendMsg && (
-                                        <p className={`text-xs ${friendMsg.ok ? "text-green-400" : "text-red-400"}`}>
-                                            {friendMsg.text}
-                                        </p>
-                                    )}
                                 </>
                             )}
                             {!isSelf && data.friendship_status === "pending" && (
@@ -149,7 +146,6 @@ export default function PlayerShowcase() {
                                 <div className="space-y-2">
                                     {data.achievements.map((a) => (
                                         <div key={a.id} className="flex items-center gap-3 bg-gold/10 border border-gold/30 rounded-xl px-3 py-2.5">
-                                            <span className="text-xl">🏆</span>
                                             <div className="min-w-0">
                                                 <p className="text-white text-sm font-semibold truncate">{a.name}</p>
                                                 <p className="text-white/40 text-xs">{a.description}</p>
@@ -193,6 +189,9 @@ export default function PlayerShowcase() {
                                             <p className="text-center text-xs font-semibold text-gold">
                                                 {listing.price} {listing.resource_name}
                                             </p>
+                                            {!isSelf && listing.mode === "buy_now" && listing.tax > 0 && (
+                                                <p className="text-center text-[10px] text-white/40">+ {listing.tax} pièces de taxe</p>
+                                            )}
                                             {!isSelf && (
                                                 <Button
                                                     variant={listing.mode === "buy_now" ? "gold" : "secondary"}
@@ -210,11 +209,6 @@ export default function PlayerShowcase() {
                                                 >
                                                     {listing.mode === "buy_now" ? "Acheter" : "Proposer un échange"}
                                                 </Button>
-                                            )}
-                                            {msg?.slot === listing.slot && (
-                                                <p className={`text-[10px] text-center ${msg.ok ? "text-green-400" : "text-red-400"}`}>
-                                                    {msg.text}
-                                                </p>
                                             )}
                                         </div>
                                     ))}

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { RerollIcon } from "@/components/ui/ItemIcon";
+import { toast } from "@/stores/toastStore";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { boostersApi } from "@/api/boosters";
@@ -52,7 +54,7 @@ export default function Inventory() {
     const { data: boosters, isLoading } = useQuery({ queryKey: ["booster-inventory"], queryFn: boostersApi.getInventory });
     const { data: cosmetics } = useQuery({ queryKey: ["my-cosmetics"], queryFn: premiumApi.myCosmetics });
     const { data: rerollTokens } = useRerollTokens();
-    const [rerollError, setRerollError] = useState("");
+    const setRerollError = (m: string | null) => { if (m) toast.error(m); };
     const rerollToken = useRerollTokenUse("/inventory", setRerollError);
     const equippedIds = [cosmetics?.equipped_avatar_frame_id, cosmetics?.equipped_showcase_background_id];
 
@@ -138,10 +140,9 @@ export default function Inventory() {
                 {tab === "rerolls" && (
                     <Section title="Rerolls">
                         {!rerollTokens?.length && <p className="text-white/30 text-sm">Aucun reroll en stock.</p>}
-                        {rerollError && <p className="text-red-400 text-xs">{rerollError}</p>}
                         {sortItems(rerollTokens ?? [], sort, { qty: (t) => t.quantity, name: (t) => t.label }).map((t) => (
                             <div key={t.id} className="flex items-center gap-3 bg-accent/10 border border-accent/30 rounded-xl px-4 py-3">
-                                <span className="text-xl">🎲</span>
+                                <RerollIcon className="w-6 h-6 text-white/80" />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-white text-sm font-semibold truncate">{t.label}</p>
                                     <p className="text-white/50 text-xs truncate">

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { toast } from "@/stores/toastStore";
+import { useToastMessage } from "@/hooks/useToastMessage";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { guildsApi, type GuildDetail, type GuildRole, type JoinPolicy } from "@/api/guilds";
@@ -31,7 +33,7 @@ function remaining(expires: string) {
 /** Hook commun : met à jour le cache de la guilde avec la réponse du serveur. */
 function useGuildActions() {
     const qc = useQueryClient();
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [msg, setMsg] = useToastMessage();
     const setDetail = (guild: GuildDetail) =>
         qc.setQueryData(MY_GUILD_KEY, (old: object | undefined) => (old ? { ...old, guild } : old));
     const refresh = () => {
@@ -104,7 +106,7 @@ export default function GuildView({ guild }: { guild: GuildDetail }) {
 }
 
 function ChallengeTab({ guild }: { guild: GuildDetail }) {
-    const { msg, setMsg, refresh, onError } = useGuildActions();
+    const { setMsg, refresh, onError } = useGuildActions();
     const claim = useMutation({
         mutationFn: (metric: string) => guildsApi.claimObjective(metric),
         onSuccess: (r) => { setMsg({ text: `+${fmt(r.coins)} pièces et +${fmt(r.dust)} poussière !`, ok: true }); refresh(); },
@@ -115,11 +117,9 @@ function ChallengeTab({ guild }: { guild: GuildDetail }) {
     return (
         <div className="space-y-3">
             <p className="text-white/50 text-xs">
-                Palier {guild.challenge_tier} · {done}/{guild.objectives.length} objectifs · record : palier {guild.challenge_best_tier}.
-                Les 3 objectifs réussis → palier suivant la semaine prochaine ; sinon le palier est divisé par deux.
-                Chaque membre qui a contribué à un objectif réussi peut récupérer sa récompense.
+                Palier {guild.challenge_tier} · {done}/{guild.objectives.length} objectifs · record {guild.challenge_best_tier}.
+                Tout réussir = palier suivant la semaine prochaine, sinon il est divisé par deux.
             </p>
-            {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
             {guild.objectives.map((o) => {
                 const p = Math.min(100, (o.progress / o.target) * 100);
                 return (
@@ -150,7 +150,7 @@ function ChallengeTab({ guild }: { guild: GuildDetail }) {
 }
 
 function ChestTab({ guild }: { guild: GuildDetail }) {
-    const { msg, setMsg, setDetail, refresh, onError } = useGuildActions();
+    const { setMsg, setDetail, refresh, onError } = useGuildActions();
     const [resource, setResource] = useState<"coins" | "dust">("coins");
     const [amount, setAmount] = useState("");
     const rate = resource === "coins" ? guild.points_per_coins : guild.points_per_dust;
@@ -170,7 +170,6 @@ function ChestTab({ guild }: { guild: GuildDetail }) {
 
     return (
         <div className="space-y-4">
-            {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
             <section className="bg-game-surface border border-white/10 rounded-xl p-3 space-y-2">
                 <div className="flex justify-between">
                     <span className="text-white text-sm font-semibold">Coffre</span>
@@ -237,7 +236,7 @@ function ChestTab({ guild }: { guild: GuildDetail }) {
 function MembersTab({ guild }: { guild: GuildDetail }) {
     const me = useAuthStore((s) => s.user);
     const navigate = useNavigate();
-    const { msg, setMsg, setDetail, refresh, onError } = useGuildActions();
+    const { setMsg, setDetail, refresh, onError } = useGuildActions();
     const [username, setUsername] = useState("");
     const [welcome, setWelcome] = useState(guild.welcome_message);
     const isLeader = guild.my_role === "leader";
@@ -281,7 +280,6 @@ function MembersTab({ guild }: { guild: GuildDetail }) {
 
     return (
         <div className="space-y-4">
-            {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
 
             {canManage && guild.requests.length > 0 && (
                 <section className="space-y-2">
@@ -398,7 +396,7 @@ function WallTab() {
     const qc = useQueryClient();
     const navigate = useNavigate();
     const [text, setText] = useState("");
-    const [err, setErr] = useState<string | null>(null);
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
     const bottom = useRef<HTMLDivElement>(null);
     const input = useRef<HTMLInputElement>(null);
     const { data: messages } = useQuery({ queryKey: ["guild", "wall"], queryFn: guildsApi.wall, refetchInterval: 15_000 });
@@ -450,7 +448,6 @@ function WallTab() {
                 {messages?.length === 0 && <p className="text-white/30 text-sm text-center">Aucun message pour l'instant.</p>}
                 <div ref={bottom} />
             </div>
-            {err && <p className="text-red-400 text-xs">{err}</p>}
             <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); send(); }}>
                 <input ref={input} className={inputCls} maxLength={200} placeholder="Écrire un message..." value={text}
                     onChange={(e) => setText(e.target.value)}

@@ -76,8 +76,8 @@ export default function Button({
                     Chargement...
                 </span>
             ) : (
-                <span className="relative inline-flex items-center justify-center">
-                    <span className={flash ? "opacity-0" : undefined}>{children}</span>
+                <span className="relative flex w-full items-center justify-center">
+                    <span className={`block w-full ${flash ? "opacity-0" : ""}`}>{children}</span>
                     <AnimatePresence>
                         {flash && (
                             <motion.span

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "@/stores/toastStore";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { progressionApi } from "@/api/progression";
@@ -78,7 +79,7 @@ const CATEGORY_LABELS: Record<AchievementCategory, string> = {
 
 function AchievementRow({ achievement }: { achievement: Achievement }) {
     const qc = useQueryClient();
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
     const claim = useMutation({
         mutationFn: () => progressionApi.claimAchievement(achievement.id),
         onSuccess: (a) => {
@@ -132,7 +133,6 @@ function AchievementRow({ achievement }: { achievement: Achievement }) {
                 </Button>
             )}
             {claimed && <p className="text-green-400 text-xs mt-1">Récupéré</p>}
-            {err && <p className="text-red-400 text-xs mt-1">{err}</p>}
         </div>
     );
 }
@@ -173,7 +173,7 @@ function AchievementsTab() {
 
 function QuestsTab() {
     const qc = useQueryClient();
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
     const { data, isLoading } = useQuery({ queryKey: ["quests"], queryFn: progressionApi.getQuests });
 
     const claim = useMutation({
@@ -230,7 +230,6 @@ function QuestsTab() {
 
     return (
         <div className="space-y-6">
-            {err && <p className="text-red-400 text-xs">{err}</p>}
             <Section title="Journalières" quests={daily} hint="Se renouvellent chaque jour." />
             <Section title="Hebdomadaires" quests={weekly} hint="Se renouvellent chaque semaine." />
         </div>

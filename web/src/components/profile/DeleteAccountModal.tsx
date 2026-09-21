@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "@/stores/toastStore";
 import { useMutation } from "@tanstack/react-query";
 import { playerApi } from "@/api/player";
 import Modal from "@/components/ui/Modal";
@@ -12,7 +13,7 @@ interface DeleteAccountModalProps {
 
 export default function DeleteAccountModal({ onClose, onDeleted }: DeleteAccountModalProps) {
     const [password, setPassword] = useState("");
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
 
     const del = useMutation({
         mutationFn: () => playerApi.deleteAccount(password),
@@ -40,7 +41,6 @@ export default function DeleteAccountModal({ onClose, onDeleted }: DeleteAccount
                     onKeyDown={(e) => e.key === "Enter" && password && del.mutate()}
                     autoFocus
                 />
-                {err && <p className="text-red-400 text-xs">{err}</p>}
                 <div className="flex gap-2 mt-2">
                     <Button
                         variant="danger"

@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { BoosterIcon, RerollIcon } from "@/components/ui/ItemIcon";
+import LockedFeature from "@/components/ui/LockedFeature";
+import { toast } from "@/stores/toastStore";
+import { useToastMessage } from "@/hooks/useToastMessage";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { activitiesApi, type MachineItem, type MachineResult } from "@/api/activities";
 import { useAuthStore } from "@/stores/authStore";
@@ -15,7 +19,7 @@ const RESOURCE_NAME: Record<string, string> = { coins: "pièces", dust: "poussi�
 export default function MachineTab() {
     return (
         <div className="space-y-6">
-            <Machine />
+            <LockedFeature feature="machine" compact><Machine /></LockedFeature>
             <Converter />
         </div>
     );
@@ -26,7 +30,7 @@ function Machine() {
     const { user } = useAuthStore();
     const { data } = useQuery({ queryKey: ["machine"], queryFn: activitiesApi.machine });
     const [last, setLast] = useState<{ key: string; res: MachineResult } | null>(null);
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
     const [showRotation, setShowRotation] = useState(false);
 
     const upgrade = useMutation({
@@ -51,7 +55,7 @@ function Machine() {
         <section className="space-y-3">
             <div className="bg-game-surface border border-white/10 rounded-2xl p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-white font-bold">⚙️ Machine d'amélioration</h2>
+                    <h2 className="text-white font-bold">Machine d'amélioration</h2>
                     <button className="text-accent text-xs" onClick={() => setShowRotation((v) => !v)}>
                         {showRotation ? "Masquer" : "Le cycle"}
                     </button>
@@ -63,28 +67,22 @@ function Machine() {
                 </p>
                 {data.event && (
                     <p className="text-xs bg-purple-500/15 border border-purple-400/40 text-purple-200 rounded-lg px-2 py-1.5">
-                        ✨ Événement : {data.event.label}
+                        Événement : {data.event.label}
                     </p>
                 )}
                 {showRotation && (
                     <div className="text-white/50 text-xs space-y-1">
-                        <p>
-                            Cycle de {data.length} jours, dans un ordre tiré au hasard à chaque cycle : une amélioration par jour
-                            ({data.cycle_upgrades.join(", ")}) et {data.cycle_events.length} jours d'événement surprise, qui
-                            proposent une amélioration au hasard :
-                        </p>
+                        <p>{data.length} jours dans le désordre : {data.cycle_upgrades.join(", ")}, et {data.cycle_events.length} jours surprise :</p>
                         <ul className="list-disc pl-4">
                             {data.cycle_events.map((e) => <li key={e}>{e}</li>)}
                         </ul>
                     </div>
                 )}
                 <p className="text-white/40 text-[11px]">
-                    Paie des pièces pour améliorer d'un cran un booster ou un reroll. Un échec coûte le paiement mais l'objet reste
-                    (sauf jour risqué) ; l'essai suivant a un peu plus de chances et coûte un peu plus.
+                    Un échec garde l'objet (sauf jour risqué) et augmente la chance du prochain essai.
                 </p>
             </div>
 
-            {err && <p className="text-red-400 text-xs">{err}</p>}
             {!upgradable.length && (
                 <p className="text-white/30 text-sm text-center">
                     {data.items.length ? "Aucun de tes objets ne peut recevoir l'amélioration du jour." : "Aucun booster ni reroll en stock."}
@@ -96,7 +94,7 @@ function Machine() {
                     <div key={key} className="bg-game-surface border border-white/10 rounded-xl p-3 space-y-2">
                         <div className="flex items-center justify-between gap-2">
                             <div className="min-w-0">
-                                <p className="text-white text-sm font-semibold truncate">{item.item === "booster" ? "🎴" : "🎲"} {item.name}</p>
+                                <p className="text-white text-sm font-semibold truncate">{item.item === "booster" ? <BoosterIcon /> : <RerollIcon />} {item.name}</p>
                                 <p className="text-white/40 text-[11px] truncate">{item.detail}</p>
                             </div>
                             <span className="text-white/50 text-xs shrink-0">×{item.quantity}</span>
@@ -139,7 +137,7 @@ function Converter() {
     const { data } = useQuery({ queryKey: ["converter"], queryFn: activitiesApi.converter });
     const [pairIndex, setPairIndex] = useState(0);
     const [amount, setAmount] = useState("");
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [, setMsg] = useToastMessage();
 
     const convert = useMutation({
         mutationFn: () => {
@@ -164,10 +162,10 @@ function Converter() {
     return (
         <section className="bg-game-surface border border-white/10 rounded-2xl p-4 space-y-3">
             <div className="flex items-center justify-between">
-                <h2 className="text-white font-bold">🔄 Convertisseur</h2>
+                <h2 className="text-white font-bold">Convertisseur</h2>
                 <span className="text-white/50 text-xs">{data.uses_left} / {data.daily_uses} aujourd'hui</span>
             </div>
-            <p className="text-white/40 text-[11px]">Pour compléter une ressource qui manque : l'échange coûte plus qu'il ne rapporte.</p>
+            <p className="text-white/40 text-[11px]">Pour compléter une ressource qui manque (avec perte).</p>
             <div className="flex gap-1.5">
                 {data.pairs.map((p, i) => (
                     <button key={`${p.from}-${p.to}`}
@@ -191,7 +189,6 @@ function Converter() {
                 </Button>
             </div>
             {valid && <p className="text-white/40 text-[11px]">→ {fmt(Math.floor(value / pair.give) * pair.get)} {RESOURCE_NAME[pair.to] ?? pair.to}</p>}
-            {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
         </section>
     );
 }

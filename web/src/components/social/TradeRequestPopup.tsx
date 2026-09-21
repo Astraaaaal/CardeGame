@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { toast } from "@/stores/toastStore";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -19,7 +19,7 @@ export default function TradeRequestPopup({ requests, blocked }: TradeRequestPop
     const { user } = useAuthStore();
     const navigate = useNavigate();
     const qc = useQueryClient();
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
 
     const dropRequest = (requestId: number) => {
         qc.setQueryData<TradePulse>(TRADE_PULSE_KEY, (p) =>
@@ -109,7 +109,6 @@ export default function TradeRequestPopup({ requests, blocked }: TradeRequestPop
                             ))}
                         </div>
 
-                        {err && <p className="text-red-400 text-xs mt-3 text-center">{err}</p>}
 
                         <p className="text-white/30 text-xs mt-4 text-center">
                             « Plus tard » la garde dans le panneau Social, onglet Échanges.

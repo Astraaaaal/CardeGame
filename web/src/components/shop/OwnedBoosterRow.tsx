@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { BoosterIcon } from "@/components/ui/ItemIcon";
+import { toast } from "@/stores/toastStore";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { OwnedBooster } from "@/types/booster";
 import { useOpenOwnedBoosters } from "@/hooks/usePackOpening";
@@ -19,7 +21,7 @@ export default function OwnedBoosterRow({ owned, showName = false }: { owned: Ow
     const openOwned = useOpenOwnedBoosters();
     const tradePending = useHasPendingTradeProposal();
     const [choosing, setChoosing] = useState(false);
-    const [error, setError] = useState("");
+    const setError = (m: string | null) => { if (m) toast.error(m); };
 
     const open = (quantity: number) => {
         setError("");
@@ -36,7 +38,7 @@ export default function OwnedBoosterRow({ owned, showName = false }: { owned: Ow
                 <div className="min-w-0">
                     {showName && <p className="text-white text-sm font-semibold truncate">{owned.booster_name}</p>}
                     {owned.bonus_label && <p className="text-gold text-xs truncate">{owned.bonus_label}</p>}
-                    <p className="text-white/70 text-xs">🎴 ×{owned.quantity} possédé{owned.quantity > 1 ? "s" : ""}</p>
+                    <p className="text-white/70 text-xs"><BoosterIcon /> ×{owned.quantity} possédé{owned.quantity > 1 ? "s" : ""}</p>
                 </div>
                 <Button
                     variant="gold" size="sm"
@@ -68,7 +70,6 @@ export default function OwnedBoosterRow({ owned, showName = false }: { owned: Ow
                     Ouverture indisponible tant qu'une proposition d'échange attend une réponse.
                 </p>
             )}
-            {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
         </div>
     );
 }

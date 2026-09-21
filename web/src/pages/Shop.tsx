@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { RerollIcon } from "@/components/ui/ItemIcon";
+import LockedFeature from "@/components/ui/LockedFeature";
+import { toast } from "@/stores/toastStore";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -37,7 +40,7 @@ function BoostersTab() {
     const openMutation = usePackOpening();
     const tradePending = useHasPendingTradeProposal();
     const qc = useQueryClient();
-    const [buyError, setBuyError] = useState("");
+    const setBuyError = (m: string | null) => { if (m) toast.error(m); };
 
     const { data: inventory } = useQuery({ queryKey: ["booster-inventory"], queryFn: boostersApi.getInventory });
 
@@ -156,7 +159,6 @@ function BoostersTab() {
                             >
                                 Stocker{quantity > 1 ? ` ×${quantity}` : ""}
                             </Button>
-                            {buyError && <p className="text-red-400 text-xs text-center">{buyError}</p>}
 
                             {tradePending && <TradePendingNotice />}
                             {cantAfford && (
@@ -222,7 +224,10 @@ function ResourcesTab() {
     const { data: boosterInventory } = useQuery({ queryKey: ["booster-inventory"], queryFn: boostersApi.getInventory });
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
     const consumeResultIfPurpose = useCardSelectionStore((s) => s.consumeResultIfPurpose);
-    const [feedback, setFeedback] = useState<{ offerId: string; text: string; ok: boolean } | null>(null);
+    // Retours d'achat : dans le bandeau (la valeur lue reste null).
+    const setFeedback = (f: { offerId: string; text: string; ok: boolean } | null) => {
+        if (f) (f.ok ? toast.success : toast.error)(f.text);
+    };
     const [buying, setBuying] = useState<ShopOffer | null>(null);
     const [popupQty, setPopupQty] = useState<Quantity>(1);
     useEffect(() => { setPopupQty(1); }, [buying?.id]);
@@ -230,7 +235,7 @@ function ResourcesTab() {
         const remaining = o.limit_period !== "none" ? o.limit_count - o.purchases_in_period : Infinity;
         return o.price * n <= getResourceBalance(user, o.resource_id) && n <= remaining;
     };
-    const [tokenError, setTokenError] = useState("");
+    const setTokenError = (m: string | null) => { if (m) toast.error(m); };
     const rerollHandled = useRef(false);
     const tradePending = useHasPendingTradeProposal();
     const rerollToken = useRerollTokenUse("/shop", setTokenError);
@@ -371,7 +376,7 @@ function ResourcesTab() {
 
                                 {ownedTokens.map((t) => (
                                     <div key={t.id} className="flex items-center justify-between gap-2 bg-accent/10 border border-accent/30 rounded-xl px-3 py-2 mb-2">
-                                        <span className="text-white/80 text-xs">🎲 ×{t.quantity} possédé{t.quantity > 1 ? "s" : ""}</span>
+                                        <span className="text-white/80 text-xs"><RerollIcon /> ×{t.quantity} possédé{t.quantity > 1 ? "s" : ""}</span>
                                         <Button
                                             variant="gold" size="sm"
                                             loading={rerollToken.pendingTokenId === t.id}
@@ -381,7 +386,6 @@ function ResourcesTab() {
                                         </Button>
                                     </div>
                                 ))}
-                                {!!ownedTokens.length && tokenError && <p className="text-red-400 text-xs mb-2">{tokenError}</p>}
                                 {ownedBoosters.map((b) => (
                                     <div key={b.bonus_id ?? "base"} className="mb-2"><OwnedBoosterRow owned={b} /></div>
                                 ))}
@@ -399,11 +403,6 @@ function ResourcesTab() {
                                     <p className="text-red-400/80 text-xs mt-2">Pas assez de {o.resource_name.toLowerCase()}</p>
                                 )}
                                 {blockedByTrade && <div className="mt-2"><TradePendingNotice /></div>}
-                                {feedback?.offerId === o.id && (
-                                    <p className={`text-xs mt-2 ${feedback.ok ? "text-green-400" : "text-red-400"}`}>
-                                        {feedback.text}
-                                    </p>
-                                )}
                             </div>
                         );
                     })}
@@ -462,9 +461,6 @@ function ResourcesTab() {
                                 </Button>
                             )}
                             {blockedByTrade && <TradePendingNotice />}
-                            {feedback?.offerId === o.id && !feedback.ok && (
-                                <p className="text-red-400 text-xs text-center">{feedback.text}</p>
-                            )}
                         </div>
                     );
                 })()}
@@ -518,7 +514,7 @@ export default function Shop() {
 
             <main className="flex-1 px-4 py-6">
                 {tab === "boosters" && <BoostersTab />}
-                {tab === "resources" && <ResourcesTab />}
+                {tab === "resources" && <LockedFeature feature="resource_shop"><ResourcesTab /></LockedFeature>}
                 {tab === "premium" && premium?.access && <PremiumTab />}
             </main>
 
