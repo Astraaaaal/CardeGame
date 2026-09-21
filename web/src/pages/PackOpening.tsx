@@ -10,6 +10,9 @@ import CardDetail from "@/components/card/CardDetail";
 import Button from "@/components/ui/Button";
 import FloatingActionBar from "@/components/ui/FloatingActionBar";
 
+// Couleur du flash d'arrivée dans le résumé (rares et mieux).
+const SUMMARY_GLOW: Record<string, string> = { rare: "#3b9dff", epic: "#a855f7", legendary: "#fbbf24" };
+
 export default function PackOpening() {
   const navigate = useNavigate();
   // Tant qu'on est sur cet écran : pas de popup d'échange ni d'entrée forcée
@@ -82,16 +85,32 @@ export default function PackOpening() {
           </h2>
 
           <div className="grid grid-cols-3 gap-3 mb-6">
-            {allCards.map((c, i) => (
+            {allCards.map((c, i) => {
+              // Cascade : les cartes arrivent une à une, les plus chanceuses en
+              // dernier (la grille garde la meilleure en premier), avec un flash
+              // de la couleur de leur rareté pour les rares et mieux.
+              const arrival = allCards.length - 1 - i;
+              const step = Math.min(0.09, 2.4 / Math.max(1, allCards.length));
+              const delay = arrival * step + (arrival >= allCards.length - 3 ? 0.25 : 0);
+              const glow = SUMMARY_GLOW[c.rarity_id];
+              return (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.03 }}
+                className="relative rounded-xl"
+                initial={{ opacity: 0, y: 260, scale: 0.3, rotate: (i % 2 ? 1 : -1) * (12 + (i * 7) % 18) }}
+                animate={{
+                  opacity: 1, y: 0, scale: 1, rotate: 0,
+                  boxShadow: glow ? [`0 0 0px ${glow}00`, `0 0 28px ${glow}`, `0 0 8px ${glow}88`] : undefined,
+                }}
+                transition={{
+                  delay, type: "spring", stiffness: 260, damping: 22,
+                  boxShadow: { delay: delay + 0.25, duration: 0.9 },
+                }}
               >
                 <CardImage card={c} size="sm" onClick={() => setSelectedCard(c)} />
               </motion.div>
-            ))}
+              );
+            })}
           </div>
 
           <CardDetail
