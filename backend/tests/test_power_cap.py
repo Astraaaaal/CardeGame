@@ -44,3 +44,28 @@ def test_wider_draw_range_is_capped_at_base_max():
     powers = [roll_drawn_power(data) for _ in range(300)]
     assert max(powers) == 100  # plage élargie à 10 000, résultat ramené à 100
     assert powers.count(100) > 200  # ~99 % des tirages atteignent le maximum
+
+
+async def test_guarantee_raises_to_the_floor_without_boosting_higher_tiers(session):
+    session.add(Character(id="c", name="C", type="feu", image_url="c.png"))
+    session.add_all([
+        CharacterSet(character_id="c", set_id="s1", weight=1),
+        Rarity(id="common", name="Commune", weight=90), Rarity(id="epic", name="Épique", weight=9.5),
+        Rarity(id="legendary", name="Légendaire", weight=0.5),
+        Quality(id="fair", name="Correcte", weight=1), Specialty(id="normal", name="Normale", weight=1),
+        Jewelry(id="none", name="Aucun", weight=1),
+    ])
+    await session.commit()
+    generator = CardGeneratorService()
+    rarities, legendary = [], 0
+    for _ in range(3000):
+        [card] = await generator.generate_pack(session, ["s1"], cards_count=1, guaranteed_rare=False,
+                                               force_min_rarity_id="epic")
+        rarities.append(card["rarity_id"])
+        if card["rarity_id"] == "epic":
+            # Épique « garantie » : compte comme presque certaine (commune + épique remontées).
+            assert abs(card["drop_probability"] - 0.995) < 1e-9
+        else:
+            assert abs(card["drop_probability"] - 0.005) < 1e-9  # légendaire : sa vraie rareté
+    assert "common" not in rarities
+    assert rarities.count("legendary") / len(rarities) < 0.02  # ~0,5 %, pas ~5 %

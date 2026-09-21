@@ -4,7 +4,6 @@ Migration directe de src/engine/card_generator.py mais avec la BDD.
 """
 
 import random
-from types import SimpleNamespace
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -74,25 +73,6 @@ class CardGeneratorService:
 
         return cards
 
-    def _rarity_pool_and_weights(
-        self,
-        rarities: list,
-        min_rarity_id: Optional[str],
-        rarity_weight_multiplier: Optional[float],
-    ) -> tuple[list, list[float]]:
-        pool = rarities
-        if min_rarity_id:
-            min_rank = rank("rarity", min_rarity_id)
-            filtered = [r for r in pool if rank("rarity", r.id) >= min_rank]
-            if filtered:
-                pool = filtered
-        weights = [
-            r.weight * rarity_weight_multiplier
-            if (rarity_weight_multiplier and r.id != "common") else r.weight
-            for r in pool
-        ]
-        return pool, weights
-
     def _generate_single(
         self,
         characters: list[dict],
@@ -115,46 +95,42 @@ class CardGeneratorService:
         char_weights = [c["weight"] for c in characters]
         character = random.choices(characters, weights=char_weights, k=1)[0]
 
-        # 2. Rareté (pool + poids éventuellement ajustés par l'offre)
-        rarity_pool, rarity_weights = self._rarity_pool_and_weights(
-            rarities, min_rarity_id, rarity_weight_multiplier
-        )
-        rarity = random.choices(rarity_pool, weights=rarity_weights, k=1)[0]
+        # 2 à 5. Chaque axe est tiré NORMALEMENT (poids éventuellement boostés
+        #    par la chance) ; un minimum garanti (booster, offre, machine) ne fait
+        #    que REMONTER le résultat s'il tombe en dessous : les paliers
+        #    au-dessus du minimum gardent leur chance de base (une légendaire
+        #    reste à ~0,5 % dans un booster « épique garanti »).
+        def boosted(items, multiplier, better):
+            return [i.weight * (multiplier if multiplier and better(i) else 1) for i in items]
 
-        # 3. Qualité (minimum garanti éventuel)
-        # (chances des bonnes qualités — « préservée » et mieux — éventuellement multipliées)
-        quality_pool = self._boosted(
-            self._min_pool(qualities, "quality", min_quality_id), quality_weight_multiplier,
-            lambda q: rank("quality", q.id) >= rank("quality", "preserved"),
-        )
-        quality_pick = self._weighted_pick(quality_pool)
-        quality = getattr(quality_pick, "orig", quality_pick)
+        axes = [
+            ("rarity", rarities, min_rarity_id,
+             boosted(rarities, rarity_weight_multiplier, lambda r: r.id != "common")),
+            ("quality", qualities, min_quality_id,
+             boosted(qualities, quality_weight_multiplier, lambda q: rank("quality", q.id) >= rank("quality", "preserved"))),
+            ("specialty", specialties, None,
+             boosted(specialties, specialty_weight_multiplier, lambda sp: sp.id != "normal")),
+            ("jewelry", jewelries, min_jewelry_id,
+             boosted(jewelries, jewelry_weight_multiplier, lambda j: j.id != "none")),
+        ]
+        picked = {axis: self._floor_pick(items, weights, axis, min_id) for axis, items, min_id, weights in axes}
+        rarity, quality, specialty, jewelry = picked["rarity"], picked["quality"], picked["specialty"], picked["jewelry"]
 
-        # 4. Spécialité (chances des spécialités autres que « normale » éventuellement multipliées)
-        specialty_pool = self._boosted(specialties, specialty_weight_multiplier, lambda s: s.id != "normal")
-        specialty_pick = self._weighted_pick(specialty_pool)
-        specialty = getattr(specialty_pick, "orig", specialty_pick)
+        # 6. Probabilités : celle du tirage réel (chance comprise) et celle de BASE
+        #    (son set seul, poids normaux) qui fixe la puissance maximum et reste
+        #    affichée. Dans les deux, un axe garanti ne compte, s'il est resté au
+        #    minimum, que pour sa chance d'être « au plus » ce minimum (≈ certaine) :
+        #    une garantie rend la carte facile, donc moins puissante.
+        def char_prob(pool):
+            total = sum(c["weight"] for c in pool)
+            return character["weight"] / total if total else 0.0
 
-        # 5. Jewelry (minimum garanti éventuel)
-        jewelry_pool = self._boosted(
-            self._min_pool(jewelries, "jewelry", min_jewelry_id), jewelry_weight_multiplier, lambda j: j.id != "none",
-        )
-        jewelry_pick = self._weighted_pick(jewelry_pool)
-        jewelry = getattr(jewelry_pick, "orig", jewelry_pick)
-
-        # 6. Probabilités : celle du tirage réel (pool/poids ajustés par la
-        #    chance ou une garantie) et celle de BASE de la carte — son set
-        #    seul, poids de rareté normaux — qui fixe sa puissance maximum et
-        #    reste celle affichée (identique à un reroll, cf. services/reroll.py).
-        draw_prob = self._calculate_probability(
-            characters, character, rarity, quality_pick, specialty_pick, jewelry_pick,
-            rarity_pool, rarity_weights, quality_pool, specialty_pool, jewelry_pool,
-        )
         same_set = [c for c in characters if c["set_id"] == character["set_id"]]
-        drop_prob = self._calculate_probability(
-            same_set, character, rarity, quality, specialty, jewelry,
-            rarities, [r.weight for r in rarities], qualities, specialties, jewelries,
-        )
+        draw_prob = char_prob(characters)
+        drop_prob = char_prob(same_set)
+        for axis, items, min_id, weights in axes:
+            draw_prob *= self._axis_factor(items, weights, axis, picked[axis], min_id)
+            drop_prob *= self._axis_factor(items, [i.weight for i in items], axis, picked[axis], min_id)
 
         return {
             "character_id": character["id"],
@@ -174,47 +150,6 @@ class CardGeneratorService:
             "_specialty": specialty,
             "_jewelry": jewelry,
         }
-
-    def _calculate_probability(
-        self,
-        characters: list[dict],
-        character: dict,
-        rarity,
-        quality,
-        specialty,
-        jewelry,
-        rarity_pool: list,
-        rarity_weights: list[float],
-        all_qualities: list,
-        all_specialties: list,
-        all_jewelries: list,
-    ) -> float:
-        """
-        Probabilité RÉELLE (entre 0 et 1) de tirer exactement cette combinaison,
-        = produit des probabilités marginales (poids / somme des poids) de chaque
-        axe. Le client l'affiche en « 1 sur N ».
-        """
-        def frac(item, pool) -> float:
-            total = sum(x.weight for x in pool)
-            return (item.weight / total) if total else 0.0
-
-        char_total = sum(c["weight"] for c in characters)
-        char_prob = (character["weight"] / char_total) if char_total else 0.0
-
-        rarity_total = sum(rarity_weights)
-        rarity_idx = rarity_pool.index(rarity)
-        rarity_prob = (rarity_weights[rarity_idx] / rarity_total) if rarity_total else 0.0
-
-        combined = (
-            char_prob
-            * rarity_prob
-            * frac(quality, all_qualities)
-            * frac(specialty, all_specialties)
-            * frac(jewelry, all_jewelries)
-        )
-        # Pas d'arrondi : les combinaisons ultra-rares descendent sous 1e-12 et
-        # tomberaient à 0 (carte sans puissance, rareté affichée « — »).
-        return combined
 
     async def _get_characters_for_sets(
         self, session: AsyncSession, set_ids: list[str]
@@ -249,20 +184,21 @@ class CardGeneratorService:
         return result.scalars().all()
 
     @staticmethod
-    def _boosted(items, multiplier: Optional[float], better):
-        """Poids des éléments « meilleurs » multipliés (enveloppes gardant l'original dans .orig)."""
-        if not multiplier:
-            return items
-        return [SimpleNamespace(id=i.id, weight=i.weight * (multiplier if better(i) else 1), orig=i) for i in items]
+    def _floor_pick(items, weights, axis: str, min_id: Optional[str]):
+        """Tirage pondéré normal, remonté au minimum garanti s'il tombe en dessous."""
+        item = random.choices(items, weights=weights, k=1)[0]
+        if min_id and rank(axis, item.id) < rank(axis, min_id):
+            item = next((i for i in items if i.id == min_id), item)
+        return item
 
     @staticmethod
-    def _min_pool(items, axis: str, min_id: Optional[str]):
-        if not min_id:
-            return items
-        filtered = [i for i in items if rank(axis, i.id) >= rank(axis, min_id)]
-        return filtered or items
-
-    @staticmethod
-    def _weighted_pick(items):
-        weights = [item.weight for item in items]
-        return random.choices(items, weights=weights, k=1)[0]
+    def _axis_factor(items, weights, axis: str, item, min_id: Optional[str]) -> float:
+        """Chance de ce résultat sur l'axe : au minimum garanti, somme des paliers
+        qui y sont remontés (lui compris) ; sinon sa propre chance."""
+        total = sum(weights)
+        if not total:
+            return 0.0
+        if min_id and item.id == min_id:
+            floor = rank(axis, min_id)
+            return sum(w for i, w in zip(items, weights) if rank(axis, i.id) <= floor) / total
+        return next((w for i, w in zip(items, weights) if i.id == item.id), 0) / total

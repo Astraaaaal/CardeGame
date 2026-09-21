@@ -67,17 +67,15 @@ async def apply_reroll(session: AsyncSession, card: UserCard, rules) -> None:
 
     for axis in axes:
         items = (await session.execute(select(REROLL_MODELS[axis]))).scalars().all()
-        pool = items
-        if rules.reroll_mode == "guaranteed_min":
-            current_rank = rank(axis, getattr(card, _FIELD_MAP[axis]))
-            filtered = [i for i in items if rank(axis, i.id) >= current_rank]
-            if filtered:
-                pool = filtered
+        current_rank = rank(axis, getattr(card, _FIELD_MAP[axis]))
         # Bonus de la machine : chances multipliées pour les paliers meilleurs que l'actuel.
         boost = getattr(rules, "reroll_boost", None)
-        current_rank = rank(axis, getattr(card, _FIELD_MAP[axis]))
-        weights = [i.weight * (boost if boost and rank(axis, i.id) > current_rank else 1) for i in pool]
-        picked = random.choices(pool, weights=weights, k=1)[0]
+        weights = [i.weight * (boost if boost and rank(axis, i.id) > current_rank else 1) for i in items]
+        picked = random.choices(items, weights=weights, k=1)[0]
+        # « Garanti égal ou mieux » : tirage normal ; s'il est moins bien, la carte
+        # garde son palier actuel (les paliers supérieurs restent à leur chance de base).
+        if rules.reroll_mode == "guaranteed_min" and rank(axis, picked.id) < current_rank:
+            continue
         setattr(card, _FIELD_MAP[axis], picked.id)
 
     card.drop_probability = await _recompute_probability(session, card)
