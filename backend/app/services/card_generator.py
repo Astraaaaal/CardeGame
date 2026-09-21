@@ -28,6 +28,8 @@ class CardGeneratorService:
         force_min_quality_id: Optional[str] = None,
         force_min_jewelry_id: Optional[str] = None,
         specialty_weight_multiplier: Optional[float] = None,
+        quality_weight_multiplier: Optional[float] = None,
+        jewelry_weight_multiplier: Optional[float] = None,
     ) -> list[dict]:
         """
         Génère un pack complet de cartes, en piochant dans un ou plusieurs sets.
@@ -65,6 +67,8 @@ class CardGeneratorService:
                 min_quality_id=force_min_quality_id if is_last else None,
                 min_jewelry_id=force_min_jewelry_id if is_last else None,
                 specialty_weight_multiplier=specialty_weight_multiplier,
+                quality_weight_multiplier=quality_weight_multiplier,
+                jewelry_weight_multiplier=jewelry_weight_multiplier,
             )
             cards.append(card)
 
@@ -101,6 +105,8 @@ class CardGeneratorService:
         min_quality_id: Optional[str] = None,
         min_jewelry_id: Optional[str] = None,
         specialty_weight_multiplier: Optional[float] = None,
+        quality_weight_multiplier: Optional[float] = None,
+        jewelry_weight_multiplier: Optional[float] = None,
     ) -> dict:
         """Génère une seule carte aléatoire."""
         # 1. Personnage pondéré. Chaque entrée = un lien (personnage, set) : un
@@ -116,29 +122,32 @@ class CardGeneratorService:
         rarity = random.choices(rarity_pool, weights=rarity_weights, k=1)[0]
 
         # 3. Qualité (minimum garanti éventuel)
-        quality_pool = self._min_pool(qualities, "quality", min_quality_id)
-        quality = self._weighted_pick(quality_pool)
+        # (chances des bonnes qualités — « préservée » et mieux — éventuellement multipliées)
+        quality_pool = self._boosted(
+            self._min_pool(qualities, "quality", min_quality_id), quality_weight_multiplier,
+            lambda q: rank("quality", q.id) >= rank("quality", "preserved"),
+        )
+        quality_pick = self._weighted_pick(quality_pool)
+        quality = getattr(quality_pick, "orig", quality_pick)
 
         # 4. Spécialité (chances des spécialités autres que « normale » éventuellement multipliées)
-        specialty_pool = specialties
-        if specialty_weight_multiplier:
-            specialty_pool = [
-                SimpleNamespace(id=s.id, weight=s.weight * (specialty_weight_multiplier if s.id != "normal" else 1), orig=s)
-                for s in specialties
-            ]
+        specialty_pool = self._boosted(specialties, specialty_weight_multiplier, lambda s: s.id != "normal")
         specialty_pick = self._weighted_pick(specialty_pool)
         specialty = getattr(specialty_pick, "orig", specialty_pick)
 
         # 5. Jewelry (minimum garanti éventuel)
-        jewelry_pool = self._min_pool(jewelries, "jewelry", min_jewelry_id)
-        jewelry = self._weighted_pick(jewelry_pool)
+        jewelry_pool = self._boosted(
+            self._min_pool(jewelries, "jewelry", min_jewelry_id), jewelry_weight_multiplier, lambda j: j.id != "none",
+        )
+        jewelry_pick = self._weighted_pick(jewelry_pool)
+        jewelry = getattr(jewelry_pick, "orig", jewelry_pick)
 
         # 6. Probabilités : celle du tirage réel (pool/poids ajustés par la
         #    chance ou une garantie) et celle de BASE de la carte — son set
         #    seul, poids de rareté normaux — qui fixe sa puissance maximum et
         #    reste celle affichée (identique à un reroll, cf. services/reroll.py).
         draw_prob = self._calculate_probability(
-            characters, character, rarity, quality, specialty_pick, jewelry,
+            characters, character, rarity, quality_pick, specialty_pick, jewelry_pick,
             rarity_pool, rarity_weights, quality_pool, specialty_pool, jewelry_pool,
         )
         same_set = [c for c in characters if c["set_id"] == character["set_id"]]
@@ -238,6 +247,13 @@ class CardGeneratorService:
         """Charge tous les enregistrements d'une table de référence."""
         result = await session.execute(select(model))
         return result.scalars().all()
+
+    @staticmethod
+    def _boosted(items, multiplier: Optional[float], better):
+        """Poids des éléments « meilleurs » multipliés (enveloppes gardant l'original dans .orig)."""
+        if not multiplier:
+            return items
+        return [SimpleNamespace(id=i.id, weight=i.weight * (multiplier if better(i) else 1), orig=i) for i in items]
 
     @staticmethod
     def _min_pool(items, axis: str, min_id: Optional[str]):

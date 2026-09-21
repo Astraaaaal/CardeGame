@@ -14,7 +14,7 @@ from tests.conftest import make_user
 
 
 def _today(monkeypatch, kinds, event=None):
-    monkeypatch.setattr(machine, "today_plan", lambda cfg, now=None: {"weekday": "lundi", "kinds": kinds, "event": event})
+    monkeypatch.setattr(machine, "today_plan", lambda cfg, now=None: {"day": 1, "length": 14, "kinds": kinds, "event": event})
 
 
 def _roll(monkeypatch, value):
@@ -118,3 +118,28 @@ async def test_generator_applies_quality_and_jewelry_minimums(session):
             force_min_quality_id="mint", force_min_jewelry_id="gold",
         )
         assert (cards[-1]["quality_id"], cards[-1]["jewelry_id"]) == ("mint", "gold")
+
+
+
+def test_cycle_of_fourteen_days_covers_every_upgrade_and_event():
+    from datetime import datetime, timedelta
+    from app.services.activities_config import DEFAULTS
+    start = datetime(2026, 9, 21)
+    plans = [machine.today_plan(DEFAULTS, start + timedelta(days=d)) for d in range(14)]
+    assert [p["day"] for p in plans] == list(range(1, 15))
+    upgrades = [p["kinds"][0] for p in plans if not p["event"]]
+    assert sorted(upgrades) == sorted(DEFAULTS["machine"]["cycle_upgrades"])  # chaque amélioration une fois
+    assert sorted(p["event"]["id"] for p in plans if p["event"]) == ["lucky", "risky", "sale"]
+    assert all(len(p["kinds"]) == 1 for p in plans)
+    # Cycle suivant : autre ordre, même contenu.
+    nxt = [machine.today_plan(DEFAULTS, start + timedelta(days=14 + d)) for d in range(14)]
+    assert sorted(p["kinds"][0] for p in nxt if not p["event"]) == sorted(upgrades)
+
+
+async def test_power_rolls_keep_the_best_but_never_exceed_max():
+    from app.services.power import roll_drawn_power
+    data = {"drop_probability": 0.01, "rarity_id": "common", "quality_id": "fair",
+            "specialty_id": "normal", "jewelry_id": "none"}
+    single = sum(roll_drawn_power(data) for _ in range(2000)) / 2000
+    best_of_5 = [roll_drawn_power(data, rolls=5) for _ in range(2000)]
+    assert max(best_of_5) <= 100 and sum(best_of_5) / 2000 > single + 20

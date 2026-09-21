@@ -120,11 +120,11 @@ export default function AdminActivities() {
                     {section === "machine" && (
                         <>
                             <JsonField
-                                label="Rotation (0 = lundi … 6 = dimanche) : rarity_chances, rarity_guarantee, quality_guarantee, jewelry_guarantee, specialty_chances, reroll_guarantee, reroll_axis, reroll_boost"
-                                value={cfg.machine.rotation}
-                                onChange={(v) => setCfg({ ...cfg, machine: { ...cfg.machine, rotation: v as ActivitiesConfig["machine"]["rotation"] } })} />
+                                label="Améliorations du cycle (une par jour) : rarity_chances, rarity_guarantee, quality_chances, quality_guarantee, jewelry_chances, jewelry_guarantee, specialty_chances, power_chances, reroll_axis, reroll_boost, reroll_guarantee"
+                                value={cfg.machine.cycle_upgrades}
+                                onChange={(v) => setCfg({ ...cfg, machine: { ...cfg.machine, cycle_upgrades: v as string[] } })} />
                             <JsonField
-                                label="Événements aléatoires (chance par jour, cost_factor, success_bonus, lose_on_fail)"
+                                label="Jours d'événement du cycle (cost_factor, success_bonus, lose_on_fail) — la durée du cycle = améliorations + événements"
                                 value={cfg.machine.events}
                                 onChange={(v) => setCfg({ ...cfg, machine: { ...cfg.machine, events: v as ActivitiesConfig["machine"]["events"] } })} />
                         </>

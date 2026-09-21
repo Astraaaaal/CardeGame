@@ -127,10 +127,12 @@ export interface MachineItem {
 }
 
 export interface MachineState {
-    weekday: string;
+    day: number;
+    length: number;
     today: { kind: string; label: string }[];
     event: { id: string; label: string } | null;
-    rotation: { weekday: string; labels: string[] }[];
+    cycle_upgrades: string[];
+    cycle_events: string[];
     items: MachineItem[];
 }
 

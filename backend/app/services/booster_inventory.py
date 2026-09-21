@@ -29,7 +29,10 @@ async def grant(session: AsyncSession, user_id: int, booster_id: str, quantity: 
     session.add(row)
 
 
-EXTRA_BONUS_FIELDS = ("min_quality_id", "min_jewelry_id", "specialty_weight_multiplier")
+EXTRA_BONUS_FIELDS = (
+    "min_quality_id", "min_jewelry_id", "specialty_weight_multiplier",
+    "quality_weight_multiplier", "jewelry_weight_multiplier", "power_rolls",
+)
 
 
 def extra_bonus(row) -> dict:

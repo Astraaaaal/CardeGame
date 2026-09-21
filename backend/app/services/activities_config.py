@@ -79,20 +79,23 @@ DEFAULTS: dict = {
     # plafonné ; encaissement possible à partir de `min_cashout_step` manches.
     "higher_lower": {"min_stake": 50, "max_stake": 5000, "max_steps": 10, "house_edge": 0.02,
                      "min_cashout_step": 3, "max_step_multiplier": 20},
-    # Machine d'amélioration : l'amélioration du jour suit la rotation (0 = lundi),
-    # avec parfois un événement aléatoire (identique pour tous ce jour-là).
+    # Machine d'amélioration : cycle de N jours (une amélioration par jour + les
+    # jours d'événement), dans un ordre tiré au hasard à chaque nouveau cycle
+    # (le même pour tout le monde). Un jour d'événement propose une amélioration
+    # tirée au hasard, avec l'effet de l'événement.
     "machine": {
-        "rotation": {
-            "0": ["rarity_chances"], "1": ["rarity_guarantee"], "2": ["quality_guarantee"],
-            "3": ["jewelry_guarantee"], "4": ["specialty_chances"], "5": ["reroll_axis", "reroll_boost"],
-            "6": ["reroll_guarantee"],
-        },
+        "cycle_start": "2026-09-21",
+        "cycle_upgrades": [
+            "rarity_chances", "rarity_guarantee", "quality_chances", "quality_guarantee",
+            "jewelry_chances", "jewelry_guarantee", "specialty_chances", "power_chances",
+            "reroll_axis", "reroll_boost", "reroll_guarantee",
+        ],
         "events": [
             {"id": "risky", "label": "Jour risqué : -60 % sur le prix, mais un échec détruit l'objet",
-             "chance": 0.08, "cost_factor": 0.4, "success_bonus": 0, "lose_on_fail": True},
-            {"id": "sale", "label": "Soldes : -50 % sur le prix", "chance": 0.07, "cost_factor": 0.5,
+             "cost_factor": 0.4, "success_bonus": 0, "lose_on_fail": True},
+            {"id": "sale", "label": "Soldes : -50 % sur le prix", "cost_factor": 0.5,
              "success_bonus": 0, "lose_on_fail": False},
-            {"id": "lucky", "label": "Jour de chance : +15 % de réussite", "chance": 0.05, "cost_factor": 1,
+            {"id": "lucky", "label": "Jour de chance : +15 % de réussite", "cost_factor": 1,
              "success_bonus": 0.15, "lose_on_fail": False},
         ],
         "base_cost": 400,

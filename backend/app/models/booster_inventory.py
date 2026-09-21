@@ -34,5 +34,9 @@ class UserBonusBooster(SQLModel, table=True):
     min_quality_id: Optional[str] = Field(default=None, max_length=20)
     min_jewelry_id: Optional[str] = Field(default=None, max_length=20)
     specialty_weight_multiplier: Optional[float] = Field(default=None)
+    quality_weight_multiplier: Optional[float] = Field(default=None)
+    jewelry_weight_multiplier: Optional[float] = Field(default=None)
+    # Puissance tirée N fois, la meilleure est gardée (sans dépasser le maximum).
+    power_rolls: Optional[int] = Field(default=None)
     label: str = Field(default="", max_length=100)
     quantity: int = Field(default=0)

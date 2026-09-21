@@ -47,6 +47,9 @@ class PackService:
         min_quality_id: Optional[str] = None,
         min_jewelry_id: Optional[str] = None,
         specialty_weight_multiplier: Optional[float] = None,
+        quality_weight_multiplier: Optional[float] = None,
+        jewelry_weight_multiplier: Optional[float] = None,
+        power_rolls: Optional[int] = None,
     ) -> tuple[list[list[CardResponse]], int]:
         """
         Génère `quantity` packs pour `booster`, les insère en BDD et retourne
@@ -82,12 +85,14 @@ class PackService:
                 force_min_quality_id=min_quality_id,
                 force_min_jewelry_id=min_jewelry_id,
                 specialty_weight_multiplier=specialty_weight_multiplier,
+                quality_weight_multiplier=quality_weight_multiplier,
+                jewelry_weight_multiplier=jewelry_weight_multiplier,
             )
 
             pack_responses = []
             for card_data in pack_data:
                 rendered_url = await self.renderer.render_and_upload(session, card_data)
-                power = roll_drawn_power(card_data)
+                power = roll_drawn_power(card_data, rolls=power_rolls or 1)
 
                 user_card = UserCard(
                     user_id=user_id,

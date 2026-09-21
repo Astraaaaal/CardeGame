@@ -64,7 +64,7 @@ def roll_power(
     return random.randint(1, n)
 
 
-def roll_drawn_power(card_data: dict) -> Optional[int]:
+def roll_drawn_power(card_data: dict, rolls: int = 1) -> Optional[int]:
     """
     Puissance d'une carte sortie du générateur. La chance du moment (présence,
     bonus de guilde, rareté minimum garantie, booster à plusieurs sets) change
@@ -78,7 +78,9 @@ def roll_drawn_power(card_data: dict) -> Optional[int]:
     if base_max is None:
         return None
     draw_max = power_range(card_data.get("draw_probability") or card_data["drop_probability"], *axes) or base_max
-    return min(random.randint(1, max(base_max, draw_max)), base_max)
+    # Bonus « chances de puissance » : plusieurs tirages, le meilleur est gardé.
+    best = max(random.randint(1, max(base_max, draw_max)) for _ in range(max(1, rolls)))
+    return min(best, base_max)
 
 
 def combined_rarity(

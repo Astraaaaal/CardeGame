@@ -53,11 +53,11 @@ function Machine() {
                 <div className="flex items-center justify-between">
                     <h2 className="text-white font-bold">⚙️ Machine d'amélioration</h2>
                     <button className="text-accent text-xs" onClick={() => setShowRotation((v) => !v)}>
-                        {showRotation ? "Masquer" : "Semaine"}
+                        {showRotation ? "Masquer" : "Le cycle"}
                     </button>
                 </div>
                 <p className="text-white/70 text-sm">
-                    Aujourd'hui ({data.weekday}) : <span className="text-gold font-semibold">
+                    Jour {data.day}/{data.length} : <span className="text-gold font-semibold">
                         {data.today.map((t) => t.label).join(" + ") || "rien"}
                     </span>
                 </p>
@@ -67,9 +67,16 @@ function Machine() {
                     </p>
                 )}
                 {showRotation && (
-                    <ul className="text-white/50 text-xs space-y-0.5">
-                        {data.rotation.map((r) => <li key={r.weekday}><span className="capitalize">{r.weekday}</span> : {r.labels.join(" + ")}</li>)}
-                    </ul>
+                    <div className="text-white/50 text-xs space-y-1">
+                        <p>
+                            Cycle de {data.length} jours, dans un ordre tiré au hasard à chaque cycle : une amélioration par jour
+                            ({data.cycle_upgrades.join(", ")}) et {data.cycle_events.length} jours d'événement surprise, qui
+                            proposent une amélioration au hasard :
+                        </p>
+                        <ul className="list-disc pl-4">
+                            {data.cycle_events.map((e) => <li key={e}>{e}</li>)}
+                        </ul>
+                    </div>
                 )}
                 <p className="text-white/40 text-[11px]">
                     Paie des pièces pour améliorer d'un cran un booster ou un reroll. Un échec coûte le paiement mais l'objet reste

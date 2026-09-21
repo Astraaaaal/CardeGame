@@ -12,8 +12,9 @@ Convertisseur : échange pièces ↔ poussière avec perte, quelques fois par jo
 pour compléter une ressource qui manque — pas pour s'enrichir.
 """
 
+import logging
 import random
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,6 +38,9 @@ BOOSTER_LADDERS = {
     "quality_guarantee": ("min_quality_id", ["preserved", "excellent", "graded", "mint", "authentic"]),
     "jewelry_guarantee": ("min_jewelry_id", ["silver", "gold", "diamond", "prismatic"]),
     "specialty_chances": ("specialty_weight_multiplier", [1.5, 2.0, 3.0, 5.0]),
+    "quality_chances": ("quality_weight_multiplier", [1.5, 2.0, 3.0, 5.0]),
+    "jewelry_chances": ("jewelry_weight_multiplier", [1.5, 2.0, 3.0, 5.0]),
+    "power_chances": ("power_rolls", [2, 3, 4, 5]),
 }
 _AXIS_OF_FIELD = {"force_min_rarity_id": "rarity", "min_quality_id": "quality", "min_jewelry_id": "jewelry"}
 REROLL_KINDS = ("reroll_guarantee", "reroll_axis", "reroll_boost")
@@ -49,28 +53,39 @@ KIND_LABEL = {
     "quality_guarantee": "Qualité garantie",
     "jewelry_guarantee": "Bijou garanti",
     "specialty_chances": "Chances de spécialité boostées",
+    "quality_chances": "Chances de qualité boostées",
+    "jewelry_chances": "Chances de bijou boostées",
+    "power_chances": "Chances de puissance boostées",
     "reroll_guarantee": "Reroll garanti",
     "reroll_axis": "Axe de reroll en plus",
     "reroll_boost": "Chances de reroll boostées",
 }
-_WEEKDAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────  JOUR ET ÉVÉNEMENT  ─────────────────────────────
 
 def today_plan(cfg: dict, now: datetime | None = None) -> dict:
+    """Jour du cycle : les améliorations et les événements se partagent les jours
+    du cycle, dans un ordre tiré au hasard à chaque nouveau cycle (graine = numéro
+    du cycle : identique pour tout le monde, imprévisible d'un cycle à l'autre)."""
     now = now or datetime.utcnow()
     machine = cfg["machine"]
-    kinds = [k for k in machine["rotation"].get(str(now.weekday()), []) if k in KIND_LABEL]
-    # Événement du jour : même tirage pour tout le monde (graine = la date).
-    roll = random.Random(now.date().isoformat()).random()
-    event, acc = None, 0.0
-    for e in machine["events"]:
-        acc += float(e.get("chance", 0))
-        if roll < acc:
-            event = e
-            break
-    return {"weekday": _WEEKDAYS[now.weekday()], "kinds": kinds, "event": event}
+    upgrades = [k for k in machine["cycle_upgrades"] if k in KIND_LABEL]
+    slots = [("upgrade", k) for k in upgrades] + [("event", e) for e in machine["events"]]
+    if not slots:
+        return {"day": 1, "length": 1, "kinds": [], "event": None}
+    start = date.fromisoformat(machine.get("cycle_start") or "2026-09-21")
+    days = (now.date() - start).days
+    cycle, day = divmod(days, len(slots))
+    order = slots[:]
+    random.Random(f"machine-cycle-{cycle}").shuffle(order)
+    kind, value = order[day]
+    if kind == "upgrade":
+        return {"day": day + 1, "length": len(slots), "kinds": [value], "event": None}
+    # Jour d'événement : une amélioration tirée au hasard, avec l'effet de l'événement.
+    picked = random.Random(f"machine-event-{cycle}-{day}").choice(upgrades) if upgrades else None
+    return {"day": day + 1, "length": len(slots), "kinds": [picked] if picked else [], "event": value}
 
 
 # ─────────────────────────────  NIVEAUX  ─────────────────────────────
@@ -146,6 +161,12 @@ def describe_bonus(bonus: dict, names: dict) -> str:
         bits.append(f"bijou {names.get(bonus['min_jewelry_id'], bonus['min_jewelry_id'])} min.")
     if bonus.get("specialty_weight_multiplier"):
         bits.append(f"spécialité ×{_fmt(bonus['specialty_weight_multiplier'])}")
+    if bonus.get("quality_weight_multiplier"):
+        bits.append(f"qualité ×{_fmt(bonus['quality_weight_multiplier'])}")
+    if bonus.get("jewelry_weight_multiplier"):
+        bits.append(f"bijou ×{_fmt(bonus['jewelry_weight_multiplier'])}")
+    if bonus.get("power_rolls"):
+        bits.append(f"puissance ×{bonus['power_rolls']} tirages")
     return " · ".join(bits)
 
 
@@ -159,8 +180,10 @@ def describe_reroll(rules: dict) -> str:
 
 
 def _next_label(kind: str, nxt, names: dict) -> str:
-    if kind in ("rarity_chances", "specialty_chances", "reroll_boost"):
+    if kind in ("rarity_chances", "specialty_chances", "quality_chances", "jewelry_chances", "reroll_boost"):
         return f"chances ×{_fmt(nxt)}"
+    if kind == "power_chances":
+        return f"puissance tirée {nxt} fois, la meilleure gardée"
     if kind == "reroll_guarantee":
         return "mode garanti (égal ou mieux)"
     if kind == "reroll_axis":
@@ -226,13 +249,13 @@ async def machine_state(session: AsyncSession, user: User) -> dict:
         })
 
     return {
-        "weekday": plan["weekday"],
+        "day": plan["day"],
+        "length": plan["length"],
         "today": [{"kind": k, "label": KIND_LABEL[k]} for k in plan["kinds"]],
         "event": {"id": plan["event"]["id"], "label": plan["event"]["label"]} if plan["event"] else None,
-        "rotation": [
-            {"weekday": _WEEKDAYS[int(d)], "labels": [KIND_LABEL[k] for k in kinds if k in KIND_LABEL]}
-            for d, kinds in sorted(cfg["machine"]["rotation"].items(), key=lambda kv: int(kv[0]))
-        ],
+        # Contenu du cycle (sans l'ordre : on ne sait pas quand tombent les événements).
+        "cycle_upgrades": [KIND_LABEL[k] for k in cfg["machine"]["cycle_upgrades"] if k in KIND_LABEL],
+        "cycle_events": [e["label"] for e in cfg["machine"]["events"]],
         "items": items,
     }
 
@@ -285,7 +308,8 @@ async def upgrade(session: AsyncSession, user: User, item: str, kind: str, boost
         raise HTTPException(400, f"Il faut {cost} pièces pour cet essai.")
     await apply_delta(session, user, "coins", -cost)
 
-    success = random.random() < chance
+    roll = random.random()
+    success = roll < chance
     destroyed = False
     result_label = None
     if success:
@@ -324,6 +348,10 @@ async def upgrade(session: AsyncSession, user: User, item: str, kind: str, boost
     row.machine_failures = failures
     session.add(row)
     await session.commit()
+    # Trace de chaque essai (vérification des chances en production).
+    logger.info("Machine : joueur %s, %s %s, cran %s, chance %.3f, tirage %.3f -> %s%s",
+                user.id, item, kind, level + 1, chance, roll,
+                "réussi" if success else "raté", " (objet détruit)" if destroyed else "")
     return {"success": success, "destroyed": destroyed, "cost": cost, "chance": chance, "result": result_label,
             "state": await machine_state(session, user)}
 

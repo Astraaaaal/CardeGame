@@ -192,8 +192,9 @@ export interface ActivitiesConfig {
         house_edge: number; min_cashout_step: number; max_step_multiplier: number;
     };
     machine: {
-        rotation: Record<string, string[]>;
-        events: { id: string; label: string; chance: number; cost_factor: number; success_bonus: number; lose_on_fail: boolean }[];
+        cycle_start: string;
+        cycle_upgrades: string[];
+        events: { id: string; label: string; cost_factor: number; success_bonus: number; lose_on_fail: boolean }[];
         base_cost: number; level_cost_factor: number; failure_cost_factor: number;
         base_chance: number; level_chance_factor: number; failure_chance_step: number; max_chance: number;
     };
