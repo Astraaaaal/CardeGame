@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Card, CardGroup } from "@/types/card";
 import CardImage from "./CardImage";
 import CardDetail from "./CardDetail";
@@ -23,8 +23,25 @@ export default function CardGrid({
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const selected = groups.find((g) => g.card.id === selectedId) ?? null;
     const [pickerGroup, setPickerGroup] = useState<CardGroup | null>(null);
+    // Mode sélection : appui long (ou clic droit) = voir le détail sans cocher.
+    const [peek, setPeek] = useState<CardGroup | null>(null);
+    const pressTimer = useRef<number | null>(null);
+    const longPressed = useRef(false);
+    const startPress = (g: CardGroup) => {
+        if (!selectionMode) return;
+        longPressed.current = false;
+        pressTimer.current = window.setTimeout(() => { longPressed.current = true; setPeek(g); }, 450);
+    };
+    const endPress = () => {
+        if (pressTimer.current) window.clearTimeout(pressTimer.current);
+        pressTimer.current = null;
+    };
 
     const handleTap = (g: CardGroup) => {
+        if (longPressed.current) {  // l'appui long a déjà ouvert le détail
+            longPressed.current = false;
+            return;
+        }
         if (!selectionMode) {
             setSelectedId(g.card.id);
             return;
@@ -43,7 +60,10 @@ export default function CardGrid({
                     const isSingleSelected = selectionMode && g.quantity === 1 && selectedIds?.has(g.card.id);
                     const isSingleExcluded = selectionMode && g.quantity === 1 && excludeIds?.has(g.card.id);
                     return (
-                        <div key={g.card.id} className="relative">
+                        <div key={g.card.id} className="relative select-none"
+                            onPointerDown={() => startPress(g)} onPointerUp={endPress} onPointerLeave={endPress}
+                            onPointerCancel={endPress}
+                            onContextMenu={(e) => { if (selectionMode) { e.preventDefault(); endPress(); setPeek(g); } }}>
                             <div className={isSingleSelected ? "ring-2 ring-accent rounded-xl" : undefined}>
                                 <CardImage
                                     card={g.card}
@@ -78,6 +98,16 @@ export default function CardGrid({
                     card={selected?.card ?? null}
                     quantity={selected?.quantity}
                     onClose={() => setSelectedId(null)}
+                />
+            )}
+
+            {selectionMode && (
+                <CardDetail
+                    open={!!peek}
+                    card={peek?.card ?? null}
+                    quantity={peek?.quantity}
+                    readOnly
+                    onClose={() => setPeek(null)}
                 />
             )}
 

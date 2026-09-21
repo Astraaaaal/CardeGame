@@ -178,6 +178,10 @@ export default function Collection() {
                 />
             </div>
 
+            {inSelectionMode && (
+                <p className="px-4 pt-2 text-white/40 text-[11px]">Toucher pour choisir · appui long pour voir le détail</p>
+            )}
+
             {/* Favoris : filtre par catégorie + gestion */}
             <div className="px-4 pt-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
                 <span className="shrink-0 text-white/40 text-xs">★</span>

@@ -74,18 +74,25 @@ export function JewelrySparkles({ tier }: { tier: Tier }) {
     );
 }
 
-/** Reflet lumineux fin, en diagonale, qui balaye la carte — cartes pas tout à
- * fait ordinaires (cf. isPolishedCard). */
+/** Reflet lumineux en diagonale qui suit l'inclinaison de la carte (comme la
+ * lumière sur une vraie carte brillante) — discret à plat, net quand on
+ * l'incline. Cartes pas tout à fait ordinaires (cf. isPolishedCard). */
 export function DiagonalSheen() {
+    const { x, y } = useTilt();
+    const amount = Math.min(1, Math.hypot(x, y) / MAX_DEG);
+    // Inclinaison vers la droite / le bas => le reflet glisse vers la gauche / le haut.
+    const posX = 50 - (y / MAX_DEG) * 45;
+    const posY = 50 + (x / MAX_DEG) * 45;
     return (
-        <motion.div
-            className="absolute -inset-1/2 pointer-events-none mix-blend-screen"
+        <div
+            className="absolute inset-0 pointer-events-none mix-blend-screen"
             style={{
-                background: "linear-gradient(138deg, transparent 46%, rgba(255,255,255,.55) 50%, transparent 54%)",
-                backgroundSize: "300% 300%",
+                background: "linear-gradient(118deg, transparent 38%, rgba(255,255,255,.5) 50%, transparent 62%)",
+                backgroundSize: "250% 250%",
+                backgroundPosition: `${posX}% ${posY}%`,
+                opacity: 0.15 + 0.7 * amount,
+                transition: "background-position 0.15s ease-out, opacity 0.3s",
             }}
-            animate={{ backgroundPosition: ["100% 100%", "0% 0%"] }}
-            transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.4 }}
         />
     );
 }
