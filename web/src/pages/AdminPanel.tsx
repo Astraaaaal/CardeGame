@@ -1005,7 +1005,9 @@ function Panel() {
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button
                     className="text-accent text-sm font-semibold"
-                    onClick={() => { adminKey.clear(); navigate("/"); }}
+                    // La clé reste en mémoire (cet onglet) : elle permet de jouer même
+                    // quand le jeu est fermé. « Verrouiller » l'efface.
+                    onClick={() => navigate("/")}
                 >
                     Jeu
                 </button>
