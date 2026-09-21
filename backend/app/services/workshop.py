@@ -16,6 +16,7 @@ from app.models.user import User
 from app.services import activities_config, booster_inventory, guilds, quest_progress
 from app.services.presence_bonus import get_activity
 from app.services.wallet import apply_delta
+from app.services import unlocks
 
 # Taps « en réserve » acceptés au plus après une pause (évite d'accumuler du
 # crédit de vitesse en restant inactif puis d'envoyer une rafale).
@@ -54,7 +55,7 @@ async def status(session: AsyncSession, user: User) -> dict:
 async def _daily_cap(session: AsyncSession, user: User, cfg: dict) -> int:
     """Jauges par jour, relevées par le bonus de guilde « atelier »."""
     extra = await guilds.buff_value(session, user.id, "workshop")
-    return cfg["workshop"]["gauges_per_day"] + int(extra or 0)
+    return unlocks.workshop_gauges(cfg, await unlocks.level_of(session, user)) + int(extra or 0)
 
 
 async def tap(session: AsyncSession, user: User, count: int) -> dict:

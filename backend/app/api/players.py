@@ -21,6 +21,9 @@ from app.services.ranking import refresh_all_best_ranks
 from app.services.wallet import get_balance, apply_delta
 from app.services.trade_requests import create_trade_request
 from app.services import favorites
+from app.services import unlocks
+from app.services import trade_tax
+from app.services.wallet import COINS_ID
 
 router = APIRouter()
 
@@ -52,6 +55,7 @@ async def buy_trade_listing(
     Achat direct d'une carte listée en mode "buy_now" : transfert immédiat
     de la ressource (vendeur <- acheteur) et de la carte (vendeur -> acheteur).
     """
+    await unlocks.require(session, buyer, "listings")
     if buyer.id == user_id:
         raise HTTPException(400, "Tu ne peux pas acheter ta propre carte.")
 
@@ -67,14 +71,20 @@ async def buy_trade_listing(
         raise HTTPException(409, "Cette carte n'est plus disponible.")
     await expeditions.ensure_not_on_expedition(session, [card.id])
 
-    have = await get_balance(session, buyer, listing.resource_id)
-    if have < listing.price:
-        raise HTTPException(400, f"Solde insuffisant ({have}/{listing.price}).")
-
     seller = await session.get(User, user_id)
+    tax = await trade_tax.tax_for_items(
+        session, await trade_tax.rate_for(session, buyer, seller), [{"type": "card", "card": card}],
+    )
+    have = await get_balance(session, buyer, listing.resource_id)
+    need = listing.price + (tax if listing.resource_id == COINS_ID else 0)
+    if have < need:
+        raise HTTPException(400, f"Il te faut {need} {'pièces' if listing.resource_id == COINS_ID else ''} (prix + taxe {tax}) : il t'en manque {need - have}.".replace("  ", " "))
+    if listing.resource_id != COINS_ID and await get_balance(session, buyer, COINS_ID) < tax:
+        raise HTTPException(400, f"Il te faut {tax} pièces pour la taxe de cet achat.")
 
     await apply_delta(session, buyer, listing.resource_id, -listing.price)
     await apply_delta(session, seller, listing.resource_id, listing.price)
+    await apply_delta(session, buyer, COINS_ID, -tax)
 
     card.user_id = buyer.id
     await favorites.release(session, card)

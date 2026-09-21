@@ -13,6 +13,7 @@ from app.database import get_session
 from app.models.guild import Guild
 from app.models.user import User
 from app.services import guilds
+from app.services import unlocks
 
 router = APIRouter()
 
@@ -79,12 +80,14 @@ async def guild_rankings(kind: str = "overall", _user: User = Depends(get_curren
 @router.post("", dependencies=[Depends(rate_limit(5, 60))])
 async def create_guild(body: CreateGuildBody, user: User = Depends(get_current_user),
                        session: AsyncSession = Depends(get_session)):
+    await unlocks.require(session, user, "guild_create")
     guild = await guilds.create(session, user, body.name, body.tag, body.icon, body.color, body.join_policy)
     return await guilds.summary(session, guild)
 
 
 @router.post("/{guild_id}/join", dependencies=[Depends(rate_limit(10, 60))])
 async def join_guild(guild_id: int, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    await unlocks.require(session, user, "guild_join")
     return {"result": await guilds.join(session, user, guild_id)}
 
 
@@ -111,6 +114,8 @@ async def invite_player(body: UsernameBody, user: User = Depends(get_current_use
 @router.post("/invites/{invite_id}/answer")
 async def answer_invite(invite_id: int, body: AnswerBody, user: User = Depends(get_current_user),
                         session: AsyncSession = Depends(get_session)):
+    if body.accept:
+        await unlocks.require(session, user, "guild_join")
     await guilds.answer_invite(session, user, invite_id, body.accept)
     return {"ok": True}
 

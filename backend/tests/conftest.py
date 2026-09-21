@@ -34,3 +34,17 @@ async def make_user(session: AsyncSession, username: str = "test_user") -> User:
     await session.commit()
     await session.refresh(user)
     return user
+
+
+@pytest_asyncio.fixture(autouse=True)
+def _max_level_by_default(request, monkeypatch):
+    """Tests existants : joueur considéré au niveau maximum (tout débloqué), sauf
+    pour les tests marqués `real_levels` qui vérifient les déblocages eux-mêmes."""
+    if "real_levels" in request.keywords:
+        return
+    from app.services import unlocks
+
+    async def high_level(session, user):
+        return 99
+
+    monkeypatch.setattr(unlocks, "level_of", high_level)

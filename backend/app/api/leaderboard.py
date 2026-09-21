@@ -17,6 +17,7 @@ from app.models.card import UserCard
 from app.models.character import Character, CharacterType
 from app.models.social import FriendRequest
 from app.schemas.leaderboard import LeaderboardEntry, LeaderboardResponse
+from app.services import unlocks
 
 router = APIRouter()
 
@@ -73,6 +74,7 @@ async def leaderboard_friends(
     session: AsyncSession = Depends(get_session),
 ):
     """Classement de puissance totale entre toi et tes amis."""
+    await unlocks.require(session, user, "leaderboard")
     rows = (await session.execute(
         select(FriendRequest).where(
             FriendRequest.status == "accepted",
@@ -90,6 +92,7 @@ async def leaderboard_global(
     session: AsyncSession = Depends(get_session),
 ):
     """Top 10 des joueurs par puissance totale, tous joueurs confondus."""
+    await unlocks.require(session, user, "leaderboard")
     entries = await _leaderboard(session, None, None, 10)
     return LeaderboardResponse(entries=entries)
 
@@ -101,6 +104,7 @@ async def leaderboard_by_type(
     session: AsyncSession = Depends(get_session),
 ):
     """Top 10 des joueurs par puissance totale, restreinte aux cartes d'un type de personnage."""
+    await unlocks.require(session, user, "leaderboard")
     exists = (await session.execute(
         select(CharacterType).where(CharacterType.name == type_name)
     )).scalar_one_or_none()

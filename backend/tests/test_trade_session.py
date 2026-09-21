@@ -30,8 +30,9 @@ async def test_full_trade_swaps_coins_both_ways(session):
 
     await session.refresh(trade)
     assert trade.status == ts.STATUS_COMPLETED
-    assert alice.coins == 500 - 100 + 50
-    assert bob.coins == 500 - 50 + 100
+    # Taxe de 25 % (niveau maximum dans les tests) sur ce que chacun reçoit.
+    assert alice.coins == 500 - 100 + 50 - 13
+    assert bob.coins == 500 - 50 + 100 - 25
 
 
 async def test_execute_rolls_back_when_balance_became_insufficient(session):

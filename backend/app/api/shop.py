@@ -30,6 +30,8 @@ from app.services import activity, booster_inventory, expeditions, purchase_limi
 from app.services.reroll import apply_reroll, assign_bought_card_power
 from app.services import premium as premium_svc
 from app.models.premium import Cosmetic
+from app.services import unlocks
+from app.services.wallet import require_balance
 
 router = APIRouter()
 pack_service = PackService()
@@ -153,6 +155,11 @@ async def buy_offer(
     if not offer or not offer.active:
         raise HTTPException(status_code=404, detail="Offre introuvable ou inactive.")
 
+    if offer.resource_id != premium_svc.PREMIUM_RESOURCE_ID:
+        await unlocks.require(session, user, "resource_shop")
+    if offer.kind == "reroll":
+        await unlocks.require(session, user, "rerolls")
+
     quantity = request.quantity
     if quantity > 1 and not (
         offer.kind in ("booster", "specific_card", "bundle") or (offer.kind == "reroll" and request.to_inventory)
@@ -176,14 +183,7 @@ async def buy_offer(
             )
 
     total_price = offer.price * quantity
-    have = await get_balance(session, user, offer.resource_id)
-    if have < total_price:
-        resource = await session.get(Resource, offer.resource_id)
-        raise HTTPException(
-            status_code=400,
-            detail=f"Pas assez de {resource.name if resource else offer.resource_id} "
-                   f"({have}/{total_price}).",
-        )
+    await require_balance(session, user, offer.resource_id, total_price)
 
     cards_out: list = []
     packs_out: list = []
@@ -329,4 +329,5 @@ async def use_reroll_token(
     user: User = Depends(get_current_user),
 ):
     """Utilise un reroll de l'inventaire sur une carte possédée."""
+    await unlocks.require(session, user, "rerolls")
     return await reroll_inventory.use(session, user, token_id, request.card_id)

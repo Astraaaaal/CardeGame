@@ -79,6 +79,31 @@ DEFAULTS: dict = {
     # plafonné ; encaissement possible à partir de `min_cashout_step` manches.
     "higher_lower": {"min_stake": 50, "max_stake": 5000, "max_steps": 10, "house_edge": 0.02,
                      "min_cashout_step": 3, "max_step_multiplier": 20},
+    # Niveau (plus haut atteint) qui débloque chaque fonctionnalité (cf. services/unlocks.py).
+    "unlocks": {
+        "workshop": 2, "absence_chest": 2, "leaderboard": 2,
+        "expeditions": 3, "resource_shop": 3,
+        "gifts": 4, "wheel": 4,
+        "trades": 5, "guild_join": 5, "presence_luck": 5,
+        "higher_lower": 6, "rerolls": 6,
+        "listings": 7, "converter": 7,
+        "machine": 8, "guild_create": 8,
+    },
+    # Progressions liées au niveau : tables {"niveau": valeur} ou base + per_level (plafonné).
+    "progression": {
+        "expedition_slots": {"3": 1, "9": 2, "14": 3},
+        "workshop_gauges": {"base": 10, "per_level": 2, "max": 40},
+        "presence_max": {"base": 1.5, "per_level": 0.1, "max": 2.5},
+        "higher_lower_max_stake": {"base": 500, "per_level": 500, "max": 5000},
+        "converter_uses": {"7": 1, "12": 2, "17": 3},
+    },
+    # Taxe sur les transferts entre joueurs (cf. services/trade_tax.py).
+    "trade_tax": {
+        "base_rate": 0.05, "per_level": 0.01, "max_rate": 0.25,
+        "card_anchor": 4, "card_exponent": 1.15, "card_cap": 3000,
+        "resource_values": {"dust": 5},
+        "booster_value": 100, "reroll_value": 300,
+    },
     # Machine d'amélioration : cycle de N jours (une amélioration par jour + les
     # jours d'événement), dans un ordre tiré au hasard à chaque nouveau cycle
     # (le même pour tout le monde). Un jour d'événement propose une amélioration

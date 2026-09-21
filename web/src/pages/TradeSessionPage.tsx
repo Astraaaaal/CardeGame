@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { BoosterIcon, RerollIcon } from "@/components/ui/ItemIcon";
+import { toast } from "@/stores/toastStore";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -55,7 +57,7 @@ function ItemChip({ item, onRemove, onOpenDetail }: { item: TradeSessionItem; on
                         ×
                     </button>
                 )}
-                <span className="text-xl">{item.item_type === "booster" ? "🎴" : "🎲"}</span>
+                {item.item_type === "booster" ? <BoosterIcon className="w-6 h-6 text-white/80" /> : <RerollIcon className="w-6 h-6 text-white/80" />}
                 <span className="text-white text-sm font-bold">×{item.amount}</span>
                 <span className="text-white/60 text-[10px] text-center leading-tight">{item.name}</span>
                 {item.label && <span className="text-gold text-[10px] text-center leading-tight">{item.label}</span>}
@@ -85,7 +87,7 @@ export default function TradeSessionPage() {
     const navigate = useNavigate();
     const qc = useQueryClient();
     const [itemPickerOpen, setItemPickerOpen] = useState(false);
-    const [err, setErr] = useState("");
+    const setErr = (m: string | null) => { if (m) toast.error(m); };
     const [detailCard, setDetailCard] = useState<Card | null>(null);
     const requestSelection = useCardSelectionStore((s) => s.requestSelection);
     const consumeResult = useCardSelectionStore((s) => s.consumeResult);
@@ -296,11 +298,17 @@ export default function TradeSessionPage() {
                     )}
                 </section>
 
-                {err && <p className="text-red-400 text-xs">{err}</p>}
 
                 {!finished && (
                     <FloatingActionBar spacerClassName={trade.status === "confirming" ? "h-48" : "h-32"}>
                     <div className="space-y-2">
+                        {(trade.my_tax > 0 || trade.other_tax > 0) && (
+                            <p className="text-white/60 text-xs text-center bg-game-panel/90 rounded-lg px-2 py-1">
+                                Taxe d'échange ({Math.round(trade.tax_rate * 100)} %) : tu paieras{" "}
+                                <span className="text-gold font-semibold">{trade.my_tax.toLocaleString("fr-FR")} pièces</span>
+                                {" "}· {trade.other_display_name} : {trade.other_tax.toLocaleString("fr-FR")}
+                            </p>
+                        )}
                         {trade.status === "negotiating" && (
                             <Button
                                 variant={trade.my_ready ? "secondary" : "primary"}

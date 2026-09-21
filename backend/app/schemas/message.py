@@ -23,6 +23,8 @@ class MessageOut(BaseModel):
     sender_display_name: str  # "Administration" ou le pseudo de l'expéditeur
     subject: str
     body: str
+    # Taxe en pièces à payer pour récupérer un cadeau de joueur (0 sinon).
+    tax: int = 0
     reward_resource_id: str | None = None
     reward_resource_name: str | None = None
     reward_amount: int | None = None

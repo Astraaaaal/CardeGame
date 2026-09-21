@@ -19,6 +19,7 @@ from app.models.trade_session import TradeSession
 from app.schemas.social import TradeRequestOut, TradePulseOut
 from app.services.trade_policy import can_send_trade_request
 from app.services.trade_session import create_session, get_active_session_for
+from app.services import unlocks
 
 
 async def create_trade_request(session: AsyncSession, requester: User, target: User) -> TradeRequest:
@@ -41,6 +42,7 @@ async def create_trade_request(session: AsyncSession, requester: User, target: U
     if existing:
         raise HTTPException(409, "Une demande d'échange est déjà en attente avec ce joueur.")
 
+    await unlocks.require(session, requester, "trades")
     req = TradeRequest(requester_id=requester.id, addressee_id=target.id)
     session.add(req)
     await session.commit()

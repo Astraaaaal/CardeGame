@@ -13,7 +13,7 @@ from app.models.economy import Resource
 from app.models.social import TradeListing, FriendRequest
 from app.models.achievement import AchievementDef, UserAchievement
 from app.schemas.showcase import ShowcaseResponse, AvatarInfo, TradeListingOut, ShowcaseAchievement
-from app.services import guilds
+from app.services import guilds, trade_tax
 from app.services.card_view import build_card_response
 from app.services.levels import get_all_tiers, get_total_power, current_level_for_power
 from app.services.ranking import current_global_rank
@@ -43,6 +43,8 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
         select(TradeListing).where(TradeListing.user_id == target.id).order_by(TradeListing.slot)
     )).scalars().all()
     trade_listings = []
+    viewer = await session.get(User, viewer_id) if viewer_id and viewer_id != target.id else None
+    viewer_rate = await trade_tax.rate_for(session, viewer, target) if viewer else 0
     for listing in listings_rows:
         card = await session.get(UserCard, listing.user_card_id)
         # Comme pour la vitrine cosmétique : ignore une annonce dont la carte
@@ -57,6 +59,7 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
             resource_name=resource.name if resource else listing.resource_id,
             price=listing.price,
             mode=listing.mode,
+            tax=await trade_tax.tax_for_items(session, viewer_rate, [{"type": "card", "card": card}]) if viewer_rate else 0,
         ))
 
     achievement_slots = [getattr(target, f) for f in ACHIEVEMENT_SLOT_FIELDS]

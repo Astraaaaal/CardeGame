@@ -8,6 +8,8 @@ export interface AppMessage {
     sender_display_name: string;
     subject: string;
     body: string;
+    /** Taxe (pièces) à payer pour récupérer un cadeau de joueur. */
+    tax: number;
     reward_resource_id: string | null;
     reward_resource_name: string | null;
     reward_amount: number | null;

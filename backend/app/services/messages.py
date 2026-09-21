@@ -22,6 +22,8 @@ from app.services import quest_progress
 from app.services import booster_inventory, expeditions, message_rewards, reroll_inventory
 from app.services.premium import ensure_tradeable
 from app.services import favorites
+from app.services import trade_tax
+from app.services.wallet import require_balance
 
 MAX_RECIPIENTS_PER_SEND = 200
 
@@ -77,6 +79,31 @@ async def delete_message(session: AsyncSession, message: Message) -> None:
     await session.commit()
 
 
+async def gift_tax(session: AsyncSession, message: Message) -> int:
+    """Taxe (pièces) due par le destinataire d'un cadeau de joueur ; 0 pour un message de l'admin."""
+    if not message.sender_user_id or message.claimed_at:
+        return 0
+    sender = await session.get(User, message.sender_user_id)
+    recipient = await session.get(User, message.recipient_user_id)
+    if not sender or not recipient:
+        return 0
+    items = []
+    if message.reward_card_id:
+        card = await session.get(UserCard, message.reward_card_id)
+        if card:
+            items.append({"type": "card", "card": card})
+    if message.reward_resource_id and message.reward_amount:
+        items.append({"type": "resource", "resource_id": message.reward_resource_id, "amount": message.reward_amount})
+    if message.reward_booster_id and message.reward_booster_qty:
+        items.append({"type": "booster", "booster_id": message.reward_booster_id, "amount": message.reward_booster_qty})
+    if message.reward_reroll and (message.reward_reroll or {}).get("quantity"):
+        items.append({"type": "reroll", "amount": message.reward_reroll["quantity"]})
+    if not items:
+        return 0
+    rate = await trade_tax.rate_for(session, sender, recipient)
+    return await trade_tax.tax_for_items(session, rate, items)
+
+
 async def claim(session: AsyncSession, message: Message) -> Message:
     if message.claimed_at:
         raise HTTPException(409, "Récompense déjà récupérée.")
@@ -85,6 +112,14 @@ async def claim(session: AsyncSession, message: Message) -> Message:
 
     recipient = await session.get(User, message.recipient_user_id)
     error = None
+
+    # Cadeau d'un joueur : la taxe est payée à la réception (récupérable plus tard si besoin).
+    tax = await gift_tax(session, message)
+    if tax:
+        balance = await get_balance(session, recipient, COINS_ID)
+        if balance < tax:
+            raise HTTPException(400, f"Il te faut {tax} pièces pour récupérer ce cadeau (taxe) : il t'en manque {tax - balance}.")
+        await apply_delta(session, recipient, COINS_ID, -tax)
 
     if message.reward_card_id:
         card = (await session.execute(
@@ -204,9 +239,7 @@ async def send_gift(
         if resource_id != COINS_ID and not await session.get(Resource, resource_id):
             raise HTTPException(404, "Ressource introuvable.")
         await ensure_tradeable(session, resource_id)
-        balance = await get_balance(session, sender, resource_id)
-        if amount > balance:
-            raise HTTPException(400, f"Solde insuffisant ({balance}).")
+        await require_balance(session, sender, resource_id, amount)
         # Débité tout de suite (le cadeau est déjà "engagé"), crédité à la récupération.
         await apply_delta(session, sender, resource_id, -amount)
         reward_resource_id = resource_id
@@ -288,7 +321,7 @@ async def build_out(session: AsyncSession, message: Message) -> MessageOut:
 
     return MessageOut(
         id=message.id, sender_type=message.sender_type, sender_display_name=sender_name,
-        subject=message.subject, body=message.body,
+        subject=message.subject, body=message.body, tax=await gift_tax(session, message),
         reward_resource_id=message.reward_resource_id, reward_resource_name=reward_resource_name,
         reward_amount=message.reward_amount, reward_card=reward_card, has_reward=has_reward,
         reward_booster_id=message.reward_booster_id, reward_booster_name=reward_booster_name,

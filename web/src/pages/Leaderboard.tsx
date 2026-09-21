@@ -1,4 +1,5 @@
 import { useState } from "react";
+import LockedFeature from "@/components/ui/LockedFeature";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { leaderboardApi } from "@/api/leaderboard";
@@ -108,6 +109,7 @@ export default function Leaderboard() {
             </div>
 
             <main className="flex-1 px-4 py-6 max-w-sm mx-auto w-full">
+              <LockedFeature feature="leaderboard">
                 {tab === "friends" && (
                     <>
                         <p className="text-white/30 text-xs mb-4">
@@ -140,6 +142,7 @@ export default function Leaderboard() {
                 )}
 
                 {tab === "guilds" && <GuildRankings />}
+              </LockedFeature>
             </main>
 
             <BottomNav />

@@ -1,4 +1,6 @@
 import { useState } from "react";
+import LockedFeature from "@/components/ui/LockedFeature";
+import { useToastMessage } from "@/hooks/useToastMessage";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { guildsApi, type JoinPolicy, type MyGuildState } from "@/api/guilds";
 import Button from "@/components/ui/Button";
@@ -13,7 +15,7 @@ export default function NoGuild({ state }: { state: MyGuildState }) {
     const qc = useQueryClient();
     const [query, setQuery] = useState("");
     const [form, setForm] = useState({ name: "", tag: "", icon: GUILD_ICONS[0], color: GUILD_COLORS[0], join_policy: "request" as JoinPolicy });
-    const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [, setMsg] = useToastMessage();
     const { data: results } = useQuery({ queryKey: ["guild", "search", query], queryFn: () => guildsApi.search(query) });
 
     const refresh = () => { qc.invalidateQueries({ queryKey: MY_GUILD_KEY }); qc.invalidateQueries({ queryKey: ["player"] }); };
@@ -38,6 +40,7 @@ export default function NoGuild({ state }: { state: MyGuildState }) {
     const waiting = cooldownEnd && cooldownEnd > new Date();
 
     return (
+        <LockedFeature feature="guild_join">
         <div className="space-y-5">
             {waiting && (
                 <p className="text-amber-300/80 text-xs">
@@ -45,7 +48,6 @@ export default function NoGuild({ state }: { state: MyGuildState }) {
                     {cooldownEnd!.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.
                 </p>
             )}
-            {msg && <p className={`text-xs ${msg.ok ? "text-green-400" : "text-red-400"}`}>{msg.text}</p>}
 
             {state.invites.length > 0 && (
                 <section className="space-y-2">
@@ -61,6 +63,7 @@ export default function NoGuild({ state }: { state: MyGuildState }) {
                 </section>
             )}
 
+            <LockedFeature feature="guild_create" compact>
             <section className="bg-game-surface rounded-2xl border border-white/10 p-4 space-y-3">
                 <h2 className="text-white font-bold text-sm">Fonder une guilde ({state.creation_cost.toLocaleString("fr-FR")} pièces)</h2>
                 <div className="grid grid-cols-[1fr_5rem] gap-2">
@@ -100,6 +103,7 @@ export default function NoGuild({ state }: { state: MyGuildState }) {
                     Fonder la guilde
                 </Button>
             </section>
+            </LockedFeature>
 
             <section className="space-y-2">
                 <h2 className="text-white/50 text-xs font-semibold uppercase tracking-wide">Rejoindre une guilde</h2>
@@ -124,5 +128,6 @@ export default function NoGuild({ state }: { state: MyGuildState }) {
                 {results?.length === 0 && <p className="text-white/30 text-sm">Aucune guilde trouvée.</p>}
             </section>
         </div>
+        </LockedFeature>
     );
 }

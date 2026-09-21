@@ -63,7 +63,7 @@ async def reset_all_accounts(session: AsyncSession) -> dict:
         equipped_avatar_frame_id=None, equipped_showcase_background_id=None,
         cards_recycled=0, dust_from_recycling=0, rerolls_used=0, reroll_rarity_upgrades=0,
         best_reroll_card_id=None, best_reroll_combined_rarity=None, login_days_total=0,
-        guild_left_at=None, claimed_level=0,
+        guild_left_at=None, claimed_level=0, max_level=1,
     ))
     await session.execute(delete(UserCard))
 

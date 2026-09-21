@@ -29,6 +29,8 @@ class TradeListingOut(BaseModel):
     resource_name: str
     price: int
     mode: Literal["buy_now", "offer"]
+    # Taxe (pièces) que paierait le joueur qui consulte la vitrine en l'achetant.
+    tax: int = 0
 
 
 class ShowcaseResponse(BaseModel):

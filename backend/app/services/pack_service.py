@@ -21,6 +21,7 @@ from app.services.power import roll_drawn_power, combined_rarity
 from app.services import quest_progress
 from app.services import activity, guilds, presence_bonus
 from app.schemas.card import CardResponse
+from app.services.wallet import require_balance
 
 
 class PackService:
@@ -185,14 +186,7 @@ class PackService:
         if not user:
             raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 
-        have = await get_balance(session, user, booster.resource_id)
-        if have < total_price:
-            resource = await session.get(Resource, booster.resource_id)
-            raise HTTPException(
-                status_code=400,
-                detail=f"Pas assez de {resource.name if resource else booster.resource_id} "
-                       f"({have}/{total_price})",
-            )
+        await require_balance(session, user, booster.resource_id, total_price)
 
         await apply_delta(session, user, booster.resource_id, -total_price)
         return booster, user, total_price

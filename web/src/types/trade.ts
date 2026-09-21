@@ -32,4 +32,8 @@ export interface TradeSession {
     other_items: TradeSessionItem[];
     updated_at: string;
     removed_items: string[];
+    /** Taxe en pièces payée par chacun sur ce qu'il reçoit. */
+    tax_rate: number;
+    my_tax: number;
+    other_tax: number;
 }

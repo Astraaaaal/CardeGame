@@ -13,6 +13,7 @@ from app.models.activity import UserActivity
 from app.models.user import User
 from app.services import activities_config
 from app.services.wallet import apply_delta
+from app.services import unlocks
 
 
 async def get_activity(session: AsyncSession, user_id: int) -> UserActivity:
@@ -23,23 +24,29 @@ async def get_activity(session: AsyncSession, user_id: int) -> UserActivity:
     return row
 
 
-def _multiplier(row: UserActivity, cfg: dict, now: datetime) -> float:
+def _multiplier(row: UserActivity, cfg: dict, now: datetime, max_multiplier: float) -> float:
     presence = cfg["presence"]
-    if not row.presence_since or not row.presence_ping_at:
+    if max_multiplier <= 1.0 or not row.presence_since or not row.presence_ping_at:
         return 1.0
     if now - row.presence_ping_at > timedelta(minutes=presence["reset_after_minutes"]):
         return 1.0
     ratio = min(1.0, (now - row.presence_since).total_seconds() / (presence["full_after_hours"] * 3600))
-    return round(1.0 + (presence["max_multiplier"] - 1.0) * ratio, 3)
+    return round(1.0 + (max_multiplier - 1.0) * ratio, 3)
+
+
+async def _max_for(session: AsyncSession, user: User, cfg: dict) -> float:
+    """Maximum selon le niveau (1.0 tant que la chance de présence n'est pas débloquée)."""
+    return unlocks.presence_max_multiplier(cfg, await unlocks.level_of(session, user))
 
 
 async def luck_multiplier(session: AsyncSession, user_id: int) -> float:
     """Bonus de chance de rareté actuel (1.0 = aucun). Utilisé à l'ouverture des boosters."""
     row = await session.get(UserActivity, user_id)
-    if not row:
+    user = await session.get(User, user_id)
+    if not row or not user:
         return 1.0
     cfg = await activities_config.get_config(session)
-    return _multiplier(row, cfg, datetime.utcnow())
+    return _multiplier(row, cfg, datetime.utcnow(), await _max_for(session, user, cfg))
 
 
 def _chest_content(row: UserActivity, cfg: dict) -> dict:
@@ -62,9 +69,11 @@ async def status(session: AsyncSession, user: User) -> dict:
         row.presence_since and row.presence_ping_at
         and now - row.presence_ping_at <= timedelta(minutes=presence["reset_after_minutes"])
     )
+    max_multiplier = await _max_for(session, user, cfg)
     return {
-        "multiplier": _multiplier(row, cfg, now),
-        "max_multiplier": presence["max_multiplier"],
+        "multiplier": _multiplier(row, cfg, now, max_multiplier),
+        "max_multiplier": max_multiplier,
+        "unlocked": max_multiplier > 1.0,
         "full_after_hours": presence["full_after_hours"],
         "present_seconds": int((now - row.presence_since).total_seconds()) if active else 0,
         "chest": _chest_content(row, cfg),

@@ -17,6 +17,8 @@ export interface TradeListing {
     resource_name: string;
     price: number;
     mode: TradeListingMode;
+    /** Taxe (pièces) que je paierais en achetant cette carte. */
+    tax: number;
 }
 
 export type FriendshipStatus = "self" | "friends" | "pending" | "none";

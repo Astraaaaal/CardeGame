@@ -21,6 +21,7 @@ from app.models.user import User
 from app.services import activities_config
 from app.services.quest_progress import weekly_key
 from app.services.wallet import apply_delta, get_balance
+from app.services.wallet import require_balance
 
 POLICIES = (POLICY_OPEN, POLICY_REQUEST, POLICY_INVITE)
 MANAGERS = (ROLE_LEADER, ROLE_OFFICER)
@@ -418,8 +419,7 @@ async def donate(session: AsyncSession, user: User, resource_id: str, amount: in
     if points < 1:
         raise HTTPException(400, f"Don minimum : {rate} {'pièces' if resource_id == 'coins' else 'poussière'}.")
     amount = points * rate  # on ne prend que la part convertie en points
-    if await get_balance(session, user, resource_id) < amount:
-        raise HTTPException(400, "Solde insuffisant.")
+    await require_balance(session, user, resource_id, amount)
     await apply_delta(session, user, resource_id, -amount)
     guild.chest_points += points
     guild.chest_total += points

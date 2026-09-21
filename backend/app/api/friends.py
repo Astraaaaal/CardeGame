@@ -5,6 +5,7 @@ Routes social — amis, amis proches, demandes d'ami, demandes d'échange (place
 from datetime import datetime
 
 from app.services import guilds
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, or_, and_, update, func
@@ -26,8 +27,13 @@ from app.services.trade_requests import create_trade_request as _create_trade_re
 from app.services.trade_session import build_out as _build_trade_session_out
 from app.services import quest_progress
 from app.services.presence import is_online as _is_online
+from app.services import unlocks
 
 router = APIRouter()
+
+
+class MoveGroupBody(BaseModel):
+    direction: int = Field(ge=-1, le=1)
 
 MAX_FRIEND_GROUPS = 15
 
@@ -105,8 +111,32 @@ async def list_friend_groups(
     session: AsyncSession = Depends(get_session),
 ):
     rows = (await session.execute(
-        select(FriendGroup).where(FriendGroup.user_id == user.id).order_by(FriendGroup.id)
+        select(FriendGroup).where(FriendGroup.user_id == user.id).order_by(FriendGroup.position, FriendGroup.id)
     )).scalars().all()
+    return [FriendGroupOut(id=g.id, name=g.name) for g in rows]
+
+
+@router.post("/groups/{group_id}/move", response_model=list[FriendGroupOut])
+async def move_friend_group(
+    group_id: int,
+    body: MoveGroupBody,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Monte (-1) ou descend (+1) un groupe dans la liste ; renvoie la liste réordonnée."""
+    rows = list((await session.execute(
+        select(FriendGroup).where(FriendGroup.user_id == user.id).order_by(FriendGroup.position, FriendGroup.id)
+    )).scalars().all())
+    index = next((i for i, g in enumerate(rows) if g.id == group_id), None)
+    if index is None:
+        raise HTTPException(404, "Groupe introuvable.")
+    target = index + body.direction
+    if 0 <= target < len(rows):
+        rows[index], rows[target] = rows[target], rows[index]
+    for pos, g in enumerate(rows):
+        g.position = pos
+        session.add(g)
+    await session.commit()
     return [FriendGroupOut(id=g.id, name=g.name) for g in rows]
 
 
@@ -121,7 +151,7 @@ async def create_friend_group(
     )).scalar() or 0
     if count >= MAX_FRIEND_GROUPS:
         raise HTTPException(400, f"Maximum {MAX_FRIEND_GROUPS} groupes.")
-    group = FriendGroup(user_id=user.id, name=body.name.strip())
+    group = FriendGroup(user_id=user.id, name=body.name.strip(), position=count)
     session.add(group)
     await session.commit()
     await session.refresh(group)
@@ -486,6 +516,7 @@ async def accept_trade_request(
 ):
     """Accepte une demande d'échange reçue : ouvre la session d'échange en
     direct et annule les autres propositions envoyées par les deux joueurs."""
+    await unlocks.require(session, user, "trades")
     trade = await _trade_requests.accept_trade_request(session, request_id, user.id)
     return await _build_trade_session_out(session, trade, user.id)
 

@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useUnlocks } from "@/hooks/useUnlocks";
 import { activitiesApi } from "@/api/activities";
 import { PRESENCE_KEY, usePresenceStatus } from "@/hooks/usePresence";
 import { showRewards } from "@/stores/rewardPopupStore";
@@ -13,6 +14,7 @@ function fmtDuration(seconds: number): string {
 export default function PresencePanel() {
     const qc = useQueryClient();
     const { data } = usePresenceStatus();
+    const { levelFor } = useUnlocks();
 
     const claim = useMutation({
         mutationFn: activitiesApi.claimChest,
@@ -30,6 +32,13 @@ export default function PresencePanel() {
     });
 
     if (!data) return null;
+    if (data.unlocked === false) {
+        return (
+            <div className="bg-game-surface/50 border border-white/5 rounded-2xl px-4 py-2.5 text-white/40 text-xs">
+                🔒 Chance de présence : se débloque au niveau {levelFor("presence_luck")}.
+            </div>
+        );
+    }
     const progress = Math.min(1, (data.multiplier - 1) / (data.max_multiplier - 1 || 1));
     const chestReady = data.chest.coins > 0 || data.chest.dust > 0;
 
@@ -58,7 +67,7 @@ export default function PresencePanel() {
                     onClick={() => claim.mutate()}
                 >
                     <span className="text-white text-sm">
-                        🧰 Coffre d'absence : {data.chest.coins.toLocaleString("fr-FR")} pièces
+                        Coffre d'absence : {data.chest.coins.toLocaleString("fr-FR")} pièces
                         {data.chest.dust ? ` + ${data.chest.dust.toLocaleString("fr-FR")} poussière` : ""}
                     </span>
                     <span className="text-gold text-xs font-semibold shrink-0">Récupérer</span>

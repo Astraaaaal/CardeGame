@@ -28,6 +28,8 @@ from app.services import booster_inventory, expeditions, quest_progress, reroll_
 from app.services.presence import is_online as _is_online
 from app.services.premium import ensure_tradeable
 from app.services import favorites
+from app.services import trade_tax
+from app.services.wallet import require_balance
 
 
 _AXIS_LABEL = {"rarity": "rareté", "quality": "qualité", "specialty": "spécialité", "jewelry": "bijou"}
@@ -193,9 +195,7 @@ async def add_resource_item(
     await ensure_tradeable(session, resource_id)
 
     owner = await session.get(User, owner_id)
-    balance = await get_balance(session, owner, resource_id)
-    if amount > balance:
-        raise HTTPException(400, f"Solde insuffisant ({balance}).")
+    await require_balance(session, owner, resource_id, amount)
 
     if resource_id != COINS_ID:
         resource = await session.get(Resource, resource_id)
@@ -399,6 +399,33 @@ async def confirm(session: AsyncSession, trade: TradeSession, user_id: int) -> l
     return []
 
 
+async def _taxable(session: AsyncSession, item: TradeSessionItem) -> dict | None:
+    if item.item_type == "card":
+        card = await session.get(UserCard, item.user_card_id)
+        return {"type": "card", "card": card} if card else None
+    if item.item_type == "booster":
+        return {"type": "booster", "booster_id": item.booster_id, "amount": item.amount or 0}
+    if item.item_type == "reroll":
+        return {"type": "reroll", "amount": item.amount or 0}
+    return {"type": "resource", "resource_id": item.resource_id, "amount": item.amount or 0}
+
+
+async def trade_taxes(session: AsyncSession, trade: TradeSession, items: list[TradeSessionItem] | None = None) -> dict:
+    """Taxe (en pièces) de chaque joueur sur ce qu'il reçoit : {user_id: montant}, et le taux."""
+    if items is None:
+        items = (await session.execute(
+            select(TradeSessionItem).where(TradeSessionItem.session_id == trade.id)
+        )).scalars().all()
+    user_a = await session.get(User, trade.user_a_id)
+    user_b = await session.get(User, trade.user_b_id)
+    rate = await trade_tax.rate_for(session, user_a, user_b)
+    taxes = {}
+    for receiver in (user_a, user_b):
+        received = [await _taxable(session, i) for i in items if i.owner_id != receiver.id]
+        taxes[receiver.id] = await trade_tax.tax_for_items(session, rate, [r for r in received if r])
+    return {"rate": rate, "taxes": taxes}
+
+
 async def _execute_trade(session: AsyncSession, trade: TradeSession) -> list[str]:
     items = (await session.execute(
         select(TradeSessionItem).where(TradeSessionItem.session_id == trade.id)
@@ -454,6 +481,22 @@ async def _execute_trade(session: AsyncSession, trade: TradeSession) -> list[str
     user_a = await session.get(User, trade.user_a_id)
     user_b = await session.get(User, trade.user_b_id)
 
+    # Taxe : chacun doit pouvoir la payer (pièces données / reçues dans l'échange comprises).
+    tax_info = await trade_taxes(session, trade, items)
+    for payer in (user_a, user_b):
+        coins_given = sum(i.amount or 0 for i in items
+                          if i.item_type == "resource" and i.resource_id == COINS_ID and i.owner_id == payer.id)
+        coins_received = sum(i.amount or 0 for i in items
+                             if i.item_type == "resource" and i.resource_id == COINS_ID and i.owner_id != payer.id)
+        tax = tax_info["taxes"][payer.id]
+        if await get_balance(session, payer, COINS_ID) - coins_given + coins_received < tax:
+            trade.status = STATUS_NEGOTIATING
+            _reset_ready(trade)
+            _touch(trade)
+            session.add(trade)
+            await session.commit()
+            return [f"{payer.display_name} n'a pas assez de pièces pour payer la taxe de l'échange ({tax} pièces)."]
+
     cards_from_a = cards_from_b = 0
     for item in items:
         other_id = _other_id(trade, item.owner_id)
@@ -488,6 +531,10 @@ async def _execute_trade(session: AsyncSession, trade: TradeSession) -> list[str
             receiver = user_b if item.owner_id == trade.user_a_id else user_a
             await apply_delta(session, owner, item.resource_id, -item.amount)
             await apply_delta(session, receiver, item.resource_id, item.amount)
+
+    for payer in (user_a, user_b):
+        if tax_info["taxes"][payer.id]:
+            await apply_delta(session, payer, COINS_ID, -tax_info["taxes"][payer.id])
 
     user_a.total_cards = max(0, user_a.total_cards - cards_from_a + cards_from_b)
     user_b.total_cards = max(0, user_b.total_cards - cards_from_b + cards_from_a)
@@ -554,8 +601,12 @@ async def build_out(session: AsyncSession, trade: TradeSession, viewer_id: int, 
     my_confirmed = trade.confirmed_a if side == "a" else trade.confirmed_b
     other_confirmed = trade.confirmed_b if side == "a" else trade.confirmed_a
 
+    tax_info = await trade_taxes(session, trade, items)
     return TradeSessionOut(
         id=trade.id, status=trade.status,
+        tax_rate=tax_info["rate"],
+        my_tax=tax_info["taxes"][viewer_id],
+        other_tax=tax_info["taxes"][other_id],
         other_user_id=other.id, other_username=other.username, other_display_name=other.display_name,
         other_online=_is_online(other),
         my_ready=my_ready, other_ready=other_ready,

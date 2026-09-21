@@ -1,4 +1,5 @@
 import HigherLowerGame from "./HigherLowerGame";
+import LockedFeature from "@/components/ui/LockedFeature";
 import FortuneWheel from "./FortuneWheel";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -14,7 +15,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function MiniGamesTab() {
     return (
         <div className="space-y-4">
-            <Section title="Plus ou moins"><HigherLowerGame /></Section>
+            <Section title="Plus ou moins"><LockedFeature feature="higher_lower" compact><HigherLowerGame /></LockedFeature></Section>
             <Section title="Roue de la fortune"><FortuneWheel /></Section>
         </div>
     );

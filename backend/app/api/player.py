@@ -31,6 +31,7 @@ from app.services.player_stats import build_player_stats
 from app.services.ranking import refresh_all_best_ranks
 from app.services.premium import ensure_tradeable
 from app.services import account_email
+from app.services import unlocks
 
 router = APIRouter()
 daily_service = DailyRewardService()
@@ -73,6 +74,12 @@ async def get_profile(
 ):
     """Retourne le profil du joueur connecté, y compris ses ressources."""
     return await _profile_response(session, user)
+
+
+@router.get("/unlocks")
+async def get_unlocks(user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    """Plus haut niveau atteint et niveau de déblocage de chaque fonctionnalité."""
+    return await unlocks.status(session, user)
 
 
 @router.get("/stats", response_model=PlayerStatsResponse)
@@ -231,6 +238,7 @@ async def update_trade_listings(
     immédiat par un autre joueur) ou "offer" (prix indicatif, un clic crée
     une demande d'échange). Remplace entièrement la configuration précédente.
     """
+    await unlocks.require(session, user, "listings")
     for slot, slot_in in enumerate(body.slots):
         existing = await session.get(TradeListing, (user.id, slot))
         if slot_in is None:

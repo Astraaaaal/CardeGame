@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useUnlocks, type FeatureKey } from "@/hooks/useUnlocks";
+import LockedFeature from "@/components/ui/LockedFeature";
 import { useNavigate } from "react-router-dom";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import BottomNav from "@/components/layout/BottomNav";
@@ -17,7 +19,13 @@ const TABS: { key: Tab; label: string }[] = [
 ];
 
 /** Activités hors combat : expéditions, atelier, mini-jeux. */
+// Fonctionnalité qui débloque chaque onglet (les onglets verrouillés restent visibles).
+const TAB_FEATURE: Record<Tab, FeatureKey> = {
+    expeditions: "expeditions", workshop: "workshop", minigames: "wheel", machine: "converter",
+};
+
 export default function Activities() {
+    const { isUnlocked } = useUnlocks();
     const navigate = useNavigate();
     // Onglet mémorisé le temps de la session (retour de la Collection après le
     // choix d'une équipe d'expédition : on revient sur les expéditions).
@@ -54,15 +62,16 @@ export default function Activities() {
                         onClick={() => selectTab(t.key)}
                     >
                         {t.label}
+                        {!isUnlocked(TAB_FEATURE[t.key]) && <span className="ml-1 text-[10px]">🔒</span>}
                     </button>
                 ))}
             </div>
 
             <main className="flex-1 px-4 py-6 max-w-sm mx-auto w-full">
-                {tab === "expeditions" && <ExpeditionsTab />}
-                {tab === "workshop" && <WorkshopTab />}
-                {tab === "minigames" && <MiniGamesTab />}
-                {tab === "machine" && <MachineTab />}
+                {tab === "expeditions" && <LockedFeature feature="expeditions"><ExpeditionsTab /></LockedFeature>}
+                {tab === "workshop" && <LockedFeature feature="workshop"><WorkshopTab /></LockedFeature>}
+                {tab === "minigames" && <LockedFeature feature="wheel"><MiniGamesTab /></LockedFeature>}
+                {tab === "machine" && <LockedFeature feature="converter"><MachineTab /></LockedFeature>}
             </main>
 
             <BottomNav />

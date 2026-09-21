@@ -37,6 +37,11 @@ class TradeSessionOut(BaseModel):
     my_items: list[TradeSessionItemOut] = []
     other_items: list[TradeSessionItemOut] = []
 
+    # Taxe en pièces payée par chacun sur ce qu'il reçoit (cf. services/trade_tax.py).
+    tax_rate: float = 0
+    my_tax: int = 0
+    other_tax: int = 0
+
     updated_at: datetime
     removed_items: list[str] = []  # message(s) d'objets invalidés lors de la dernière tentative d'exécution
 

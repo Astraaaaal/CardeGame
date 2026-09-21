@@ -2,6 +2,8 @@ import api from "./client";
 import type { Card } from "@/types/card";
 
 export interface PresenceStatus {
+    /** false tant que la chance de présence n'est pas débloquée (niveau). */
+    unlocked?: boolean;
     multiplier: number;
     max_multiplier: number;
     full_after_hours: number;

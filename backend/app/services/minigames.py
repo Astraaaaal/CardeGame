@@ -27,6 +27,8 @@ from app.services.card_view import build_card_response
 from app.services.power import roll_drawn_power
 from app.services.presence_bonus import get_activity
 from app.services.wallet import apply_delta, get_balance
+from app.services import unlocks
+from app.services.wallet import require_balance
 
 STAKE_RESOURCES = ("coins", "dust")
 WHEEL_REROLL_RULES = {
@@ -142,7 +144,7 @@ async def higher_lower_state(session: AsyncSession, user: User) -> dict:
     hl = cfg["higher_lower"]
     return {
         "game": await _game_out(session, game, cfg) if game else None,
-        "min_stake": hl["min_stake"], "max_stake": hl["max_stake"],
+        "min_stake": hl["min_stake"], "max_stake": unlocks.higher_lower_max_stake(cfg, await unlocks.level_of(session, user)),
         "max_steps": hl["max_steps"], "min_cashout_step": hl["min_cashout_step"],
     }
 
@@ -152,15 +154,15 @@ async def higher_lower_start(session: AsyncSession, user: User, resource_id: str
     hl = cfg["higher_lower"]
     if resource_id not in STAKE_RESOURCES:
         raise HTTPException(400, "Mise possible en pièces ou en poussière uniquement.")
-    if not hl["min_stake"] <= stake <= hl["max_stake"]:
-        raise HTTPException(400, f"Mise entre {hl['min_stake']} et {hl['max_stake']}.")
+    max_stake = unlocks.higher_lower_max_stake(cfg, await unlocks.level_of(session, user))
+    if not hl["min_stake"] <= stake <= max_stake:
+        raise HTTPException(400, f"Mise entre {hl['min_stake']} et {max_stake} à ton niveau.")
     active = (await session.execute(
         select(HigherLowerGame.id).where(HigherLowerGame.user_id == user.id, HigherLowerGame.status == "active")
     )).first()
     if active:
         raise HTTPException(409, "Une partie est déjà en cours.")
-    if await get_balance(session, user, resource_id) < stake:
-        raise HTTPException(400, "Solde insuffisant pour cette mise.")
+    await require_balance(session, user, resource_id, stake)
 
     await apply_delta(session, user, resource_id, -stake)
     game = HigherLowerGame(user_id=user.id, resource_id=resource_id, stake=stake,
@@ -271,8 +273,7 @@ async def wheel_spin(session: AsyncSession, user: User) -> dict:
         row.wheel_free_used = True
     elif row.wheel_extra_spins < wheel["extra_spins_per_day"]:
         cost = wheel["extra_spin_cost"]
-        if user.coins < cost:
-            raise HTTPException(400, f"Il faut {cost} pièces pour un tour supplémentaire.")
+        await require_balance(session, user, "coins", cost)
         await apply_delta(session, user, "coins", -cost)
         row.wheel_extra_spins += 1
     else:

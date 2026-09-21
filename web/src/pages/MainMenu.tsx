@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { toast } from "@/stores/toastStore";
+import { useUnlocks, type FeatureKey } from "@/hooks/useUnlocks";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -42,13 +44,14 @@ export default function MainMenu() {
     if (player) setUser(player);
   }, [player, setUser]);
 
-  const menuItems = [
+  const { isUnlocked, levelFor } = useUnlocks();
+  const menuItems: { label: string; path: string; feature?: FeatureKey }[] = [
     { label: "Boutique", path: "/shop" },
     { label: "Ma Collection", path: "/collection" },
-    { label: "Activités", path: "/activities" },
-    { label: "Guilde", path: "/guild" },
+    { label: "Activités", path: "/activities", feature: "workshop" },
+    { label: "Guilde", path: "/guild", feature: "guild_join" },
     { label: "Inventaire", path: "/inventory" },
-    { label: "Classement", path: "/leaderboard" },
+    { label: "Classement", path: "/leaderboard", feature: "leaderboard" },
     { label: "Progression", path: "/progression" },
   ];
 
@@ -153,14 +156,28 @@ export default function MainMenu() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 * (idx + 1) }}
             >
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full justify-start"
-                onClick={() => navigate(item.path)}
-              >
-                {item.label}
-              </Button>
+              {item.feature && !isUnlocked(item.feature) ? (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="w-full justify-start opacity-50"
+                  onClick={() => toast.info(`${item.label} se débloque au niveau ${levelFor(item.feature!)}.`)}
+                >
+                  <span className="relative block text-center">
+                    {item.label}
+                    <span className="absolute right-0 top-1/2 -translate-y-1/2 text-xs font-semibold text-white/60">🔒 Niv. {levelFor(item.feature)}</span>
+                  </span>
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="w-full justify-start"
+                  onClick={() => navigate(item.path)}
+                >
+                  {item.label}
+                </Button>
+              )}
             </motion.div>
           ))}
         </div>

@@ -13,6 +13,7 @@ from app.models.user import User
 from pydantic import BaseModel, Field
 
 from app.services import activities_config, expeditions, machine, minigames, presence_bonus, workshop
+from app.services import unlocks
 
 router = APIRouter()
 admin_router = APIRouter(dependencies=[Depends(require_admin)])
@@ -40,6 +41,7 @@ async def claim_absence_chest(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    await unlocks.require(session, user, "absence_chest")
     return await presence_bonus.claim_chest(session, user)
 
 
@@ -63,6 +65,7 @@ async def start_expedition(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    await unlocks.require(session, user, "expeditions")
     return await expeditions.start(session, user, body.slot, body.duration_minutes, body.card_ids)
 
 
@@ -94,6 +97,7 @@ async def workshop_taps(
     session: AsyncSession = Depends(get_session),
 ):
     """Lot de taps envoyé environ une fois par seconde par l'appli."""
+    await unlocks.require(session, user, "workshop")
     return await workshop.tap(session, user, body.count)
 
 
@@ -120,6 +124,7 @@ async def higher_lower_start(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    await unlocks.require(session, user, "higher_lower")
     return await minigames.higher_lower_start(session, user, body.resource_id, body.stake)
 
 
@@ -155,6 +160,7 @@ async def wheel_spin(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    await unlocks.require(session, user, "wheel")
     return await minigames.wheel_spin(session, user)
 
 
@@ -180,6 +186,7 @@ async def machine_state(user: User = Depends(get_current_user), session: AsyncSe
 @router.post("/machine/upgrade", dependencies=[Depends(rate_limit(30, 60))])
 async def machine_upgrade(body: UpgradeBody, user: User = Depends(get_current_user),
                           session: AsyncSession = Depends(get_session)):
+    await unlocks.require(session, user, "machine")
     return await machine.upgrade(session, user, body.item, body.kind, body.booster_id, body.bonus_id, body.token_id)
 
 
@@ -190,6 +197,7 @@ async def converter_state(user: User = Depends(get_current_user), session: Async
 
 @router.post("/converter", dependencies=[Depends(rate_limit(20, 60))])
 async def convert(body: ConvertBody, user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    await unlocks.require(session, user, "converter")
     return await machine.convert(session, user, body.from_id, body.to_id, body.amount)
 
 

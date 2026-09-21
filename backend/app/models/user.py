@@ -90,6 +90,9 @@ class User(SQLModel, table=True):
     # se déduit à la volée de total_power ; celui-ci ne sert qu'à savoir
     # jusqu'où la récompense a déjà été réclamée).
     claimed_level: int = Field(default=0)
+    # Plus haut niveau jamais atteint : ce qu'il débloque reste débloqué même
+    # si la puissance baisse ensuite (cf. services/unlocks.py).
+    max_level: int = Field(default=1)
 
     # Relations
     # foreign_keys explicite : les colonnes showcase_card_*_id ajoutent un

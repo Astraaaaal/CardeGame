@@ -30,6 +30,8 @@ from app.services.presence_bonus import get_activity
 from app.services.reroll import reroll_axes
 from app.services.tier_order import rank
 from app.services.wallet import apply_delta, get_balance
+from app.services import unlocks
+from app.services.wallet import require_balance
 
 # Améliorations de booster : champ du bonus modifié et paliers successifs.
 BOOSTER_LADDERS = {
@@ -304,8 +306,7 @@ async def upgrade(session: AsyncSession, user: User, item: str, kind: str, boost
         raise HTTPException(400, "Cet objet est déjà au maximum pour cette amélioration.")
 
     cost, chance = _cost_and_chance(cfg, level, failures.get(kind, 0), event)
-    if await get_balance(session, user, "coins") < cost:
-        raise HTTPException(400, f"Il faut {cost} pièces pour cet essai.")
+    await require_balance(session, user, "coins", cost)
     await apply_delta(session, user, "coins", -cost)
 
     roll = random.random()
@@ -366,31 +367,32 @@ def _roll_converter_day(row) -> None:
 
 
 async def converter_state(session: AsyncSession, user: User) -> dict:
-    cfg = (await activities_config.get_config(session))["converter"]
+    full_cfg = await activities_config.get_config(session)
+    cfg = full_cfg["converter"]
     row = await get_activity(session, user.id)
     _roll_converter_day(row)
     session.add(row)
     await session.commit()
-    return {"daily_uses": cfg["daily_uses"], "uses_left": max(0, cfg["daily_uses"] - row.converter_uses),
-            "pairs": cfg["pairs"]}
+    uses = unlocks.converter_uses(full_cfg, await unlocks.level_of(session, user))
+    return {"daily_uses": uses, "uses_left": max(0, uses - row.converter_uses), "pairs": cfg["pairs"]}
 
 
 async def convert(session: AsyncSession, user: User, from_id: str, to_id: str, amount: int) -> dict:
-    cfg = (await activities_config.get_config(session))["converter"]
+    full_cfg = await activities_config.get_config(session)
+    cfg = full_cfg["converter"]
     pair = next((p for p in cfg["pairs"] if p["from"] == from_id and p["to"] == to_id), None)
     if not pair:
         raise HTTPException(400, "Conversion indisponible.")
     row = await get_activity(session, user.id)
     _roll_converter_day(row)
-    if row.converter_uses >= cfg["daily_uses"]:
+    if row.converter_uses >= unlocks.converter_uses(full_cfg, await unlocks.level_of(session, user)):
         raise HTTPException(400, "Plus de conversions disponibles aujourd'hui.")
     give, get = int(pair["give"]), int(pair["get"])
     if amount < give or amount % give:
         raise HTTPException(400, f"Montant en multiples de {give}.")
     if amount > int(pair["max_in"]):
         raise HTTPException(400, f"{pair['max_in']} au maximum par conversion.")
-    if await get_balance(session, user, from_id) < amount:
-        raise HTTPException(400, "Solde insuffisant.")
+    await require_balance(session, user, from_id, amount)
     gained = amount // give * get
     await apply_delta(session, user, from_id, -amount)
     await apply_delta(session, user, to_id, gained)

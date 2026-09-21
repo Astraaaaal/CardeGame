@@ -25,6 +25,7 @@ from app.services.card_view import build_card_response
 from app.services.power import roll_drawn_power
 from app.services.ranking import refresh_all_best_ranks
 from app.services.wallet import apply_delta
+from app.services import unlocks
 
 ON_EXPEDITION = "Cette carte est partie en expédition : récupère l'expédition d'abord."
 
@@ -104,7 +105,8 @@ async def overview(session: AsyncSession, user: User) -> dict:
     )).scalars().all()
     by_slot = {e.slot: e for e in active}
     slots = []
-    slot_count = cfg["expeditions"]["slots"] + (await guilds.level_perks(session, user.id))["extra_expedition_slots"]
+    slot_count = unlocks.expedition_slots(cfg, await unlocks.level_of(session, user)) \
+        + (await guilds.level_perks(session, user.id))["extra_expedition_slots"]
     for slot in range(slot_count):
         exp = by_slot.get(slot)
         slots.append({"slot": slot, "expedition": await _out(session, exp, cfg) if exp else None})
@@ -119,7 +121,8 @@ async def overview(session: AsyncSession, user: User) -> dict:
 async def start(session: AsyncSession, user: User, slot: int, duration: int, card_ids: list[str]) -> dict:
     cfg = await activities_config.get_config(session)
     exp_cfg = cfg["expeditions"]
-    slot_count = exp_cfg["slots"] + (await guilds.level_perks(session, user.id))["extra_expedition_slots"]
+    slot_count = unlocks.expedition_slots(cfg, await unlocks.level_of(session, user)) \
+        + (await guilds.level_perks(session, user.id))["extra_expedition_slots"]
     if not 0 <= slot < slot_count:
         raise HTTPException(400, "Emplacement d'expédition invalide.")
     if duration not in exp_cfg["durations"]:

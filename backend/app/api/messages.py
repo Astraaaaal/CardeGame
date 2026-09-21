@@ -12,6 +12,7 @@ from app.models.user import User
 from app.schemas.message import MessageOut, SendGiftBody, SendAdminMessageBody, SendAdminMessageResponse
 from app.services import messages as svc
 from app.services.ranking import refresh_all_best_ranks
+from app.services import unlocks
 
 router = APIRouter()
 admin_router = APIRouter(dependencies=[Depends(require_admin)])
@@ -78,6 +79,7 @@ async def send_gift(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
+    await unlocks.require(session, user, "gifts")
     msg = await svc.send_gift(
         session, user, body.username, body.subject, body.body,
         body.item_type, body.user_card_id, body.resource_id, body.amount,
