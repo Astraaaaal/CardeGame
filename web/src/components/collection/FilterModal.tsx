@@ -83,6 +83,25 @@ function PowerRangeFilter({ min, max, onChange }: {
                     onChange={(e) => setHi(Math.max(Number(e.target.value), lo))}
                 />
             </div>
+            {/* Saisie exacte (le curseur avance par pas de 100). */}
+            <div className="flex items-center gap-2 mt-2">
+                <input
+                    type="number" min={0} max={POWER_MAX} inputMode="numeric" aria-label="Puissance minimale exacte"
+                    className="w-full bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-xs text-white"
+                    value={lo || ""} placeholder="min"
+                    onChange={(e) => setLo(Math.max(0, Math.min(Number(e.target.value) || 0, hi)))}
+                />
+                <span className="text-white/30 text-xs">à</span>
+                <input
+                    type="number" min={0} max={POWER_MAX} inputMode="numeric" aria-label="Puissance maximale exacte"
+                    className="w-full bg-black/30 border border-white/10 rounded-lg px-2 py-1 text-xs text-white"
+                    value={hi === POWER_MAX ? "" : hi} placeholder="max"
+                    onChange={(e) => {
+                        const v = e.target.value === "" ? POWER_MAX : Number(e.target.value) || 0;
+                        setHi(Math.min(POWER_MAX, Math.max(v, lo)));
+                    }}
+                />
+            </div>
         </div>
     );
 }

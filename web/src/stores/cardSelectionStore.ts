@@ -18,6 +18,9 @@ export interface CardSelectionRequest {
     excludeIds: string[];
     returnTo: string;
     context?: Record<string, string>;
+    /** Annuler la sélection rend quand même un résultat vide (au lieu de rien),
+     * pour que l'appelant rouvre ce qu'on faisait (ex. le cadeau en cours). */
+    restoreOnCancel?: boolean;
 }
 
 export interface SelectedCard {
@@ -62,7 +65,12 @@ export const useCardSelectionStore = create<CardSelectionState>()((set, get) => 
         set({ request: null, result: { selectedCards: cards, context } });
     },
 
-    cancelSelection: () => set({ request: null }),
+    cancelSelection: () => {
+        const request = get().request;
+        set(request?.restoreOnCancel
+            ? { request: null, result: { selectedCards: [], context: request.context } }
+            : { request: null });
+    },
 
     consumeResult: () => {
         const result = get().result;

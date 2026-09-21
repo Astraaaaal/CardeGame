@@ -65,6 +65,8 @@ class FriendGroup(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="users.id", index=True)
     name: str = Field(max_length=30)
+    # Ordre d'affichage choisi par le joueur (flèches ↑ ↓).
+    position: int = Field(default=0)
 
 
 class FriendGroupMember(SQLModel, table=True):

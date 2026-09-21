@@ -16,6 +16,8 @@ export const friendsApi = {
     createGroup: (name: string) => api.post<FriendGroup>("/friends/groups", { name }).then((r) => r.data),
     renameGroup: (id: number, name: string) => api.patch<FriendGroup>(`/friends/groups/${id}`, { name }).then((r) => r.data),
     deleteGroup: (id: number) => api.delete(`/friends/groups/${id}`).then(() => undefined),
+    moveGroup: (id: number, direction: -1 | 1) =>
+        api.post<FriendGroup[]>(`/friends/groups/${id}/move`, { direction }).then((r) => r.data),
     addToGroup: (userId: number, groupId: number) => api.post(`/friends/${userId}/groups/${groupId}`).then(() => undefined),
     removeFromGroup: (userId: number, groupId: number) => api.delete(`/friends/${userId}/groups/${groupId}`).then(() => undefined),
 
