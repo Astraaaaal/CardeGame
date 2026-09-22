@@ -34,6 +34,23 @@ let failedQueue: Array<{
     reject: (reason?: unknown) => void;
 }> = [];
 
+class NoSessionError extends Error {}
+
+/** Renouvelle la session ; si un autre onglet vient de le faire, reprend simplement son jeton. */
+async function refreshTokens(usedToken: string): Promise<string> {
+    const current = localStorage.getItem("access_token");
+    if (current && current !== usedToken) return current;
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (!refreshToken) throw new NoSessionError();
+    const adminKey = sessionStorage.getItem("admin_key");
+    const { data } = await axios.post(`${API_URL}/api/auth/refresh`, { refresh_token: refreshToken }, {
+        headers: adminKey ? { "X-Admin-Key": adminKey } : {},
+    });
+    localStorage.setItem("access_token", data.access_token);
+    localStorage.setItem("refresh_token", data.refresh_token);
+    return data.access_token;
+}
+
 const processQueue = (error: unknown) => {
     failedQueue.forEach((prom) => {
         if (error) {
@@ -77,34 +94,28 @@ api.interceptors.response.use(
 
             originalRequest._retry = true;
             isRefreshing = true;
-
-            const refreshToken = localStorage.getItem("refresh_token");
-            if (!refreshToken) {
-                isRefreshing = false;
-                localStorage.clear();
-                // Déjà sur une page publique : pas de rechargement (évite une boucle).
-                if (!PUBLIC_PATHS.includes(window.location.pathname)) window.location.href = "/login";
-                return Promise.reject(error);
-            }
+            const usedToken = String(originalRequest.headers?.Authorization ?? "").replace("Bearer ", "");
 
             try {
-                const { data } = await axios.post(`${API_URL}/api/auth/refresh`, {
-                    refresh_token: refreshToken,
-                });
-
-                localStorage.setItem("access_token", data.access_token);
-                localStorage.setItem("refresh_token", data.refresh_token);
-
-                if (originalRequest.headers) {
-                    originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
-                }
-
+                // Un seul renouvellement à la fois, tous onglets confondus : le jeton de
+                // renouvellement ne sert qu'une fois, deux onglets qui le présentent en
+                // même temps feraient échouer l'un d'eux (et déconnecter tout le monde).
+                const locks = (navigator as Navigator & { locks?: { request: <T>(name: string, cb: () => Promise<T>) => Promise<T> } }).locks;
+                const token = locks ? await locks.request("cardegame-refresh", () => refreshTokens(usedToken)) : await refreshTokens(usedToken);
+                if (originalRequest.headers) originalRequest.headers.Authorization = `Bearer ${token}`;
                 processQueue(null);
                 return api(originalRequest);
             } catch (refreshError) {
                 processQueue(refreshError);
-                localStorage.clear();
-                window.location.href = "/login";
+                // Déconnexion seulement si la session est vraiment refusée (jeton inconnu
+                // ou expiré) — pas sur une coupure réseau, un redémarrage ou le jeu fermé.
+                const status = (refreshError as AxiosError).response?.status;
+                if (refreshError instanceof NoSessionError || status === 401) {
+                    localStorage.removeItem("access_token");
+                    localStorage.removeItem("refresh_token");
+                    localStorage.removeItem("auth-storage");
+                    if (!PUBLIC_PATHS.includes(window.location.pathname)) window.location.href = "/login";
+                }
                 return Promise.reject(refreshError);
             } finally {
                 isRefreshing = false;
