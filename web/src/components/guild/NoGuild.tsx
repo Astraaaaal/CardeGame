@@ -1,3 +1,4 @@
+import GuildOverviewModal from "./GuildOverviewModal";
 import { parseUtc } from "@/utils/format";
 import { inputCls } from "@/components/ui/formStyles";
 import { useState } from "react";
@@ -15,6 +16,7 @@ export const MY_GUILD_KEY = ["guild", "me"];
 export default function NoGuild({ state }: { state: MyGuildState }) {
     const qc = useQueryClient();
     const [query, setQuery] = useState("");
+    const [openId, setOpenId] = useState<number | null>(null);
     const [form, setForm] = useState({ name: "", tag: "", icon: GUILD_ICONS[0], color: GUILD_COLORS[0], join_policy: "request" as JoinPolicy });
     const [, setMsg] = useToastMessage();
     const { data: results } = useQuery({ queryKey: ["guild", "search", query], queryFn: () => guildsApi.search(query) });
@@ -111,6 +113,7 @@ export default function NoGuild({ state }: { state: MyGuildState }) {
                 <input className={inputCls} placeholder="Rechercher par nom ou tag..." value={query} onChange={(e) => setQuery(e.target.value)} />
                 {(results ?? []).map((g) => (
                     <div key={g.id} className="flex items-center gap-3 bg-game-surface border border-white/10 rounded-xl p-3">
+                        <button className="flex items-center gap-3 flex-1 min-w-0 text-left" onClick={() => setOpenId(g.id)}>
                         <GuildEmblem icon={g.icon} color={g.color} size={36} />
                         <div className="flex-1 min-w-0">
                             <p className="text-white text-sm font-semibold truncate">[{g.tag}] {g.name}</p>
@@ -118,6 +121,7 @@ export default function NoGuild({ state }: { state: MyGuildState }) {
                                 Niv. {g.level} · {g.members}/{g.max_members} membres · {POLICY_LABEL[g.join_policy]}
                             </p>
                         </div>
+                        </button>
                         {g.join_policy !== "invite" && g.members < g.max_members && (
                             <Button variant="secondary" size="sm" loading={join.isPending && join.variables === g.id}
                                 onClick={() => { setMsg(null); join.mutate(g.id); }}>
@@ -127,6 +131,16 @@ export default function NoGuild({ state }: { state: MyGuildState }) {
                     </div>
                 ))}
                 {results?.length === 0 && <p className="text-white/30 text-sm">Aucune guilde trouvée.</p>}
+                <GuildOverviewModal guildId={openId} onClose={() => setOpenId(null)} action={(() => {
+                    const g = (results ?? []).find((r) => r.id === openId);
+                    if (!g || g.join_policy === "invite" || g.members >= g.max_members) return null;
+                    return (
+                        <Button variant="primary" className="w-full" loading={join.isPending && join.variables === g.id}
+                            onClick={() => { setMsg(null); join.mutate(g.id); setOpenId(null); }}>
+                            {g.join_policy === "open" ? "Rejoindre" : "Demander à rejoindre"}
+                        </Button>
+                    );
+                })()} />
             </section>
         </div>
         </LockedFeature>

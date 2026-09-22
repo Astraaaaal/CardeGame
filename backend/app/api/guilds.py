@@ -174,4 +174,4 @@ async def guild_public(guild_id: int, _user: User = Depends(get_current_user), s
     guild = await session.get(Guild, guild_id)
     if not guild:
         raise HTTPException(404, "Guilde introuvable.")
-    return {**(await guilds.summary(session, guild)), "welcome_message": guild.welcome_message}
+    return await guilds.public_view(session, guild)

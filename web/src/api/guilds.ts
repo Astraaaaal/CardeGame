@@ -18,6 +18,14 @@ export interface GuildSummary {
     challenge_best_tier: number;
 }
 
+export interface GuildPublic extends GuildSummary {
+    welcome_message: string;
+    xp: number;
+    xp_current_level: number;
+    xp_next_level: number;
+    members_list: { user_id: number; display_name: string; role: GuildRole; power: number }[];
+}
+
 export interface GuildObjective {
     metric: string;
     label: string;
@@ -90,6 +98,7 @@ export const guildsApi = {
     rankings: (kind: RankingKind) => api.get<GuildRankingRow[]>("/guilds/rankings", { params: { kind } }).then((r) => r.data),
     create: (b: { name: string; tag: string; icon: string; color: string; join_policy: JoinPolicy }) =>
         api.post<GuildSummary>("/guilds", b).then((r) => r.data),
+    get: (id: number) => api.get<GuildPublic>(`/guilds/${id}`).then((r) => r.data),
     join: (id: number) => api.post<{ result: "joined" | "requested" }>(`/guilds/${id}/join`).then((r) => r.data),
     leave: () => api.post("/guilds/leave").then((r) => r.data),
     settings: (b: Partial<{ welcome_message: string; join_policy: JoinPolicy; icon: string; color: string }>) =>

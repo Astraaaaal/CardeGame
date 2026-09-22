@@ -516,17 +516,8 @@ async def summary(session: AsyncSession, guild: Guild, power: int | None = None)
     }
 
 
-async def detail(session: AsyncSession, user: User) -> dict | None:
-    """Vue complète de la guilde du joueur."""
-    member = await membership(session, user.id)
-    if not member:
-        return None
-    cfg = await _cfg(session)
-    guild = await session.get(Guild, member.guild_id)
-    week = await current_week(session, guild)
-    await session.commit()
-    level = level_for_xp(guild.xp, cfg)
-
+async def members_list(session: AsyncSession, guild: Guild) -> list[dict]:
+    """Membres avec rôle, dons et puissance, chef puis officiers puis membres."""
     members = []
     member_rows = await _members(session, guild.id)
     powers = dict((await session.execute(
@@ -542,6 +533,33 @@ async def detail(session: AsyncSession, user: User) -> dict | None:
                             "power": int(powers.get(u.id) or 0)})
     order = {ROLE_LEADER: 0, ROLE_OFFICER: 1, ROLE_MEMBER: 2}
     members.sort(key=lambda x: (order[x["role"]], -x["donated_points"]))
+    return members
+
+
+async def public_view(session: AsyncSession, guild: Guild) -> dict:
+    """Fiche d'une guilde vue de l'extérieur (classements, recherche)."""
+    cfg = await _cfg(session)
+    level = level_for_xp(guild.xp, cfg)
+    return {
+        **(await summary(session, guild)), "welcome_message": guild.welcome_message,
+        "xp": guild.xp, "xp_current_level": xp_for_level(level, cfg), "xp_next_level": xp_for_level(level + 1, cfg),
+        "members_list": [{k: m[k] for k in ("user_id", "display_name", "role", "power")}
+                         for m in await members_list(session, guild)],
+    }
+
+
+async def detail(session: AsyncSession, user: User) -> dict | None:
+    """Vue complète de la guilde du joueur."""
+    member = await membership(session, user.id)
+    if not member:
+        return None
+    cfg = await _cfg(session)
+    guild = await session.get(Guild, member.guild_id)
+    week = await current_week(session, guild)
+    await session.commit()
+    level = level_for_xp(guild.xp, cfg)
+
+    members = await members_list(session, guild)
 
     contributions = {
         c.metric: c for c in (await session.execute(select(GuildContribution).where(

@@ -1,3 +1,4 @@
+import GuildOverviewModal from "./GuildOverviewModal";
 import { formatNumber as fmt } from "@/utils/format";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -28,6 +29,7 @@ function score(kind: RankingKind, r: GuildRankingRow) {
 /** Onglet « Guildes » du classement : 5 sous-classements. */
 export default function GuildRankings() {
     const [kind, setKind] = useState<RankingKind>("overall");
+    const [openId, setOpenId] = useState<number | null>(null);
     const { data, isLoading } = useQuery({ queryKey: ["guild", "rankings", kind], queryFn: () => guildsApi.rankings(kind) });
     const { data: mine } = useQuery({ queryKey: MY_GUILD_KEY, queryFn: guildsApi.me });
     const myId = mine?.guild?.id;
@@ -47,8 +49,8 @@ export default function GuildRankings() {
             ) : data?.length ? (
                 <div className="space-y-2">
                     {data.map((r) => (
-                        <div key={r.id}
-                            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${
+                        <button key={r.id} onClick={() => setOpenId(r.id)}
+                            className={`w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl border ${
                                 r.id === myId ? "bg-accent/10 border-accent/40" : "bg-game-surface border-white/10"
                             }`}>
                             <span className="text-white/50 font-bold text-sm w-8 text-center shrink-0">{r.rank === 1 ? "1er" : `${r.rank}e`}</span>
@@ -60,12 +62,13 @@ export default function GuildRankings() {
                                 <p className="text-white/40 text-[11px]">Niv. {r.level} · {r.members} membres</p>
                             </div>
                             {score(kind, r) && <span className="text-gold font-bold text-xs shrink-0">{score(kind, r)}</span>}
-                        </div>
+                        </button>
                     ))}
                 </div>
             ) : (
                 <p className="text-white/30 text-sm text-center py-10">Aucune guilde pour l'instant.</p>
             )}
+            <GuildOverviewModal guildId={openId} onClose={() => setOpenId(null)} />
         </div>
     );
 }
