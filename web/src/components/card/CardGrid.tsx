@@ -97,6 +97,7 @@ export default function CardGrid({
                     open={!!selected}
                     card={selected?.card ?? null}
                     quantity={selected?.quantity}
+                    canRecycle
                     onClose={() => setSelectedId(null)}
                 />
             )}

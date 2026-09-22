@@ -22,6 +22,8 @@ interface CardDetailProps {
      * autre profil) : cache les actions de gestion (recyclage), qui ne
      * s'appliqueraient de toute façon qu'à ses propres cartes. */
     readOnly?: boolean;
+    /** Recyclage proposé : seulement depuis la collection (pas l'ouverture de booster, la vitrine, l'échange…). */
+    canRecycle?: boolean;
 }
 
 
@@ -35,7 +37,7 @@ interface CardDetailProps {
  * dernière carte affichée (`lastCard`) pour que l'animation de fermeture
  * ait encore un contenu à afficher pendant qu'elle s'estompe.
  */
-export default function CardDetail({ open, card, quantity, onClose, readOnly }: CardDetailProps) {
+export default function CardDetail({ open, card, quantity, onClose, readOnly, canRecycle }: CardDetailProps) {
     const qc = useQueryClient();
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [result, setResult] = useState<string | null>(null);
@@ -283,7 +285,7 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                             )}
 
                             {/* Recyclage */}
-                            {!readOnly && (
+                            {!readOnly && canRecycle && (
                                 <div className="mt-3 pt-3 border-t border-white/10">
                                     <p className="text-white/60 text-xs mb-2">
                                         Recycler contre des ressources (irréversible)
