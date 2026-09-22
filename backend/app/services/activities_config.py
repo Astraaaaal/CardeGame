@@ -98,6 +98,9 @@ DEFAULTS: dict = {
         "higher_lower_max_stake": {"base": 500, "per_level": 500, "max": 5000},
         "converter_uses": {"7": 1, "12": 2, "17": 3},
     },
+    # Classement : le meilleur rang (et les succès « top N ») n'est retenu qu'à
+    # partir de ce nombre de joueurs classés — sinon être premier serait automatique.
+    "ranking": {"min_players": 10},
     # Taxe sur les transferts entre joueurs (cf. services/trade_tax.py).
     "trade_tax": {
         "base_rate": 0.05, "per_level": 0.01, "max_rate": 0.25,

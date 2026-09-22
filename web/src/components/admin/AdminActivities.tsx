@@ -59,6 +59,9 @@ const FIELDS: { section: Section; title: string; fields: [string, string, number
         ["resource_qty_step", "Quantité en plus par cran suivant", 1],
     ] },
     { section: "recycling", title: "Recyclage", fields: [] },
+    { section: "ranking", title: "Classement", fields: [
+        ["min_players", "Joueurs classés minimum pour retenir les rangs (succès « top N »)", 1],
+    ] },
     { section: "converter", title: "Convertisseur", fields: [
         ["daily_uses", "Conversions par jour", 1],
     ] },

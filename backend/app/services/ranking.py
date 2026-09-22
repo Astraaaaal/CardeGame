@@ -46,7 +46,8 @@ def record_rank(user: User, rank: int | None) -> bool:
 
 
 async def refresh_all_best_ranks(session: AsyncSession) -> None:
-    """Recalcule le rang de chaque joueur et retient les améliorations. Ne commit pas."""
+    """Recalcule le rang de chaque joueur et retient les améliorations, seulement
+    si assez de joueurs sont classés (réglage ranking.min_players). Ne commit pas."""
     total = func.sum(UserCard.power)
     rows = (await session.execute(
         select(UserCard.user_id, total)
@@ -67,6 +68,9 @@ async def refresh_all_best_ranks(session: AsyncSession) -> None:
             previous_total = user_total
         ranks[user_id] = rank
     if not ranks:
+        return
+    from app.services.activities_config import get_config  # import tardif : évite un cycle
+    if len(ranks) < int((await get_config(session))["ranking"]["min_players"]):
         return
 
     users = (await session.execute(select(User).where(User.id.in_(ranks.keys())))).scalars().all()

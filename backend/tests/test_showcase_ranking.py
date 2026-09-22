@@ -18,6 +18,33 @@ from app.services.daily_reward import DailyRewardService
 from tests.conftest import make_user
 
 
+@pytest.fixture(autouse=True)
+def _min_players(monkeypatch):
+    """Rangs retenus dès 1 joueur classé (le minimum réglable est testé à part)."""
+    from app.services import activities_config
+    monkeypatch.setitem(activities_config.DEFAULTS, "ranking", {"min_players": 1})
+
+
+async def test_no_best_rank_below_the_minimum_number_of_players(session, monkeypatch):
+    from app.services import activities_config
+    monkeypatch.setitem(activities_config.DEFAULTS, "ranking", {"min_players": 3})
+    alice, bob = await make_user(session, "alice"), await make_user(session, "bob")
+    await _give_power(session, alice, 100)
+    await _give_power(session, bob, 50)
+    await ranking.refresh_all_best_ranks(session)
+    assert alice.best_global_rank is None and bob.best_global_rank is None  # 2 joueurs < 3
+
+
+async def test_gifts_need_a_confirmed_email(session):
+    from app.services import messages
+    alice = await make_user(session, "alice")
+    await make_user(session, "bob")
+    alice.email_verified_at = None
+    with pytest.raises(HTTPException) as exc:
+        await messages.send_gift(session, alice, "bob", "Cadeau", "", "resource", None, "coins", 10)
+    assert exc.value.status_code == 403 and "e-mail" in exc.value.detail
+
+
 async def _give_power(session, user, power):
     session.add(UserCard(
         user_id=user.id, character_id="c", set_id="s", rarity_id="r",

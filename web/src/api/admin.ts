@@ -204,6 +204,7 @@ export interface ActivitiesConfig {
         daily_uses: number;
         pairs: { from: string; to: string; give: number; get: number; max_in: number }[];
     };
+    ranking: { min_players: number };
     recycling: {
         dust_by_rarity: Record<string, [number, number]>;
         rarity: Record<string, string>; jewelry: Record<string, string>;
