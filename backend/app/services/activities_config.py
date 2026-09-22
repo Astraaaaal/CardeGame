@@ -179,6 +179,8 @@ DEFAULTS: dict = {
     # place dans la plage [min, max] selon la puissance de la carte rapportée
     # à SON maximum (un très bon tirage rapporte le maximum).
     "recycling": {
+        # Fourchette de tirage autour de la cible donnée par la puissance (0,3 = ± 30 %).
+        "spread": 0.3,
         "dust_by_rarity": {"common": [1, 5], "rare": [5, 30], "epic": [20, 150], "legendary": [100, 1000]},
         "rarity": {"rare": "frag_rare", "epic": "frag_epic", "legendary": "frag_legendary"},
         "jewelry": {"silver": "silver_ore", "gold": "gold_nugget", "diamond": "rough_diamond",

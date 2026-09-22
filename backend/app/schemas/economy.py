@@ -29,6 +29,7 @@ class RecycleGainOut(BaseModel):
     resource_id: str
     name: str
     amount: int
+    amount_max: int | None = None  # aperçu : fourchette [amount, amount_max]
     new_balance: int | None = None
 
 

@@ -21,7 +21,9 @@ export default function RecyclePreview({ cardIds }: { cardIds: string[] }) {
                 {data?.gains.map((g) => (
                     <span key={g.resource_id} className="inline-flex items-center gap-1 text-sm text-white">
                         <ResourceIcon resourceId={g.resource_id} className="w-4 h-4" />
-                        <span className="font-semibold tabular-nums">{formatNumber(g.amount)}</span>
+                        <span className="font-semibold tabular-nums">
+                            {formatNumber(g.amount)}{g.amount_max && g.amount_max > g.amount ? ` à ${formatNumber(g.amount_max)}` : ""}
+                        </span>
                         <span className="text-white/50 text-xs">{g.name}</span>
                     </span>
                 ))}

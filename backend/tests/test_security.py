@@ -74,14 +74,14 @@ async def test_recycling_pays_only_for_cards_actually_removed(session):
     cards = [await _card(session, user) for _ in range(3)]
 
     result = await recycle_cards(RecycleByIdsRequest(card_ids=[c.id for c in cards]), user, session)
-    # Puissance au maximum de la carte : haut des plages (commune 1→5, correcte → poussière fine 1→5).
-    assert result.gained == 15 and result.new_balance == 15 and result.recycled_count == 3
-    assert {g.resource_id: g.amount for g in result.gains} == {"dust": 15, "dust_fine": 15}
+    # Puissance au maximum de la carte : fourchette 3 à 5 par carte (commune 1→5, correcte → poussière fine 1→5).
+    assert 9 <= result.gained <= 15 and result.new_balance == result.gained and result.recycled_count == 3
+    assert {g.resource_id for g in result.gains} == {"dust", "dust_fine"}
 
     with pytest.raises(HTTPException) as exc:  # déjà recyclées : rien de plus
         await recycle_cards(RecycleByIdsRequest(card_ids=[cards[0].id]), user, session)
     assert exc.value.status_code == 404
-    assert await wallet.get_balance(session, user, "dust") == 15
+    assert await wallet.get_balance(session, user, "dust") == result.gained
 
 
 async def test_a_listing_can_only_be_bought_once(session):

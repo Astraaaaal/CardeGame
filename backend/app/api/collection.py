@@ -371,13 +371,15 @@ async def _recyclable(session: AsyncSession, user: User, card_ids: list[str]) ->
 
 
 async def _gains_out(session: AsyncSession, gains, user: User | None = None) -> list[RecycleGainOut]:
-    """Gains triés comme le catalogue (poussière d'abord), avec nom et solde éventuel."""
+    """Gains triés comme le catalogue (poussière d'abord), avec nom et solde éventuel.
+    Un gain peut être une fourchette (bas, haut) : aperçu avant recyclage."""
     order = {res_id: i for i, (res_id, *_rest) in enumerate([("dust",), *NEW_RESOURCES])}
     out = []
     for res_id, amount in sorted(gains.items(), key=lambda kv: order.get(kv[0], 99)):
+        bottom, top = amount if isinstance(amount, tuple) else (amount, amount)
         resource = await session.get(Resource, res_id)
         out.append(RecycleGainOut(
-            resource_id=res_id, name=resource.name if resource else res_id, amount=amount,
+            resource_id=res_id, name=resource.name if resource else res_id, amount=bottom, amount_max=top,
             new_balance=await get_balance(session, user, res_id) if user else None,
         ))
     return out
@@ -392,7 +394,7 @@ async def preview_recycling(
     """Ce que rapporterait le recyclage de ces exemplaires (rien n'est modifié)."""
     _, owned = await _recyclable(session, user, request.card_ids)
     cfg = await activities_config.get_config(session)
-    return RecyclePreviewResponse(count=len(owned), gains=await _gains_out(session, recycling.total_yield(owned, cfg)))
+    return RecyclePreviewResponse(count=len(owned), gains=await _gains_out(session, recycling.total_forks(owned, cfg)))
 
 
 @router.post(

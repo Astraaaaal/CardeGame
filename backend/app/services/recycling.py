@@ -4,10 +4,13 @@ Ce que rapporte le recyclage d'une carte (cf. réglages « recycling »).
 Toute carte donne de la poussière (plage selon sa rareté) ; chaque palier
 atteint sur une caractéristique ajoute sa ressource (fragment, minerai,
 matière de spécialité, poussière de qualité). Dans chaque plage [min, max],
-la quantité dépend de la puissance de la carte rapportée à SON maximum :
-un excellent tirage rapporte le maximum, un tirage faible le minimum.
+la puissance de la carte rapportée à SON maximum fixe une valeur cible (un
+excellent tirage vise le maximum), puis la quantité est tirée au hasard dans
+une fourchette autour de cette cible (± « spread », sans sortir de la plage).
 """
 
+import math
+import random
 from collections import Counter
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,32 +30,51 @@ def power_ratio(card) -> float:
     return min(1.0, max(0.0, (card.power - 1) / (top - 1)))
 
 
-def _amount(bounds, ratio: float) -> int:
+def _fork(bounds, ratio: float, spread: float) -> tuple[int, int]:
+    """Fourchette [bas, haut] autour de la cible donnée par la puissance, dans la plage."""
     low, high = int(bounds[0]), int(bounds[1])
-    return max(low, round(low + (high - low) * ratio))
+    target = low + (high - low) * ratio
+    bottom = min(high, max(low, math.floor(target * (1 - spread))))
+    top = max(bottom, min(high, math.ceil(target * (1 + spread))))
+    return bottom, top
 
 
-def card_yield(card, cfg: dict) -> Counter:
-    """Ressources rapportées par une carte : {id de ressource: quantité}."""
+def card_forks(card, cfg: dict) -> dict[str, tuple[int, int]]:
+    """Fourchette de chaque ressource que peut rapporter la carte : {id: (bas, haut)}."""
     rules = cfg["recycling"]
     ratio = power_ratio(card)
-    gains: Counter = Counter()
+    spread = float(rules.get("spread", 0))
+    forks: dict[str, tuple[int, int]] = {}
+
+    def add(resource_id, bounds):
+        bottom, top = _fork(bounds, ratio, spread)
+        prev = forks.get(resource_id, (0, 0))
+        forks[resource_id] = (prev[0] + bottom, prev[1] + top)
+
     dust_bounds = rules["dust_by_rarity"].get(card.rarity_id)
     if dust_bounds:
-        gains[DUST_ID] += _amount(dust_bounds, ratio)
+        add(DUST_ID, dust_bounds)
     for axis, tier in (("rarity", card.rarity_id), ("jewelry", card.jewelry_id),
                        ("specialty", card.specialty_id), ("quality", card.quality_id)):
         resource_id = rules[axis].get(tier)
         bounds = rules["ranges"].get(resource_id) if resource_id else None
         if bounds:
-            gains[resource_id] += _amount(bounds, ratio)
-    return gains
+            add(resource_id, bounds)
+    return forks
 
 
-def total_yield(cards, cfg: dict) -> Counter:
-    total: Counter = Counter()
+def card_yield(card, cfg: dict) -> Counter:
+    """Ressources rapportées par une carte, tirées dans leur fourchette : {id: quantité}."""
+    return Counter({res_id: random.randint(bottom, top) for res_id, (bottom, top) in card_forks(card, cfg).items()})
+
+
+def total_forks(cards, cfg: dict) -> dict[str, tuple[int, int]]:
+    """Fourchette totale de plusieurs cartes (aperçu avant recyclage)."""
+    total: dict[str, tuple[int, int]] = {}
     for card in cards:
-        total.update(card_yield(card, cfg))
+        for res_id, (bottom, top) in card_forks(card, cfg).items():
+            prev = total.get(res_id, (0, 0))
+            total[res_id] = (prev[0] + bottom, prev[1] + top)
     return total
 
 

@@ -64,6 +64,8 @@ export interface RecycleGain {
     resource_id: string;
     name: string;
     amount: number;
+    /** Aperçu : quantité maximale (fourchette amount → amount_max). */
+    amount_max: number | null;
     new_balance: number | null;
 }
 

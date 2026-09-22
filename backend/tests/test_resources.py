@@ -22,16 +22,25 @@ def _card(power, **tiers):
     return SimpleNamespace(power=power, drop_probability=0.01, **{**base, **tiers})
 
 
-def test_best_roll_gives_the_top_of_every_range():
-    assert recycling.card_yield(_card(100), CFG) == {
-        "dust": 1000, "frag_legendary": 10, "gold_nugget": 5, "glitter": 8, "dust_star": 15}
+def test_best_roll_forks_sit_at_the_top_of_every_range():
+    # Cible au maximum, fourchette de -30 % jusqu'au maximum.
+    assert recycling.card_forks(_card(100), CFG) == {
+        "dust": (700, 1000), "frag_legendary": (7, 10), "gold_nugget": (3, 5), "glitter": (5, 8), "dust_star": (10, 15)}
 
 
-def test_weakest_roll_gives_the_minimum_and_common_tiers_only_dust():
-    assert recycling.card_yield(_card(1), CFG) == {
-        "dust": 100, "frag_legendary": 1, "gold_nugget": 1, "glitter": 1, "dust_star": 1}
+def test_weakest_roll_forks_stay_at_the_minimum_and_common_tiers_only_dust():
+    assert recycling.card_forks(_card(1), CFG) == {
+        "dust": (100, 130), "frag_legendary": (1, 2), "gold_nugget": (1, 2), "glitter": (1, 2), "dust_star": (1, 2)}
     plain = _card(50, rarity_id="common", quality_id="scratched", specialty_id="normal", jewelry_id="none")
-    assert recycling.card_yield(plain, CFG) == {"dust": 3}  # 1 + (5-1) × 49/99 ≈ 3
+    assert recycling.card_forks(plain, CFG) == {"dust": (2, 4)}  # cible 1 + 4 × 49/99 ≈ 3
+
+
+def test_yield_is_drawn_inside_the_fork():
+    card = _card(60)
+    forks = recycling.card_forks(card, CFG)
+    for _ in range(50):
+        gains = recycling.card_yield(card, CFG)
+        assert all(forks[r][0] <= q <= forks[r][1] for r, q in gains.items())
 
 
 def test_converter_pairs_link_each_family_both_ways_and_to_dust():
