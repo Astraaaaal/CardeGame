@@ -1,3 +1,4 @@
+import { inputCls, labelCls } from "@/components/ui/formStyles";
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { adminMessagesApi, type AdminMessageReward } from "@/api/admin";
@@ -5,10 +6,6 @@ import type { AdminBooster, AdminCharacter, AdminResource, Tuning } from "@/type
 import Button from "@/components/ui/Button";
 import { errMsg } from "@/utils/errors";
 
-const inputCls =
-    "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
-    "placeholder-white/30 focus:border-accent focus:outline-none transition-colors";
-const labelCls = "block text-white/60 text-xs mb-1";
 
 type Kind = AdminMessageReward["kind"];
 

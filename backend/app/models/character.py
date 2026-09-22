@@ -2,7 +2,6 @@
 Modèles Character et CharacterSet — Personnages du jeu.
 """
 
-from typing import Optional
 from sqlmodel import SQLModel, Field
 
 

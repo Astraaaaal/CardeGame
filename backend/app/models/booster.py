@@ -2,7 +2,6 @@
 Modèle Booster — Packs achetables.
 """
 
-from typing import Optional
 from sqlmodel import SQLModel, Field
 
 

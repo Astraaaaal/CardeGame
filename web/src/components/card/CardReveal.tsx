@@ -1,3 +1,4 @@
+import { rgbCss as rarityColorToCSS } from "@/utils/format";
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import type { Card } from "@/types/card";
@@ -17,9 +18,6 @@ interface CardRevealProps {
     onNext: () => void;
 }
 
-function rarityColorToCSS(color: number[]): string {
-    return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-}
 
 /** Dernier palier dévoilé sur un axe (undefined si aucun). */
 function currentTier(revealed: SuspenseStep[], axis: TierAxis): Tier | undefined {

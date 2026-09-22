@@ -2,7 +2,6 @@
 Routes shop — offres contre ressources (boosters, cartes précises, upgrades, reroll).
 """
 
-from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +23,7 @@ from app.schemas.economy import (
 from app.services.pack_service import PackService
 from app.services.card_view import build_card_response
 from app.services.daily_feature import get_todays_featured_offer_id
-from app.services.wallet import get_balance, apply_delta
+from app.services.wallet import apply_delta
 from app.services.ranking import refresh_all_best_ranks
 from app.services import activity, booster_inventory, expeditions, purchase_limits, quest_progress, reroll_inventory
 from app.services.reroll import apply_reroll, assign_bought_card_power

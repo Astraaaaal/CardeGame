@@ -5,8 +5,6 @@ Migration de src/engine/card_renderer.py vers le serveur.
 
 import hashlib
 import io
-import os
-from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFont
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -85,7 +83,7 @@ class CardRendererService:
             f"{card_data['quality_id']}_{card_data['specialty_id']}_"
             f"{card_data['jewelry_id']}"
         )
-        return hashlib.md5(key.encode()).hexdigest()
+        return hashlib.md5(key.encode(), usedforsecurity=False).hexdigest()
 
     def _render_card_image(self, card_data: dict) -> Image.Image:
         """
@@ -102,9 +100,6 @@ class CardRendererService:
         img = Image.new("RGBA", (W, H), (30, 30, 45, 255))
 
         char = card_data.get("_character", {})
-        rarity = card_data.get("_rarity")
-        quality = card_data.get("_quality")
-        specialty = card_data.get("_specialty")
         jewelry = card_data.get("_jewelry")
 
         # Bordure (code-generated, comme l'original)
@@ -141,7 +136,6 @@ class CardRendererService:
 
         char = card_data.get("_character", {})
         rarity = card_data.get("_rarity")
-        quality = card_data.get("_quality")
         specialty = card_data.get("_specialty")
 
         try:
@@ -149,7 +143,7 @@ class CardRendererService:
             font_medium = ImageFont.truetype("arial.ttf", 11)
             font_small = ImageFont.truetype("arial.ttf", 9)
             font_tiny = ImageFont.truetype("arial.ttf", 8)
-        except (IOError, OSError):
+        except OSError:
             font_name = ImageFont.load_default()
             font_medium = font_name
             font_small = font_name

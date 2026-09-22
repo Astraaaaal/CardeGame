@@ -1,3 +1,4 @@
+import { parseUtc, rgbCss as rarityColorToCSS } from "@/utils/format";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,9 +23,6 @@ interface CardDetailProps {
     readOnly?: boolean;
 }
 
-function rarityColorToCSS(color: number[]): string {
-    return `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-}
 
 /**
  * Reste toujours monté (comme Modal.tsx) et gère sa propre AnimatePresence
@@ -203,7 +201,7 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                                     <p>
                                         Obtenue le:{" "}
                                         <span className="text-white">
-                                            {new Date(displayCard.obtained_at).toLocaleDateString("fr-FR", {
+                                            {parseUtc(displayCard.obtained_at).toLocaleDateString("fr-FR", {
                                                 day: "2-digit", month: "2-digit", year: "numeric",
                                             })}
                                         </span>

@@ -88,7 +88,7 @@ async def leaderboard_friends(
 
 @router.get("/global", response_model=LeaderboardResponse)
 async def leaderboard_global(
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Top 10 des joueurs par puissance totale, tous joueurs confondus."""
@@ -100,7 +100,7 @@ async def leaderboard_global(
 @router.get("/by-type", response_model=LeaderboardResponse)
 async def leaderboard_by_type(
     type_name: str,
-    _user: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     """Top 10 des joueurs par puissance totale, restreinte aux cartes d'un type de personnage."""

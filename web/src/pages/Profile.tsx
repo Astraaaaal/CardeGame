@@ -1,3 +1,4 @@
+import { parseUtc } from "@/utils/format";
 import { useRef, useState } from "react";
 import { useToastMessage } from "@/hooks/useToastMessage";
 import { useNavigate } from "react-router-dom";
@@ -17,7 +18,7 @@ import { errMsg } from "@/utils/errors";
 
 function fmtDate(iso: string | null | undefined): string {
     if (!iso) return "—";
-    return new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+    return parseUtc(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 }
 
 function StatSection({ title, children }: { title: string; children: React.ReactNode }) {

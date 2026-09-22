@@ -1,3 +1,5 @@
+import { parseUtc } from "@/utils/format";
+import { inputCls } from "@/components/ui/formStyles";
 import { useState } from "react";
 import LockedFeature from "@/components/ui/LockedFeature";
 import { useToastMessage } from "@/hooks/useToastMessage";
@@ -7,7 +9,6 @@ import Button from "@/components/ui/Button";
 import { errMsg } from "@/utils/errors";
 import GuildEmblem, { GUILD_COLORS, GUILD_ICONS, POLICY_LABEL } from "./GuildEmblem";
 
-const inputCls = "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30";
 export const MY_GUILD_KEY = ["guild", "me"];
 
 /** Sans guilde : invitations reçues, création et recherche. */
@@ -36,7 +37,7 @@ export default function NoGuild({ state }: { state: MyGuildState }) {
         onError,
     });
 
-    const cooldownEnd = state.left_at ? new Date(new Date(state.left_at + "Z").getTime() + state.cooldown_hours * 3600_000) : null;
+    const cooldownEnd = state.left_at ? new Date(parseUtc(state.left_at).getTime() + state.cooldown_hours * 3600_000) : null;
     const waiting = cooldownEnd && cooldownEnd > new Date();
 
     return (

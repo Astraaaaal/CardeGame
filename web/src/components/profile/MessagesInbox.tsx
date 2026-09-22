@@ -1,3 +1,4 @@
+import { formatDateTime as fmt } from "@/utils/format";
 import { useState } from "react";
 import { BoosterIcon, RerollIcon } from "@/components/ui/ItemIcon";
 import { toast } from "@/stores/toastStore";
@@ -11,9 +12,6 @@ import { errMsg } from "@/utils/errors";
 import { rewardItems, showRewards, type RewardItem } from "@/stores/rewardPopupStore";
 import EmojiText from "@/components/ui/EmojiText";
 
-function fmt(iso: string): string {
-    return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
-}
 
 function MessageRow({ message }: { message: AppMessage }) {
     const qc = useQueryClient();
@@ -73,6 +71,9 @@ function MessageRow({ message }: { message: AppMessage }) {
                 <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-semibold truncate"><EmojiText text={message.subject} /></p>
                     <p className="text-white/40 text-xs">
+                        {message.sender_type === "admin" && (
+                            <span className="text-gold font-bold border border-gold/40 rounded px-1 mr-1">Officiel</span>
+                        )}
                         {message.sender_display_name} · {fmt(message.created_at)}
                     </p>
                 </div>

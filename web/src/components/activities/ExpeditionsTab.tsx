@@ -1,3 +1,4 @@
+import { formatPercent as pct, parseUtc } from "@/utils/format";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@/stores/toastStore";
 import { useNavigate } from "react-router-dom";
@@ -24,7 +25,6 @@ function fmtCountdown(seconds: number): string {
     return h ? `${h} h ${String(m).padStart(2, "0")}` : `${m} min ${String(s).padStart(2, "0")} s`;
 }
 
-const pct = (x: number) => `${Math.round(x * 100)} %`;
 
 /** Expédition en cours : équipe, compte à rebours, butin attendu, récupération. */
 function ActiveExpedition({ exp, onClaim, claiming }: { exp: ExpeditionOut; onClaim: () => void; claiming: boolean }) {
@@ -34,7 +34,7 @@ function ActiveExpedition({ exp, onClaim, claiming }: { exp: ExpeditionOut; onCl
         const t = window.setInterval(() => setNow(Date.now()), 1000);
         return () => window.clearInterval(t);
     }, []);
-    const remaining = Math.max(0, Math.round((new Date(exp.ends_at + "Z").getTime() - now) / 1000));
+    const remaining = Math.max(0, Math.round((parseUtc(exp.ends_at).getTime() - now) / 1000));
     const done = exp.done || remaining === 0;
 
     return (

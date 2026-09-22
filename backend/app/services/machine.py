@@ -29,7 +29,7 @@ from app.services import activities_config, booster_inventory, reroll_inventory
 from app.services.presence_bonus import get_activity
 from app.services.reroll import reroll_axes
 from app.services.tier_order import rank
-from app.services.wallet import apply_delta, get_balance
+from app.services.wallet import apply_delta
 from app.services import unlocks
 from app.services.wallet import require_balance
 

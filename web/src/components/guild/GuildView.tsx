@@ -1,3 +1,5 @@
+import { formatNumber as fmt, parseUtc as utc } from "@/utils/format";
+import { inputCls } from "@/components/ui/formStyles";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@/stores/toastStore";
 import { useToastMessage } from "@/hooks/useToastMessage";
@@ -20,9 +22,6 @@ const TABS: { key: Tab; label: string }[] = [
     { key: "members", label: "Membres" },
     { key: "wall", label: "Tchat" },
 ];
-const inputCls = "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder:text-white/30";
-const fmt = (n: number) => n.toLocaleString("fr-FR");
-const utc = (s: string) => new Date(s.endsWith("Z") ? s : s + "Z");
 
 function remaining(expires: string) {
     const ms = utc(expires).getTime() - Date.now();

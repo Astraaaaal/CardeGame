@@ -4,7 +4,7 @@ Migration directe de src/engine/card_generator.py mais avec la BDD.
 """
 
 import random
-from typing import List, Optional
+from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -200,5 +200,5 @@ class CardGeneratorService:
             return 0.0
         if min_id and item.id == min_id:
             floor = rank(axis, min_id)
-            return sum(w for i, w in zip(items, weights) if rank(axis, i.id) <= floor) / total
-        return next((w for i, w in zip(items, weights) if i.id == item.id), 0) / total
+            return sum(w for i, w in zip(items, weights, strict=True) if rank(axis, i.id) <= floor) / total
+        return next((w for i, w in zip(items, weights, strict=True) if i.id == item.id), 0) / total

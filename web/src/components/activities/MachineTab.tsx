@@ -1,3 +1,4 @@
+import { formatNumber as fmt, formatPercent as pct } from "@/utils/format";
 import { useState } from "react";
 import { BoosterIcon, RerollIcon } from "@/components/ui/ItemIcon";
 import LockedFeature from "@/components/ui/LockedFeature";
@@ -11,8 +12,6 @@ import Button from "@/components/ui/Button";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import { errMsg } from "@/utils/errors";
 
-const fmt = (n: number) => n.toLocaleString("fr-FR");
-const pct = (x: number) => `${Math.round(x * 100)} %`;
 const RESOURCE_NAME: Record<string, string> = { coins: "pièces", dust: "poussière" };
 
 /** Machine d'amélioration (booster / reroll, amélioration du jour) + convertisseur de ressources. */

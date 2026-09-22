@@ -1,3 +1,4 @@
+import { inputCls, labelCls } from "@/components/ui/formStyles";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -30,10 +31,6 @@ import AdminBugReports from "@/components/admin/AdminBugReports";
 import AdminPremium from "@/components/admin/AdminPremium";
 import { adminPremiumApi } from "@/api/admin";
 
-const inputCls =
-    "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
-    "placeholder-white/30 focus:border-accent focus:outline-none transition-colors";
-const labelCls = "block text-white/60 text-xs mb-1";
 
 const hexFromRgb = (r: number, g: number, b: number) =>
     "#" + [r, g, b].map((x) => Math.max(0, Math.min(255, x)).toString(16).padStart(2, "0")).join("");

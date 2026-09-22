@@ -3,8 +3,7 @@ Modèles de référence — Tables statiques (anciennement JSON).
 Sets, Rarities, Qualities, Specialties, Jewelries.
 """
 
-from typing import Optional, List
-from sqlmodel import SQLModel, Field, Column, ARRAY, Integer
+from sqlmodel import SQLModel, Field
 
 
 class Set(SQLModel, table=True):
@@ -32,10 +31,6 @@ class Rarity(SQLModel, table=True):
     @property
     def color(self) -> list[int]:
         return [self.color_r, self.color_g, self.color_b]
-
-    @property
-    def label_color(self) -> list[int]:
-        return [self.label_color_r, self.label_color_g, self.label_color_b]
 
 
 class Quality(SQLModel, table=True):

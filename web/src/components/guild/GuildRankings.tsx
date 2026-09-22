@@ -1,3 +1,4 @@
+import { formatNumber as fmt } from "@/utils/format";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { guildsApi, type GuildRankingRow, type RankingKind } from "@/api/guilds";
@@ -13,7 +14,6 @@ const KINDS: { key: RankingKind; label: string; hint: string }[] = [
     { key: "challenge", label: "Défi", hint: "Palier de défi hebdomadaire le plus haut atteint." },
 ];
 
-const fmt = (n: number) => n.toLocaleString("fr-FR");
 
 function score(kind: RankingKind, r: GuildRankingRow) {
     switch (kind) {

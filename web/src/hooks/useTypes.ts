@@ -1,3 +1,4 @@
+import { API_URL } from "@/api/client";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
@@ -8,7 +9,6 @@ export interface TypeDef {
     in_use?: number;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || "";
 
 /**
  * Types de personnage (nom + couleur), gérés depuis le panneau admin.

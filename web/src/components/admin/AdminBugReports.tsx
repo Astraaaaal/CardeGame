@@ -1,12 +1,8 @@
+import { formatDateTime as fmt } from "@/utils/format";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminBugReportsApi } from "@/api/admin";
 import Button from "@/components/ui/Button";
 
-function fmt(iso: string): string {
-    return new Date(iso).toLocaleDateString("fr-FR", {
-        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
-    });
-}
 
 export default function AdminBugReports() {
     const qc = useQueryClient();

@@ -1,3 +1,5 @@
+import { parseUtc } from "@/utils/format";
+import { inputCls, labelCls } from "@/components/ui/formStyles";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminApi, adminPremiumApi, type PremiumProductInput } from "@/api/admin";
@@ -11,10 +13,6 @@ import Toggle from "@/components/ui/Toggle";
 import { CosmeticPreview, COSMETIC_KIND_LABEL } from "@/components/cosmetics/CosmeticVisuals";
 import { errMsg } from "@/utils/errors";
 
-const inputCls =
-    "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
-    "placeholder-white/30 focus:border-accent focus:outline-none transition-colors";
-const labelCls = "block text-white/60 text-xs mb-1";
 
 const ANIMATIONS: { value: CosmeticAnimation; label: string }[] = [
     { value: "none", label: "Aucune" },
@@ -354,7 +352,7 @@ export default function AdminPremium() {
                     <div key={o.id} className="flex items-center justify-between bg-game-surface/60 border border-white/5 rounded-lg px-3 py-2 text-xs">
                         <div className="min-w-0">
                             <p className="text-white truncate">#{o.id} · {o.product_name} · {formatEuros(o.amount_cents)}</p>
-                            <p className="text-white/40">{o.username ?? "compte supprimé"} · {new Date(o.created_at).toLocaleString("fr-FR")}</p>
+                            <p className="text-white/40">{o.username ?? "compte supprimé"} · {parseUtc(o.created_at).toLocaleString("fr-FR")}</p>
                         </div>
                         <span className={o.status === "paid" ? "text-green-400" : o.status === "pending" ? "text-white/40" : "text-red-400"}>
                             {STATUS_LABEL[o.status] ?? o.status}

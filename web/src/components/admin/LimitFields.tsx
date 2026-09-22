@@ -1,10 +1,7 @@
+import { inputCls, labelCls } from "@/components/ui/formStyles";
 import type { LimitPeriod } from "@/types/shop";
 import { LIMIT_PERIOD_LABEL } from "@/utils/purchaseLimits";
 
-const inputCls =
-    "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
-    "focus:border-accent focus:outline-none transition-colors";
-const labelCls = "block text-white/60 text-xs mb-1";
 
 const PERIODS: LimitPeriod[] = ["none", "day", "week", "month", "account"];
 

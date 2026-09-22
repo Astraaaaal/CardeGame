@@ -1,3 +1,4 @@
+import { inputCls, labelCls } from "@/components/ui/formStyles";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { adminActivitiesApi, type ActivitiesConfig } from "@/api/admin";
@@ -5,10 +6,6 @@ import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { errMsg } from "@/utils/errors";
 
-const inputCls =
-    "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
-    "focus:border-accent focus:outline-none transition-colors";
-const labelCls = "block text-white/60 text-xs mb-1";
 
 type Section = Exclude<keyof ActivitiesConfig, "reward_booster_id">;
 

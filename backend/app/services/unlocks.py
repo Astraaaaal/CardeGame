@@ -56,11 +56,6 @@ async def require(session: AsyncSession, user: User, feature: str) -> None:
         raise HTTPException(403, f"{FEATURE_LABELS.get(feature, 'Cette fonctionnalité')} se débloque au niveau {needed}.")
 
 
-async def is_unlocked(session: AsyncSession, user: User, feature: str) -> bool:
-    cfg = await activities_config.get_config(session)
-    return await level_of(session, user) >= required_level(cfg, feature)
-
-
 # ─────────────────────────────  PROGRESSIONS  ─────────────────────────────
 
 def _steps(table: dict, level: int, default: int = 0) -> int:

@@ -4,6 +4,7 @@
  * conservée en sessionStorage.
  */
 
+import { API_URL } from "./client";
 import axios from "axios";
 import type {
     GameSet,
@@ -19,7 +20,6 @@ import type {
 } from "@/types/content";
 import type { Cosmetic, Grant, PremiumConfig, PremiumOrder, PremiumProduct } from "@/types/premium";
 
-const API_URL = import.meta.env.VITE_API_URL || "";
 const KEY_STORE = "admin_key";
 
 export const adminKey = {

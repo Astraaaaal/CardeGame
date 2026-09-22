@@ -57,7 +57,7 @@ async def test_guarantee_raises_to_the_floor_without_boosting_higher_tiers(sessi
     ])
     await session.commit()
     generator = CardGeneratorService()
-    rarities, legendary = [], 0
+    rarities = []
     for _ in range(3000):
         [card] = await generator.generate_pack(session, ["s1"], cards_count=1, guaranteed_rare=False,
                                                force_min_rarity_id="epic")

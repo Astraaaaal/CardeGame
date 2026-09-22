@@ -12,14 +12,6 @@ export function useCollection(params?: CollectionParams) {
     });
 }
 
-export function useCardDetail(cardId: string | null) {
-    return useQuery({
-        queryKey: ["card", cardId],
-        queryFn: () => collectionApi.getCardDetail(cardId!),
-        enabled: !!cardId,
-    });
-}
-
 export function useProbabilities(enabled: boolean) {
     return useQuery({
         queryKey: ["probabilities"],

@@ -1,3 +1,4 @@
+import { inputCls } from "@/components/ui/formStyles";
 export type GrantKind = "resource" | "booster" | "cosmetic";
 
 export interface GrantDraft {
@@ -12,9 +13,6 @@ export interface GrantOptions {
     cosmetics: { id: string; name: string }[];
 }
 
-const inputCls =
-    "w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white " +
-    "focus:border-accent focus:outline-none transition-colors";
 
 /** Contenu d'un lot : ressources (Éclats comprises), boosters, cosmétiques.
  * Partagé par les produits premium (euros) et les offres « lot » de la boutique. */

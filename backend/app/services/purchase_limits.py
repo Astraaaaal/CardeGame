@@ -12,8 +12,6 @@ PERIOD_WEEK = "week"
 PERIOD_MONTH = "month"
 PERIOD_ACCOUNT = "account"
 
-PERIODS = (PERIOD_NONE, PERIOD_DAY, PERIOD_WEEK, PERIOD_MONTH, PERIOD_ACCOUNT)
-
 _LABELS = {
     PERIOD_DAY: "aujourd'hui",
     PERIOD_WEEK: "cette semaine",
