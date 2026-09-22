@@ -50,3 +50,10 @@
   0% { background-position: 0% 50%; }
   100% { background-position: 100% 50%; }
 }
+
+/* Rangée défilante horizontalement : léger dégradé à droite pour montrer
+   qu'il reste des éléments (filtres et tris de la collection). */
+.fade-right {
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+}

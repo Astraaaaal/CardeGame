@@ -94,7 +94,7 @@ export default function Inventory() {
                     ["cosmetics", "Cosmétiques", cosmetics?.owned.length ?? 0],
                 ] as [Tab, string, number][]).map(([key, label, count]) => (
                     <button key={key}
-                        className={`flex-1 py-2.5 text-xs font-semibold transition-colors ${tab === key ? "text-accent border-b-2 border-accent" : "text-white/40 hover:text-white/70"}`}
+                        className={`flex-1 min-w-0 px-1 py-2.5 text-xs font-semibold truncate transition-colors ${tab === key ? "text-accent border-b-2 border-accent" : "text-white/40 hover:text-white/70"}`}
                         onClick={() => setTab(key)}>
                         {label}{count ? <span className="ml-1 text-white/30">{count}</span> : null}
                     </button>

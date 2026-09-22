@@ -183,7 +183,7 @@ export default function Collection() {
             )}
 
             {/* Favoris : filtre par catégorie + gestion */}
-            <div className="px-4 pt-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <div className="px-4 pt-3 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right">
                 <span className="shrink-0 text-white/40 text-xs">★</span>
                 {[{ id: undefined as number | undefined, name: "Toutes", color: "" }, ...(favCats ?? [])].map((c) => (
                     <button key={c.id ?? "all"}
@@ -201,7 +201,7 @@ export default function Collection() {
             </div>
 
             {/* Tri + sens */}
-            <div className="px-4 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <div className="px-4 py-3 flex items-center gap-2 overflow-x-auto no-scrollbar fade-right">
                 {SORT_OPTIONS.map((opt) => (
                     <button
                         key={opt.value}

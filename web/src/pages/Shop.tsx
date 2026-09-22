@@ -1,3 +1,4 @@
+import ResourceIcon from "@/components/ui/ResourceIcon";
 import { useEffect, useRef, useState } from "react";
 import { RerollIcon } from "@/components/ui/ItemIcon";
 import LockedFeature from "@/components/ui/LockedFeature";
@@ -356,12 +357,15 @@ function ResourcesTab() {
 
                         return (
                             <div key={o.id} className={`bg-game-surface rounded-2xl p-4 border ${o.featured_today ? "border-gold/60" : "border-white/10"}`}>
-                                <div className="flex items-center justify-between mb-1">
-                                    <h3 className="text-white font-bold">
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                    <h3 className="text-white font-bold min-w-0">
                                         {o.name}
                                     </h3>
-                                    <span className="text-purple-300 font-bold text-sm">
-                                        {o.price} {o.resource_name}
+                                    {/* Prix en icône + quantité : le nom complet de la ressource
+                                        faisait passer titre et prix sur deux lignes. */}
+                                    <span className="text-purple-300 font-bold text-sm inline-flex items-center gap-1 shrink-0"
+                                        title={`${o.price} ${o.resource_name}`}>
+                                        {o.price.toLocaleString("fr-FR")} <ResourceIcon resourceId={o.resource_id} className="w-4 h-4" />
                                     </span>
                                 </div>
                                 <p className="text-white/50 text-xs mb-2">{offerPreview(o)}</p>
@@ -437,7 +441,9 @@ function ResourcesTab() {
                                 </div>
                             )}
                             <p className="text-center text-purple-300 font-bold">
-                                {(o.price * qty).toLocaleString("fr-FR")} {o.resource_name}
+                                <span className="inline-flex items-center gap-1">
+                                    {(o.price * qty).toLocaleString("fr-FR")} <ResourceIcon resourceId={o.resource_id} className="w-4 h-4" />
+                                </span>
                             </p>
                             {/* Un reroll utilisé tout de suite ne porte que sur une carte. */}
                             {!(o.kind === "reroll" && qty > 1) && (

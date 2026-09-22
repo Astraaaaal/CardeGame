@@ -139,7 +139,7 @@ export default function MainMenu() {
       )}
 
       {/* Content */}
-      <main className="flex-1 flex flex-col items-center justify-center gap-6 px-4">
+      <main className="flex-1 flex flex-col items-center justify-center gap-5 px-4 pb-24">
         <motion.h1
           className="text-3xl font-extrabold text-white text-center"
           initial={{ opacity: 0, y: -20 }}
@@ -148,31 +148,32 @@ export default function MainMenu() {
           Carde<span className="text-accent">Game</span>
         </motion.h1>
 
-        <div className="w-full max-w-sm space-y-3">
+        {/* Deux colonnes : les 7 entrées tiennent dans l'écran, sans passer sous les
+            boutons flottants ; la dernière prend toute la largeur si le nombre est impair. */}
+        <div className="w-full max-w-sm grid grid-cols-2 gap-2.5">
           {menuItems.map((item, idx) => (
             <motion.div
               key={item.path}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 * (idx + 1) }}
+              className={idx === menuItems.length - 1 && menuItems.length % 2 === 1 ? "col-span-2" : ""}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 * (idx + 1) }}
             >
               {item.feature && !isUnlocked(item.feature) ? (
                 <Button
                   variant="secondary"
-                  size="lg"
-                  className="w-full justify-start opacity-50"
+                  className="w-full opacity-50"
                   onClick={() => toast.info(`${item.label} se débloque au niveau ${levelFor(item.feature!)}.`)}
                 >
-                  <span className="relative block text-center">
+                  <span className="block text-center leading-tight">
                     {item.label}
-                    <span className="absolute right-0 top-1/2 -translate-y-1/2 text-xs font-semibold text-white/60">🔒 Niv. {levelFor(item.feature)}</span>
+                    <span className="block text-[10px] font-semibold text-white/60">Niv. {levelFor(item.feature)}</span>
                   </span>
                 </Button>
               ) : (
                 <Button
                   variant="secondary"
-                  size="lg"
-                  className="w-full justify-start"
+                  className="w-full"
                   onClick={() => navigate(item.path)}
                 >
                   {item.label}
