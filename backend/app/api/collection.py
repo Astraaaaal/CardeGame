@@ -7,7 +7,7 @@ from sqlalchemy import delete
 from app.models.social import TradeListing
 from app.models.favorite import FavoriteCard, FavoriteCategory
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, func, col
+from sqlmodel import select
 from typing import Optional
 
 from app.database import get_session
@@ -18,13 +18,14 @@ from app.models.card import UserCard
 from app.models.character import Character
 from app.models.booster import Booster
 from app.models.reference import Set, Rarity, Quality, Specialty, Jewelry
-from app.models.economy import Resource, UserResource
+from app.models.economy import Resource
 from app.schemas.card import CardResponse, CardGroupResponse, CardCopyOut, CardCopiesResponse
 from app.schemas.collection import CollectionResponse, ProbabilityItem, ProbabilityTableResponse
 from app.schemas.economy import RecycleByIdsRequest, RecycleByIdsResponse
 from app.services.card_view import build_card_response
 from app.services.power import combined_rarity
 from app.services import expeditions, quest_progress
+from app.services.wallet import apply_delta
 from app.services.ranking import refresh_all_best_ranks
 from app.services.tier_order import (
     RARITY_ORDER, QUALITY_ORDER, SPECIALTY_ORDER, JEWELRY_ORDER, rank,
@@ -389,13 +390,13 @@ async def recycle_cards(
     specialties_map = await _load_map(session, Specialty)
     jewelries_map = await _load_map(session, Jewelry)
 
-    total_gain = 0
+    values = {}
     for card in owned:
         rarity = rarities_map.get(card.rarity_id)
         quality = qualities_map.get(card.quality_id)
         specialty = specialties_map.get(card.specialty_id)
         jewelry = jewelries_map.get(card.jewelry_id)
-        total_gain += (
+        values[card.id] = (
             (rarity.recycle_value if rarity else 0)
             + (quality.recycle_value if quality else 0)
             + (specialty.recycle_value if specialty else 0)
@@ -409,18 +410,19 @@ async def recycle_cards(
     session.add(user)
     await session.flush()
     await session.execute(delete(TradeListing).where(TradeListing.user_card_id.in_(ids)))
-    await session.execute(delete(UserCard).where(UserCard.id.in_(ids), UserCard.user_id == user.id))
+    # Seules les cartes réellement supprimées rapportent (une carte partie entre-temps
+    # dans un échange conclu par l'autre joueur n'est ni supprimée ni payée).
+    recycled = (await session.execute(
+        delete(UserCard).where(UserCard.id.in_(ids), UserCard.user_id == user.id).returning(UserCard.id)
+    )).scalars().all()
+    total_gain = sum(values[card_id] for card_id in recycled)
 
-    user_res = await session.get(UserResource, (user.id, RECYCLE_RESOURCE_ID))
-    if not user_res:
-        user_res = UserResource(user_id=user.id, resource_id=RECYCLE_RESOURCE_ID, amount=0)
-        session.add(user_res)
-    user_res.amount += total_gain
-    user.total_cards = max(0, user.total_cards - len(owned))
-    user.cards_recycled += len(owned)
+    new_balance = await apply_delta(session, user, RECYCLE_RESOURCE_ID, total_gain)
+    user.total_cards = max(0, user.total_cards - len(recycled))
+    user.cards_recycled += len(recycled)
     user.dust_from_recycling += total_gain
 
-    await quest_progress.increment(session, user.id, "cards_recycled", len(owned))
+    await quest_progress.increment(session, user.id, "cards_recycled", len(recycled))
     await refresh_all_best_ranks(session)
     await session.commit()
 
@@ -428,8 +430,8 @@ async def recycle_cards(
         resource_id=RECYCLE_RESOURCE_ID,
         resource_name=resource.name,
         gained=total_gain,
-        new_balance=user_res.amount,
-        recycled_count=len(owned),
+        new_balance=new_balance,
+        recycled_count=len(recycled),
     )
 
 

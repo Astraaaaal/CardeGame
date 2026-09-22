@@ -2,7 +2,7 @@
 Routes — session d'échange en direct.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
@@ -39,7 +39,7 @@ async def add_card(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    trade = await svc.get_session_or_404(session, session_id, user.id)
+    trade = await svc.get_session_or_404(session, session_id, user.id, lock=True)
     await svc.add_card_item(session, trade, user.id, body.user_card_id)
     return await svc.build_out(session, trade, user.id)
 
@@ -54,7 +54,7 @@ async def add_resource(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    trade = await svc.get_session_or_404(session, session_id, user.id)
+    trade = await svc.get_session_or_404(session, session_id, user.id, lock=True)
     await svc.add_resource_item(session, trade, user.id, body.resource_id, body.amount)
     return await svc.build_out(session, trade, user.id)
 
@@ -69,7 +69,7 @@ async def add_booster(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    trade = await svc.get_session_or_404(session, session_id, user.id)
+    trade = await svc.get_session_or_404(session, session_id, user.id, lock=True)
     await svc.add_booster_item(session, trade, user.id, body.booster_id, body.bonus_id, body.amount)
     return await svc.build_out(session, trade, user.id)
 
@@ -84,7 +84,7 @@ async def add_reroll(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    trade = await svc.get_session_or_404(session, session_id, user.id)
+    trade = await svc.get_session_or_404(session, session_id, user.id, lock=True)
     await svc.add_reroll_item(session, trade, user.id, body.reroll_token_id, body.amount)
     return await svc.build_out(session, trade, user.id)
 
@@ -96,7 +96,7 @@ async def remove_item(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    trade = await svc.get_session_or_404(session, session_id, user.id)
+    trade = await svc.get_session_or_404(session, session_id, user.id, lock=True)
     await svc.remove_item(session, trade, user.id, item_id)
     return await svc.build_out(session, trade, user.id)
 
@@ -108,7 +108,7 @@ async def set_ready(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    trade = await svc.get_session_or_404(session, session_id, user.id)
+    trade = await svc.get_session_or_404(session, session_id, user.id, lock=True)
     await svc.set_ready(session, trade, user.id, body.ready)
     return await svc.build_out(session, trade, user.id)
 
@@ -119,7 +119,7 @@ async def confirm_trade(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    trade = await svc.get_session_or_404(session, session_id, user.id)
+    trade = await svc.get_session_or_404(session, session_id, user.id, lock=True)
     removed = await svc.confirm(session, trade, user.id)
     if trade.status == svc.STATUS_COMPLETED:
         await refresh_all_best_ranks(session)
@@ -133,5 +133,5 @@ async def cancel_trade(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    trade = await svc.get_session_or_404(session, session_id, user.id)
+    trade = await svc.get_session_or_404(session, session_id, user.id, lock=True)
     await svc.cancel(session, trade, user.id)

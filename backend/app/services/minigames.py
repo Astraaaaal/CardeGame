@@ -26,7 +26,7 @@ from app.services.card_generator import CardGeneratorService
 from app.services.card_view import build_card_response
 from app.services.power import roll_drawn_power
 from app.services.presence_bonus import get_activity
-from app.services.wallet import apply_delta, get_balance
+from app.services.wallet import apply_delta
 from app.services import unlocks
 from app.services.wallet import require_balance
 
@@ -175,7 +175,7 @@ async def higher_lower_start(session: AsyncSession, user: User, resource_id: str
 
 async def _active_game(session: AsyncSession, user: User, game_id: int) -> HigherLowerGame:
     game = (await session.execute(
-        select(HigherLowerGame).where(HigherLowerGame.id == game_id).with_for_update()
+        select(HigherLowerGame).where(HigherLowerGame.id == game_id).with_for_update().execution_options(populate_existing=True)
     )).scalar_one_or_none()
     if not game or game.user_id != user.id:
         raise HTTPException(404, "Partie introuvable.")

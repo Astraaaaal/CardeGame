@@ -123,7 +123,7 @@ async def claim(session: AsyncSession, message: Message) -> Message:
 
     if message.reward_card_id:
         card = (await session.execute(
-            select(UserCard).where(UserCard.id == message.reward_card_id).with_for_update()
+            select(UserCard).where(UserCard.id == message.reward_card_id).with_for_update().execution_options(populate_existing=True)
         )).scalar_one_or_none()
         if not card or (message.sender_user_id and card.user_id != message.sender_user_id) \
                 or await expeditions.locked_card_ids(session, [message.reward_card_id]):

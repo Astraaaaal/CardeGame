@@ -5,6 +5,10 @@ plus tard") et ouverture (même animation qu'un achat) depuis ce solde.
 Deux stocks : les boosters simples (UserBoosterInventory, un compteur par
 booster) et les boosters achetés via une offre du shop à ressources, qui
 gardent leur bonus (UserBonusBooster, une ligne par bonus identique).
+
+Les lignes de stock sont relues et verrouillées avant chaque modification
+(LOCKED) : un échange qui débite le stock de l'autre joueur pendant qu'il
+ouvre ses boosters ne peut pas écraser son compteur (duplication).
 """
 
 from fastapi import HTTPException
@@ -19,10 +23,11 @@ from app.services.pack_service import PackService
 from app.services.wallet import get_balance
 
 _pack_service = PackService()
+LOCKED = {"with_for_update": True, "populate_existing": True}
 
 
 async def grant(session: AsyncSession, user_id: int, booster_id: str, quantity: int = 1) -> None:
-    row = await session.get(UserBoosterInventory, (user_id, booster_id))
+    row = await session.get(UserBoosterInventory, (user_id, booster_id), **LOCKED)
     if not row:
         row = UserBoosterInventory(user_id=user_id, booster_id=booster_id, quantity=0)
     row.quantity += quantity
@@ -62,7 +67,7 @@ async def grant_bonus(
             same(UserBonusBooster.force_min_rarity_id, force_min_rarity_id),
             same(UserBonusBooster.rarity_weight_multiplier, rarity_weight_multiplier),
             *(same(getattr(UserBonusBooster, f), v) for f, v in extras.items()),
-        )
+        ).with_for_update().execution_options(populate_existing=True)
     )).scalars().first()
     if not row:
         row = UserBonusBooster(
@@ -74,7 +79,7 @@ async def grant_bonus(
 
 
 async def consume(session: AsyncSession, user_id: int, booster_id: str, quantity: int) -> None:
-    row = await session.get(UserBoosterInventory, (user_id, booster_id))
+    row = await session.get(UserBoosterInventory, (user_id, booster_id), **LOCKED)
     if not row or row.quantity < quantity:
         raise HTTPException(400, f"Tu ne possèdes que {row.quantity if row else 0} exemplaire(s) de ce booster.")
     row.quantity -= quantity
@@ -83,7 +88,7 @@ async def consume(session: AsyncSession, user_id: int, booster_id: str, quantity
 
 async def consume_bonus(session: AsyncSession, user_id: int, bonus_id: int, quantity: int) -> UserBonusBooster:
     """Retire des boosters à bonus du stock (cadeau). Ne commit pas."""
-    row = await session.get(UserBonusBooster, bonus_id)
+    row = await session.get(UserBonusBooster, bonus_id, **LOCKED)
     if not row or row.user_id != user_id or row.quantity < quantity:
         owned = row.quantity if row and row.user_id == user_id else 0
         raise HTTPException(400, f"Tu ne possèdes que {owned} exemplaire(s) de ce booster.")
@@ -156,14 +161,14 @@ async def open_owned(
     rarity_weight_multiplier = None
     extras: dict = {}
     if bonus_id is not None:
-        row = await session.get(UserBonusBooster, bonus_id)
+        row = await session.get(UserBonusBooster, bonus_id, **LOCKED)
         if not row or row.user_id != user.id or row.booster_id != booster_id or row.quantity < quantity:
             raise HTTPException(400, f"Tu ne possèdes que {row.quantity if row and row.user_id == user.id else 0} exemplaire(s) de ce booster.")
         force_min_rarity_id = row.force_min_rarity_id
         rarity_weight_multiplier = row.rarity_weight_multiplier
         extras = extra_bonus(row)
     else:
-        row = await session.get(UserBoosterInventory, (user.id, booster_id))
+        row = await session.get(UserBoosterInventory, (user.id, booster_id), **LOCKED)
         if not row or row.quantity < quantity:
             raise HTTPException(400, f"Tu ne possèdes que {row.quantity if row else 0} exemplaire(s) de ce booster.")
 

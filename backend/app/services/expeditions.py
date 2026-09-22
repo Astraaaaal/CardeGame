@@ -194,7 +194,7 @@ async def _generate_rare_card(session: AsyncSession, user: User, booster: Booste
 
 async def claim(session: AsyncSession, user: User, expedition_id: int) -> dict:
     exp = (await session.execute(
-        select(Expedition).where(Expedition.id == expedition_id).with_for_update()
+        select(Expedition).where(Expedition.id == expedition_id).with_for_update().execution_options(populate_existing=True)
     )).scalar_one_or_none()
     if not exp or exp.user_id != user.id:
         raise HTTPException(404, "Expédition introuvable.")

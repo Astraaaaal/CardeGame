@@ -5,7 +5,9 @@ vitrine vit dans app/api/player.py (/api/player/showcase, /trade-listings).
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import case, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app.database import get_session
 from app.core.dependencies import get_current_user
@@ -59,11 +61,19 @@ async def buy_trade_listing(
     if buyer.id == user_id:
         raise HTTPException(400, "Tu ne peux pas acheter ta propre carte.")
 
-    listing = await session.get(TradeListing, (user_id, slot))
+    # Annonce puis carte relues et verrouillées jusqu'au commit : deux acheteurs
+    # simultanés ne peuvent pas payer tous les deux la même carte.
+    listing = (await session.execute(
+        select(TradeListing).where(TradeListing.user_id == user_id, TradeListing.slot == slot)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
     if not listing or listing.mode != "buy_now":
         raise HTTPException(404, "Annonce introuvable.")
 
-    card = await session.get(UserCard, listing.user_card_id)
+    card = (await session.execute(
+        select(UserCard).where(UserCard.id == listing.user_card_id)
+        .with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
     if not card or card.user_id != user_id:
         # La carte a changé de main ou a été recyclée depuis : annonce caduque.
         await session.delete(listing)
@@ -90,9 +100,12 @@ async def buy_trade_listing(
     await favorites.release(session, card)
     session.add(card)
     buyer.total_cards += 1
-    seller.total_cards = max(0, seller.total_cards - 1)
     session.add(buyer)
-    session.add(seller)
+    # Compteur du vendeur modifié en base directement : il peut agir au même moment.
+    users = User.__table__
+    await session.execute(update(users).where(users.c.id == seller.id).values(
+        total_cards=case((users.c.total_cards > 0, users.c.total_cards - 1), else_=0),
+    ))
 
     await session.delete(listing)
     await refresh_all_best_ranks(session)

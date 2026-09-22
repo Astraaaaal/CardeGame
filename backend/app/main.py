@@ -16,14 +16,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import DBAPIError
 
 from app.config import settings
+from app.core.locks import CONFLICT_SQLSTATES
 from app.core.logging_config import setup_logging, logger
 from app.core.ratelimit import check_global_rate_limit, client_ip
 from app.database import init_db
 from app.api import auth, player, players, boosters, collection, admin, admin_content, types, shop, friends, leaderboard, trades, messages, progression, support, premium, activities, guilds, favorites
 
 setup_logging()
+settings.check_production_secrets()
 
 
 @asynccontextmanager
@@ -91,6 +94,17 @@ app.include_router(activities.router, prefix="/api/activities", tags=["Activité
 app.include_router(activities.admin_router, prefix="/api/admin/activities", tags=["Admin — Activités"])
 app.include_router(guilds.router, prefix="/api/guilds", tags=["Guildes"])
 app.include_router(favorites.router, prefix="/api/favorites", tags=["Favoris"])
+
+
+@app.exception_handler(DBAPIError)
+async def database_error_handler(request: Request, exc: DBAPIError):
+    """Deux actions simultanées sur les mêmes données : 409 « réessaie » plutôt qu'une erreur 500."""
+    code = getattr(exc.orig, "pgcode", None) or getattr(exc.orig, "sqlstate", None)
+    if code in CONFLICT_SQLSTATES:
+        logger.warning("Actions simultanées (%s) sur %s %s", code, request.method, request.url.path)
+        return JSONResponse(status_code=409, content={"detail": "Une autre action est en cours, réessaie dans un instant."})
+    logger.exception("Erreur de base de données sur %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Erreur interne du serveur."})
 
 
 @app.exception_handler(Exception)

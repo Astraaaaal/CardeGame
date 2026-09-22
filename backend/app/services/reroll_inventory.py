@@ -36,10 +36,11 @@ async def grant_rules(
     def same(column, value):
         return column.is_(None) if value is None else column == value
 
+    # Stock relu et verrouillé : un échange simultané ne peut pas écraser le compteur.
     query = select(UserRerollToken).where(
         UserRerollToken.user_id == user_id, same(UserRerollToken.offer_id, offer_id),
         *(same(getattr(UserRerollToken, f), rules.get(f)) for f in _RULE_FIELDS),
-    )
+    ).with_for_update().execution_options(populate_existing=True)
     row = (await session.execute(query)).scalars().first()
     if not row:
         row = UserRerollToken(
@@ -51,8 +52,8 @@ async def grant_rules(
 
 
 async def consume(session: AsyncSession, user_id: int, token_id: int, quantity: int) -> UserRerollToken:
-    """Retire des rerolls du stock (cadeau). Ne commit pas."""
-    token = await session.get(UserRerollToken, token_id)
+    """Retire des rerolls du stock (cadeau, échange). Ne commit pas."""
+    token = await session.get(UserRerollToken, token_id, with_for_update=True, populate_existing=True)
     if not token or token.user_id != user_id or token.quantity < quantity:
         owned = token.quantity if token and token.user_id == user_id else 0
         raise HTTPException(400, f"Tu ne possèdes que {owned} exemplaire(s) de ce reroll.")
@@ -78,13 +79,12 @@ async def list_owned(session: AsyncSession, user_id: int) -> list[dict]:
 
 
 async def use(session: AsyncSession, user: User, token_id: int, card_id: str) -> dict:
-    token = (await session.execute(
-        select(UserRerollToken).where(UserRerollToken.id == token_id).with_for_update()
-    )).scalar_one_or_none()
+    token = await session.get(UserRerollToken, token_id, with_for_update=True, populate_existing=True)
     if not token or token.user_id != user.id or token.quantity < 1:
         raise HTTPException(400, "Tu ne possèdes plus ce reroll.")
     card = (await session.execute(
         select(UserCard).where(UserCard.id == card_id, UserCard.user_id == user.id)
+        .with_for_update().execution_options(populate_existing=True)
     )).scalar_one_or_none()
     if not card:
         raise HTTPException(404, "Carte introuvable.")

@@ -125,7 +125,7 @@ async def fulfill_order(
     Le contenu crédité est celui figé à la commande (modifier le produit ensuite n'y change rien).
     Refuse un paiement dont le montant ou la devise ne correspond pas à la commande."""
     order = (await session.execute(
-        select(PremiumOrder).where(PremiumOrder.id == order_id).with_for_update()
+        select(PremiumOrder).where(PremiumOrder.id == order_id).with_for_update().execution_options(populate_existing=True)
     )).scalar_one_or_none()
     if not order or order.status != ORDER_PENDING:
         return False
@@ -145,7 +145,7 @@ async def fulfill_order(
 
 async def _move_order(session: AsyncSession, order_id: int, from_status: str, to_status: str) -> bool:
     order = (await session.execute(
-        select(PremiumOrder).where(PremiumOrder.id == order_id).with_for_update()
+        select(PremiumOrder).where(PremiumOrder.id == order_id).with_for_update().execution_options(populate_existing=True)
     )).scalar_one_or_none()
     if not order or order.status != from_status:
         return False

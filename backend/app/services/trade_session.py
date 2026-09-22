@@ -79,13 +79,21 @@ async def create_session(session: AsyncSession, user_a_id: int, user_b_id: int) 
     return trade
 
 
-async def get_session_or_404(session: AsyncSession, session_id: int, user_id: int) -> TradeSession:
+async def get_session_or_404(session: AsyncSession, session_id: int, user_id: int, lock: bool = False) -> TradeSession:
+    """`lock` : pour une action qui modifie l'échange — la session est relue et
+    verrouillée jusqu'au commit, les actions des deux joueurs passent l'une
+    après l'autre (deux confirmations simultanées n'exécutent l'échange qu'une fois)."""
     trade = await session.get(TradeSession, session_id)
     if not trade:
         raise HTTPException(404, "Échange introuvable.")
     _side(trade, user_id)  # lève 403 si l'utilisateur n'en fait pas partie
     await maybe_expire(session, trade)
     await _purge_orphaned_items(session, trade)
+    if lock:
+        trade = (await session.execute(
+            select(TradeSession).where(TradeSession.id == session_id)
+            .with_for_update().execution_options(populate_existing=True)
+        )).scalar_one()
     return trade
 
 
@@ -391,11 +399,12 @@ async def confirm(session: AsyncSession, trade: TradeSession, user_id: int) -> l
         trade.confirmed_b = True
     _touch(trade)
     session.add(trade)
-    await session.commit()
-    await session.refresh(trade)
-
+    # Pas de commit entre la confirmation et l'exécution : la session reste
+    # verrouillée (cf. get_session_or_404) jusqu'à la fin de l'échange.
     if trade.confirmed_a and trade.confirmed_b:
         return await _execute_trade(session, trade)
+    await session.commit()
+    await session.refresh(trade)
     return []
 
 
@@ -427,6 +436,11 @@ async def trade_taxes(session: AsyncSession, trade: TradeSession, items: list[Tr
 
 
 async def _execute_trade(session: AsyncSession, trade: TradeSession) -> list[str]:
+    # Les deux joueurs relus et verrouillés (ordre fixe) : soldes et compteurs à jour.
+    await session.execute(
+        select(User).where(User.id.in_([trade.user_a_id, trade.user_b_id])).order_by(User.id)
+        .with_for_update().execution_options(populate_existing=True)
+    )
     items = (await session.execute(
         select(TradeSessionItem).where(TradeSessionItem.session_id == trade.id)
     )).scalars().all()
@@ -437,7 +451,7 @@ async def _execute_trade(session: AsyncSession, trade: TradeSession) -> list[str
     for item in items:
         if item.item_type == "card":
             locked = (await session.execute(
-                select(UserCard).where(UserCard.id == item.user_card_id).with_for_update()
+                select(UserCard).where(UserCard.id == item.user_card_id).with_for_update().execution_options(populate_existing=True)
             )).scalar_one_or_none()
             if not locked or locked.user_id != item.owner_id \
                     or await expeditions.locked_card_ids(session, [item.user_card_id]):

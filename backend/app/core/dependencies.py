@@ -4,20 +4,20 @@ Dependencies FastAPI — Injection du user authentifié.
 
 from datetime import datetime
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.config import settings
 from app.database import get_session
-from app.core.security import decode_token
+from app.core import locks
+from app.core.security import decode_token, is_admin_key
 from app.models.user import User
 from app.services import game_status
 from app.services.presence import LAST_SEEN_THROTTLE_S
 
 bearer_scheme = HTTPBearer()
-
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 
 
 async def require_admin(x_admin_key: str = Header(default="")):
@@ -25,7 +25,7 @@ async def require_admin(x_admin_key: str = Header(default="")):
     Protège les routes /api/admin/*. Exige l'en-tête `X-Admin-Key` égal à
     `settings.ADMIN_KEY`. Si `ADMIN_KEY` n'est pas configuré, tout est refusé.
     """
-    if not settings.ADMIN_KEY or x_admin_key != settings.ADMIN_KEY:
+    if not is_admin_key(x_admin_key):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Clé admin invalide ou manquante.",
@@ -33,6 +33,7 @@ async def require_admin(x_admin_key: str = Header(default="")):
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     session: AsyncSession = Depends(get_session),
     x_admin_key: str = Header(default=""),
@@ -59,7 +60,7 @@ async def get_current_user(
         )
 
     user_id = payload.get("sub")
-    if user_id is None:
+    if user_id is None or not str(user_id).isdigit():
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token malformé",
@@ -81,5 +82,12 @@ async def get_current_user(
         user.last_seen = now
         session.add(user)
         await session.commit()
+
+    if request.method not in SAFE_METHODS:
+        # Les actions d'un même joueur passent l'une après l'autre (pas de double
+        # réclamation ni de double dépense) ; relu après le verrou pour partir de
+        # l'état laissé par l'action précédente.
+        await locks.lock_user(session, user.id)
+        await session.refresh(user)
 
     return user

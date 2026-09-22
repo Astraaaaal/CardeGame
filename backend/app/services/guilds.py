@@ -20,8 +20,7 @@ from app.models.guild import (
 from app.models.user import User
 from app.services import activities_config
 from app.services.quest_progress import weekly_key
-from app.services.wallet import apply_delta, get_balance
-from app.services.wallet import require_balance
+from app.services.wallet import apply_delta, require_balance
 
 POLICIES = (POLICY_OPEN, POLICY_REQUEST, POLICY_INVITE)
 MANAGERS = (ROLE_LEADER, ROLE_OFFICER)
@@ -59,13 +58,23 @@ async def membership(session: AsyncSession, user_id: int) -> GuildMember | None:
     return await session.get(GuildMember, user_id)
 
 
+async def _locked_guild(session: AsyncSession, guild_id: int) -> Guild | None:
+    """Guilde relue et verrouillée jusqu'au commit : les actions simultanées de
+    plusieurs membres (dons, bonus, objectifs, adhésions) passent l'une après
+    l'autre au lieu de s'écraser."""
+    return (await session.execute(
+        select(Guild).where(Guild.id == guild_id).with_for_update().execution_options(populate_existing=True)
+    )).scalar_one_or_none()
+
+
 async def _require_member(session: AsyncSession, user: User, roles=None) -> tuple[Guild, GuildMember]:
+    """Guilde du joueur (verrouillée, cf. _locked_guild) et son adhésion."""
     member = await membership(session, user.id)
     if not member:
         raise HTTPException(404, "Tu n'es dans aucune guilde.")
     if roles and member.role not in roles:
         raise HTTPException(403, "Action réservée au chef ou aux officiers.")
-    guild = await session.get(Guild, member.guild_id)
+    guild = await _locked_guild(session, member.guild_id)
     return guild, member
 
 
@@ -172,7 +181,7 @@ async def create(session: AsyncSession, user: User, name: str, tag: str, icon: s
 
 async def join(session: AsyncSession, user: User, guild_id: int) -> str:
     """Rejoint (guilde ouverte) ou demande à rejoindre. Retourne "joined" ou "requested"."""
-    guild = await session.get(Guild, guild_id)
+    guild = await _locked_guild(session, guild_id)
     if not guild:
         raise HTTPException(404, "Guilde introuvable.")
     await _check_cooldown(session, user)
@@ -334,6 +343,11 @@ async def current_week(session: AsyncSession, guild: Guild) -> GuildWeek:
     week = await session.get(GuildWeek, (guild.id, key))
     if week:
         return week
+    # Nouvelle semaine : un seul membre l'ouvre, les autres la relisent ensuite.
+    guild = await _locked_guild(session, guild.id)
+    week = await session.get(GuildWeek, (guild.id, key), populate_existing=True)
+    if week:
+        return week
     cfg = await _cfg(session)
     previous = (await session.execute(
         select(GuildWeek).where(GuildWeek.guild_id == guild.id).order_by(GuildWeek.week_key.desc())
@@ -365,8 +379,9 @@ async def track(session: AsyncSession, user_id: int, metric: str, amount: int) -
     cfg = await _cfg(session)
     if metric not in cfg["objectives"]:
         return
-    guild = await session.get(Guild, member.guild_id)
+    guild = await _locked_guild(session, member.guild_id)
     week = await current_week(session, guild)
+    await session.refresh(week)  # progression relue sous le verrou de la guilde
     objectives = [dict(o) for o in week.objectives]
     objective = next((o for o in objectives if o["metric"] == metric), None)
     if not objective:
@@ -605,7 +620,7 @@ async def rankings(session: AsyncSession, kind: str) -> list[dict]:
     guilds = (await session.execute(select(Guild))).scalars().all()
     powers = await _power_by_guild(session)
     rows = [await summary(session, g, powers.get(g.id, 0)) for g in guilds]
-    for r, g in zip(rows, guilds):
+    for r, g in zip(rows, guilds, strict=True):
         r["xp"] = g.xp
 
     def ranks(key) -> dict[int, int]:
