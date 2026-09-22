@@ -4,33 +4,34 @@ reroll), à partir de sa probabilité de tirage réelle. Sert de base aux
 classements (cf. app/api/leaderboard.py).
 
 Formule : N = 1 / probabilité (arrondi), puis on tire un nombre aléatoire
-entre 1 et N. N est plafonné pour éviter des puissances absurdes sur les
-combos ultra-rares — la probabilité complète (personnage × rareté ×
-qualité × spécialité × bijou) peut descendre à des valeurs infinitésimales
-pour les meilleures combinaisons, ce qui donnerait des puissances de
-plusieurs milliards sans plafond. Le plafond est plus haut (20000 au lieu
-de 10000) pour les cartes qui ont déjà un signe de prestige propre
-(légendaire, bijou prismatique/diamant, qualité excellente ou mieux, ou
-une spécialité autre que normale) — indépendamment de si LEUR combinaison
-exacte est statistiquement rare.
+entre 1 et N. N est plafonné selon la MEILLEURE caractéristique de la carte
+(cf. TIER_CAPS) : une carte sans rien de mieux que commune / normale / sans
+bijou / déchirée plafonne à 5 000, une shiny ou authentique jusqu'à 50 000.
+Sans plafond, les combinaisons ultra-rares donneraient des milliards.
 """
 
 import random
 from typing import Optional
 
-from app.services.tier_order import rank
 
-BASE_CAP = 10000
-PRESTIGE_CAP = 20000
+# Puissance maximale selon le palier atteint sur chaque caractéristique ;
+# une carte prend le plafond de sa meilleure caractéristique.
+TIER_CAPS = {
+    "rarity": {"common": 5_000, "rare": 10_000, "epic": 15_000, "legendary": 20_000},
+    "quality": {
+        "destroyed": 5_000, "unreadable": 5_000, "unplayable": 5_000, "damaged": 5_000, "torn": 5_000,
+        "scratched": 10_000, "faded": 10_000, "worn": 10_000, "fair": 15_000, "preserved": 15_000,
+        "excellent": 25_000, "graded": 25_000, "mint": 35_000, "authentic": 50_000,
+    },
+    "specialty": {"normal": 5_000, "full_art": 25_000, "ex": 25_000, "shiny": 50_000},
+    "jewelry": {"none": 5_000, "silver": 10_000, "gold": 15_000, "diamond": 25_000, "prismatic": 35_000},
+}
+DEFAULT_CAP = 5_000
 
 
-def _is_prestige(rarity_id: str, quality_id: str, specialty_id: str, jewelry_id: str) -> bool:
-    return (
-        rarity_id == "legendary"
-        or jewelry_id in ("prismatic", "diamond")
-        or rank("quality", quality_id) >= rank("quality", "excellent")
-        or specialty_id != "normal"
-    )
+def power_cap(rarity_id: str, quality_id: str, specialty_id: str, jewelry_id: str) -> int:
+    tiers = {"rarity": rarity_id, "quality": quality_id, "specialty": specialty_id, "jewelry": jewelry_id}
+    return max(TIER_CAPS[axis].get(tier, DEFAULT_CAP) for axis, tier in tiers.items())
 
 
 def power_range(
@@ -43,8 +44,7 @@ def power_range(
     """N : la plage [1, N] dans laquelle la puissance de CETTE carte est tirée."""
     if not drop_probability or drop_probability <= 0:
         return None
-    cap = PRESTIGE_CAP if _is_prestige(rarity_id, quality_id, specialty_id, jewelry_id) else BASE_CAP
-    return min(max(1, round(1 / drop_probability)), cap)
+    return min(max(1, round(1 / drop_probability)), power_cap(rarity_id, quality_id, specialty_id, jewelry_id))
 
 
 def roll_power(

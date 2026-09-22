@@ -1,9 +1,11 @@
 """
-Niveaux de prestige : paliers générés après la fin de la route.
+Niveaux de prestige après la route, plafonds de puissance selon la
+meilleure caractéristique de la carte.
 """
 
 from app.models.level import LevelTier
 from app.services import levels
+from app.services.power import power_cap
 from app.services.wallet import get_balance
 from tests.conftest import make_user
 
@@ -20,3 +22,12 @@ async def test_prestige_levels_follow_the_road(session):
     user = await make_user(session)
     await levels.claim_level_rewards(session, user)  # puissance 0 : rien à récupérer au-delà du niveau 1
     assert await get_balance(session, user, "frag_legendary") == 0
+
+
+def test_power_cap_is_the_best_tier():
+    assert power_cap("common", "torn", "normal", "none") == 5_000
+    assert power_cap("rare", "torn", "normal", "none") == 10_000
+    assert power_cap("common", "fair", "normal", "gold") == 15_000
+    assert power_cap("legendary", "torn", "full_art", "none") == 25_000
+    assert power_cap("common", "mint", "normal", "none") == 35_000
+    assert power_cap("epic", "authentic", "normal", "none") == 50_000
