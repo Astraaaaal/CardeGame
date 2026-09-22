@@ -1,3 +1,4 @@
+import { play } from "@/utils/sound";
 import { ButtonHTMLAttributes, ReactNode, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -34,6 +35,7 @@ export default function Button({
     children,
     className = "",
     disabled,
+    onClick,
     ...props
 }: ButtonProps) {
     // Coche affichée ~1,2 s à chaque passage de `success` de faux à vrai.
@@ -57,6 +59,7 @@ export default function Button({
         ${variants[variant]} ${sizes[size]} ${className}
       `}
             disabled={disabled || loading}
+            onClick={(e) => { play("click"); onClick?.(e); }}
             {...props}
         >
             {loading ? (

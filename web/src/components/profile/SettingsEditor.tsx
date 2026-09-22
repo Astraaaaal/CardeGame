@@ -1,3 +1,5 @@
+import { useAudioStore } from "@/stores/audioStore";
+import { play, syncMusic } from "@/utils/sound";
 import { useState } from "react";
 import { useToastMessage } from "@/hooks/useToastMessage";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +18,35 @@ const POLICY_OPTIONS: { value: TradeRequestPolicy; label: string }[] = [
     { value: "close_friends", label: "Amis proches uniquement" },
     { value: "none", label: "Personne" },
 ];
+
+/** Son, musique et vibrations — propres à cet appareil (pas au compte). */
+function AudioSettings() {
+    const audio = useAudioStore();
+    const change = (patch: Parameters<typeof audio.set>[0]) => {
+        audio.set(patch);
+        if ("music" in patch || "volume" in patch) setTimeout(syncMusic, 0);
+        if (patch.sfx) setTimeout(() => play("click"), 0);
+    };
+    return (
+        <div className="bg-game-surface rounded-2xl border border-white/10 p-4 space-y-3">
+            <h3 className="text-white font-bold text-sm">Son</h3>
+            {([["sfx", "Effets sonores"], ["music", "Musique d'ambiance"], ["vibration", "Vibrations (mobile)"]] as const).map(([key, label]) => (
+                <div key={key} className="flex items-center justify-between gap-3">
+                    <p className="text-white/70 text-sm">{label}</p>
+                    <Toggle checked={audio[key]} onChange={(v) => change({ [key]: v })} />
+                </div>
+            ))}
+            <div>
+                <label className="block text-white/40 text-xs mb-1">Volume</label>
+                <input type="range" min={0} max={100} value={Math.round(audio.volume * 100)} className="w-full accent-accent"
+                    onChange={(e) => change({ volume: Number(e.target.value) / 100 })} />
+            </div>
+            <p className="text-white/30 text-[11px]">
+                Les effets sont générés par l'appareil. La musique ne joue que si un fichier d'ambiance est installé.
+            </p>
+        </div>
+    );
+}
 
 export default function SettingsEditor() {
     const qc = useQueryClient();
@@ -39,6 +70,8 @@ export default function SettingsEditor() {
 
     return (
         <div className="space-y-4">
+            <AudioSettings />
+
             <div className="bg-game-surface rounded-2xl border border-white/10 p-4">
                 <div className="flex items-center justify-between gap-3">
                     <div>

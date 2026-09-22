@@ -1,3 +1,4 @@
+import { unlockAudio } from "@/utils/sound";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
@@ -30,6 +31,12 @@ const queryClient = new QueryClient({
         },
     },
 });
+
+// Les navigateurs n'autorisent le son qu'après une interaction : on débloque
+// le contexte audio (et la musique) au premier clic ou à la première touche.
+for (const event of ["pointerdown", "keydown"]) {
+    window.addEventListener(event, () => unlockAudio(), { once: true });
+}
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>

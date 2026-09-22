@@ -1,3 +1,4 @@
+import { play } from "@/utils/sound";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -70,6 +71,7 @@ export default function LevelWatcher() {
         const levelUp = status.current_level > prevLevel;
         const bigGain = gain >= BIG_GAIN_MIN && gain >= prevPower * BIG_GAIN_RATIO;
         if (levelUp || bigGain) {
+            play("levelUp");
             setCelebration({
                 fromPower: prevPower, toPower: status.total_power, nextRequired: status.next_level_power_required,
                 fromLevel: prevLevel, toLevel: Math.max(prevLevel, status.current_level),

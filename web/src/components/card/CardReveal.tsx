@@ -1,3 +1,4 @@
+import { playReveal } from "@/utils/sound";
 import { rgbCss as rarityColorToCSS } from "@/utils/format";
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
@@ -54,6 +55,7 @@ export default function CardReveal({ card, onNext }: CardRevealProps) {
     };
 
     const handleClick = () => {
+        if (!flipped && revealedCount >= steps.length) playReveal(card.rarity_id);
         if (flipped) {
             onNext();
         } else if (revealedCount < steps.length) {

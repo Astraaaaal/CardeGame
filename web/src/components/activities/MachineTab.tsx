@@ -1,3 +1,4 @@
+import { play } from "@/utils/sound";
 import { formatNumber as fmt, formatPercent as pct } from "@/utils/format";
 import { inputCls } from "@/components/ui/formStyles";
 import { useState } from "react";
@@ -44,6 +45,7 @@ function Machine() {
         mutationFn: ({ item, kind, extra }: { item: MachineItem; kind: string; key: string; extra: Record<string, number> }) =>
             activitiesApi.upgrade(item, kind, extra),
         onSuccess: (res, { key, kind }) => {
+            play(res.success ? "success" : "fail");
             setLast({ key, res });
             setExtras((e) => ({ ...e, [`${key}:${kind}`]: {} }));
             qc.setQueryData(["machine"], res.state);

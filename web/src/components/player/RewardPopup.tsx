@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { play } from "@/utils/sound";
 import { useQuery } from "@tanstack/react-query";
 import { BoosterIcon, RerollIcon } from "@/components/ui/ItemIcon";
 import { motion, AnimatePresence } from "framer-motion";
@@ -97,6 +99,7 @@ function RewardRow({ item, resourceName, boosterName }: {
 export default function RewardPopup() {
     const batch = useRewardPopupStore((s) => s.queue[0]);
     const dismiss = useRewardPopupStore((s) => s.dismiss);
+    useEffect(() => { if (batch) play("reward"); }, [batch]);
 
     const { data: resources } = useQuery({
         queryKey: ["resources-catalog"], queryFn: shopApi.resources, enabled: !!batch, staleTime: 5 * 60 * 1000,
