@@ -1,11 +1,16 @@
-fastapi>=0.110.0
-uvicorn[standard]>=0.27.0
-sqlmodel>=0.0.14
-asyncpg>=0.29.0
-sqlalchemy[asyncio]>=2.0.25
-PyJWT>=2.8.0
-bcrypt>=4.2
-pydantic-settings>=2.1.0
-cloudinary>=1.38.0
-Pillow>=10.0.0
-httpx>=0.26.0
+# Versions exactes, identiques à l'environnement de test : une mise à jour
+# automatique au déploiement a déjà cassé la production (sqlmodel 0.0.46 refuse
+# les dates sans fuseau horaire). Monter une version = la tester en local d'abord.
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn[standard]==0.52.4
+sqlmodel==0.0.39
+asyncpg==0.31.0
+sqlalchemy[asyncio]==2.0.52
+pydantic==2.13.4
+PyJWT==2.14.0
+bcrypt==5.0.0
+pydantic-settings==2.15.0
+cloudinary==1.46.2
+Pillow==12.3.0
+httpx==0.28.1
