@@ -13,7 +13,7 @@ from app.models.economy import Resource
 from app.models.social import TradeListing, FriendRequest
 from app.models.achievement import AchievementDef, UserAchievement
 from app.schemas.showcase import ShowcaseResponse, AvatarInfo, TradeListingOut, ShowcaseAchievement
-from app.services import guilds, trade_tax
+from app.services import guilds, monthly, trade_tax
 from app.services.card_view import build_card_response
 from app.services.levels import get_all_tiers, get_total_power, current_level_for_power
 from app.services.ranking import current_global_rank
@@ -113,6 +113,7 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
         best_login_streak=max(target.best_login_streak, target.login_streak),
         current_global_rank=await current_global_rank(session, target.id),
         best_global_rank=target.best_global_rank,
+        monthly_badge=await monthly.champion_badge(session, target.id),
         achievements=achievements,
         achievement_slots=achievement_slots,
         avatar_frame=await equipped(target.equipped_avatar_frame_id),

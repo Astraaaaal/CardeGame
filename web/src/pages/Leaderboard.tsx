@@ -9,6 +9,7 @@ import type { LeaderboardEntry } from "@/types/leaderboard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import BottomNav from "@/components/layout/BottomNav";
 import GuildRankings from "@/components/guild/GuildRankings";
+import MonthlyChallenge from "@/components/leaderboard/MonthlyChallenge";
 
 function EntryRow({ entry, isSelf }: { entry: LeaderboardEntry; isSelf: boolean }) {
     const navigate = useNavigate();
@@ -54,7 +55,7 @@ function EntryList({ entries, isLoading }: { entries: LeaderboardEntry[]; isLoad
     );
 }
 
-type Tab = "friends" | "global" | "type" | "guilds";
+type Tab = "friends" | "global" | "type" | "guilds" | "monthly";
 
 export default function Leaderboard() {
     const navigate = useNavigate();
@@ -95,10 +96,11 @@ export default function Leaderboard() {
                     { key: "global", label: "Global" },
                     { key: "type", label: "Par type" },
                     { key: "guilds", label: "Guildes" },
+                    { key: "monthly", label: "Défi" },
                 ] as const).map((t) => (
                     <button
                         key={t.key}
-                        className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${
+                        className={`flex-1 min-w-0 px-1 py-2.5 text-xs font-semibold truncate transition-colors ${
                             tab === t.key ? "text-accent border-b-2 border-accent" : "text-white/40 hover:text-white/70"
                         }`}
                         onClick={() => setTab(t.key)}
@@ -142,6 +144,7 @@ export default function Leaderboard() {
                 )}
 
                 {tab === "guilds" && <GuildRankings />}
+                {tab === "monthly" && <MonthlyChallenge />}
               </LockedFeature>
             </main>
 

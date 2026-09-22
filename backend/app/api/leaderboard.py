@@ -17,7 +17,7 @@ from app.models.card import UserCard
 from app.models.character import Character, CharacterType
 from app.models.social import FriendRequest
 from app.schemas.leaderboard import LeaderboardEntry, LeaderboardResponse
-from app.services import unlocks
+from app.services import monthly, unlocks
 
 router = APIRouter()
 
@@ -112,3 +112,10 @@ async def leaderboard_by_type(
         raise HTTPException(404, f"Type '{type_name}' introuvable.")
     entries = await _leaderboard(session, None, type_name, 10)
     return LeaderboardResponse(entries=entries)
+
+
+@router.get("/monthly")
+async def monthly_challenge(user: User = Depends(get_current_user), session: AsyncSession = Depends(get_session)):
+    """Défi du mois : classements solo et guildes, ma place, récompenses par tranche."""
+    await unlocks.require(session, user, "leaderboard")
+    return await monthly.standings(session, user)

@@ -12,6 +12,7 @@ from app.models.user import User
 from app.models.card import UserCard
 from app.models.favorite import FavoriteCard, FavoriteCategory
 from app.models.economy import UserResource, ShopPurchase
+from app.models.monthly import MonthlyScore
 from app.models.social import FriendRequest, TradeRequest, TradeListing, CloseFriend, FriendGroup, FriendGroupMember
 from app.models.token import RefreshToken
 from app.models.message import Message
@@ -69,6 +70,7 @@ async def delete_account(session: AsyncSession, user: User) -> None:
         await session.execute(delete(FavoriteCategory).where(FavoriteCategory.id.in_(cat_ids)))
     await session.execute(delete(UserCard).where(UserCard.user_id == user_id))
     await session.execute(delete(UserResource).where(UserResource.user_id == user_id))
+    await session.execute(delete(MonthlyScore).where(MonthlyScore.user_id == user_id))
     await session.execute(delete(ShopPurchase).where(ShopPurchase.user_id == user_id))
     await session.execute(delete(FriendRequest).where(
         or_(FriendRequest.requester_id == user_id, FriendRequest.addressee_id == user_id)

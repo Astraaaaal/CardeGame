@@ -101,6 +101,11 @@ export default function PlayerShowcase() {
                                 {data.display_name}
                             </h2>
                             <p className="text-white/40 text-xs">@{data.username}</p>
+                            {data.monthly_badge && (
+                                <p className="mt-1 text-[11px] font-bold text-gold border border-gold/40 bg-gold/10 rounded-full px-2 py-0.5">
+                                    {data.monthly_badge}
+                                </p>
+                            )}
                             <div className="grid grid-cols-2 gap-2 w-full mt-2">
                                 {[
                                     { label: "Niveau", value: String(data.level), detail: null },

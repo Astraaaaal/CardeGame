@@ -101,6 +101,25 @@ DEFAULTS: dict = {
     # Classement : le meilleur rang (et les succès « top N ») n'est retenu qu'à
     # partir de ce nombre de joueurs classés — sinon être premier serait automatique.
     "ranking": {"min_players": 10},
+    # Défi du mois (cf. services/monthly.py) : tranches de récompenses, de la
+    # meilleure à la plus large ; chaque joueur reçoit la première atteinte.
+    # Une tranche : "rank" (jusqu'à ce rang), "top_pct" (meilleurs X %) ou
+    # "min_points" (participation). Guilde : chaque membre reçoit la récompense.
+    "monthly": {
+        "solo_rewards": [
+            {"label": "1re place", "rank": 1, "rewards": [{"kind": "resource", "id": "coins", "amount": 20000}, {"kind": "resource", "id": "frag_legendary", "amount": 10}, {"kind": "resource", "id": "dust_star", "amount": 10}]},
+            {"label": "2e place", "rank": 2, "rewards": [{"kind": "resource", "id": "coins", "amount": 12000}, {"kind": "resource", "id": "frag_legendary", "amount": 6}]},
+            {"label": "3e place", "rank": 3, "rewards": [{"kind": "resource", "id": "coins", "amount": 8000}, {"kind": "resource", "id": "frag_legendary", "amount": 4}]},
+            {"label": "Top 10", "rank": 10, "rewards": [{"kind": "resource", "id": "coins", "amount": 4000}, {"kind": "resource", "id": "frag_epic", "amount": 5}]},
+            {"label": "Top 25 %", "top_pct": 25, "rewards": [{"kind": "resource", "id": "coins", "amount": 2000}, {"kind": "resource", "id": "frag_rare", "amount": 5}]},
+            {"label": "Participation", "min_points": 1, "rewards": [{"kind": "resource", "id": "coins", "amount": 500}]},
+        ],
+        "guild_rewards": [
+            {"label": "1re", "rank": 1, "rewards": [{"kind": "resource", "id": "coins", "amount": 5000}, {"kind": "resource", "id": "frag_epic", "amount": 5}]},
+            {"label": "2e", "rank": 2, "rewards": [{"kind": "resource", "id": "coins", "amount": 3000}, {"kind": "resource", "id": "frag_epic", "amount": 3}]},
+            {"label": "3e", "rank": 3, "rewards": [{"kind": "resource", "id": "coins", "amount": 2000}, {"kind": "resource", "id": "frag_rare", "amount": 5}]},
+        ],
+    },
     # Prestige : niveaux au-delà de la route. Chacun demande power_growth de
     # puissance en plus du précédent et rapporte la récompense du dernier palier
     # majorée de reward_growth par prestige, plus un bonus.

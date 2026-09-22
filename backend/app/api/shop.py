@@ -25,7 +25,7 @@ from app.services.card_view import build_card_response
 from app.services.daily_feature import get_todays_featured_offer_id
 from app.services.wallet import apply_delta
 from app.services.ranking import refresh_all_best_ranks
-from app.services import activity, booster_inventory, expeditions, purchase_limits, quest_progress, reroll_inventory
+from app.services import activity, booster_inventory, expeditions, monthly, purchase_limits, quest_progress, reroll_inventory
 from app.services.reroll import apply_reroll, assign_bought_card_power
 from app.services import premium as premium_svc
 from app.models.premium import Cosmetic
@@ -244,6 +244,7 @@ async def buy_offer(
                 jewelry_id=offer.jewelry_id,
             )
             await assign_bought_card_power(session, card, offer)
+            await monthly.add_points(session, user.id, card.power)
             session.add(card)
             await session.flush()
             cards_out.append(await build_card_response(session, card))

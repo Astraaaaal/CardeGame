@@ -7,7 +7,10 @@ import pytest
 from fastapi import HTTPException
 
 from app.config import settings
+from app.models.activity import UserActivity
+from app.models.booster_inventory import UserBoosterInventory
 from app.models.card import UserCard
+from app.models.favorite import FavoriteCategory
 from app.models.economy import Resource, UserResource
 from app.models.game_config import GameConfig
 from app.models.social import FriendRequest
@@ -26,6 +29,8 @@ async def test_reset_keeps_accounts_and_friends_but_wipes_progress(session):
     bob = await make_user(session, "bob")
     carol = await make_user(session, "carol")
     alice.coins, alice.packs_opened, alice.gift_policy = 9_999, 12, "everyone"
+    # Nouveautés : prestige (niveau au-delà de la route), meilleur rang, niveau max.
+    alice.claimed_level, alice.max_level, alice.best_global_rank = 23, 23, 1
     session.add_all([
         alice,
         FriendRequest(requester_id=alice.id, addressee_id=bob.id, status="accepted"),
@@ -33,6 +38,10 @@ async def test_reset_keeps_accounts_and_friends_but_wipes_progress(session):
         UserCard(id="c1", user_id=alice.id, character_id="x", set_id="s", rarity_id="common",
                  quality_id="fair", specialty_id="normal", jewelry_id="none", power=5),
         UserResource(user_id=alice.id, resource_id="dust", amount=777),
+        UserResource(user_id=alice.id, resource_id="frag_legendary", amount=9),
+        FavoriteCategory(user_id=alice.id, name="Top", color="#fff"),
+        UserActivity(user_id=alice.id, machine_failures={"rarity_chances": 3}, converter_uses=2),
+        UserBoosterInventory(user_id=alice.id, booster_id="b", quantity=4),
         RefreshToken(user_id=alice.id, token_hash="h", expires_at=alice.created_at),
     ])
     await session.commit()
@@ -45,6 +54,10 @@ async def test_reset_keeps_accounts_and_friends_but_wipes_progress(session):
     session.expire_all()
     alice = await session.get(User, alice_id)
     assert (alice.coins, alice.packs_opened, alice.gift_policy) == (300, 0, "everyone")
+    assert (alice.claimed_level, alice.max_level, alice.best_global_rank) == (0, 1, None)
+    assert await session.get(UserResource, (alice_id, "frag_legendary")) is None
+    for model in (FavoriteCategory, UserActivity, UserBoosterInventory):
+        assert (await session.execute(model.__table__.select())).all() == []
     assert await session.get(UserCard, "c1") is None
     assert (await session.get(UserResource, (alice_id, "dust"))).amount == 50
     friendships = (await session.execute(FriendRequest.__table__.select())).all()

@@ -19,7 +19,7 @@ from app.services.card_view import card_image
 from app.services.card_renderer import CardRendererService
 from app.services.wallet import get_balance, apply_delta
 from app.services.power import roll_drawn_power, combined_rarity
-from app.services import quest_progress
+from app.services import monthly, quest_progress
 from app.services import activity, guilds, presence_bonus
 from app.schemas.card import CardResponse
 from app.services.wallet import require_balance
@@ -95,6 +95,7 @@ class PackService:
             for card_data in pack_data:
                 rendered_url = await self.renderer.render_and_upload(session, card_data)
                 power = roll_drawn_power(card_data, rolls=power_rolls or 1)
+                await monthly.add_points(session, user_id, power)
 
                 user_card = UserCard(
                     user_id=user_id,

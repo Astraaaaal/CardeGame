@@ -19,7 +19,7 @@ from app.models.message import Message
 from app.models.social import TradeListing
 from app.models.trade_session import ACTIVE_STATUSES, TradeSession, TradeSessionItem
 from app.models.user import User
-from app.services import activities_config, booster_inventory, guilds, quest_progress
+from app.services import activities_config, booster_inventory, guilds, monthly, quest_progress
 from app.services.card_generator import CardGeneratorService
 from app.services.card_view import build_card_response
 from app.services.power import roll_drawn_power
@@ -187,6 +187,7 @@ async def _generate_rare_card(session: AsyncSession, user: User, booster: Booste
         power=roll_drawn_power(data),
     )
     session.add(card)
+    await monthly.add_points(session, user.id, card.power)
     user.total_cards += 1
     await session.flush()
     return card

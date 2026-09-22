@@ -18,6 +18,7 @@ from app.models.guild import (
     Guild, GuildBuff, GuildContribution, GuildInvite, GuildMember, GuildMessage, GuildWeek,
 )
 from app.models.message import Message
+from app.models.monthly import GuildMonthlyScore, MonthlyResult, MonthlyScore
 from app.models.premium import PremiumOrder, UserCosmetic
 from app.models.quest import QuestProgress, UserQuest
 from app.models.reroll_inventory import UserRerollToken
@@ -36,6 +37,7 @@ _WIPED = (
     UserActivity, Expedition, HigherLowerGame,
     UserBoosterInventory, UserBonusBooster, UserRerollToken, UserCosmetic,
     ShopPurchase, UserResource, RefreshToken,
+    MonthlyScore, GuildMonthlyScore, MonthlyResult,
 )
 
 

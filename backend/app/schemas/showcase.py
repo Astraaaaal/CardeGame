@@ -49,6 +49,7 @@ class ShowcaseResponse(BaseModel):
     best_login_streak: int = 0
     current_global_rank: int | None = None
     best_global_rank: int | None = None
+    monthly_badge: str | None = None  # « Champion de septembre 2026 » (dernier mois clôturé)
     achievements: list[ShowcaseAchievement] = []  # 0 à 3, emplacements vides omis
     # Emplacements bruts (3, None = vide) — pour que l'éditeur conserve l'ordre.
     achievement_slots: list[str | None] = [None, None, None]

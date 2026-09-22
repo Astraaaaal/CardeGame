@@ -161,6 +161,8 @@ async def grant(session: AsyncSession, recipient: User, items: list[dict]) -> li
             ))
             session.add(card)
             await session.flush()
+            from app.services import monthly  # import tardif : monthly envoie ses récompenses par ici
+            await monthly.add_points(session, recipient.id, card.power)
             recipient.total_cards += 1
             session.add(recipient)
             item["card_id"] = card.id
