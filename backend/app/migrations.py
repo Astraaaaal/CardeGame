@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.services.power import power_range, roll_power
+from app.services.resource_catalog import NEW_RESOURCES, converter_pairs
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,12 @@ _STATEMENTS = [
     "ALTER TABLE qualities ADD COLUMN IF NOT EXISTS recycle_value INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE specialties ADD COLUMN IF NOT EXISTS recycle_value INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE jewelries ADD COLUMN IF NOT EXISTS recycle_value INTEGER NOT NULL DEFAULT 0",
+    # recycle_value n'est plus utilisé (recyclage : réglages « recycling ») ; la
+    # colonne reste, avec une valeur par défaut pour les insertions qui l'ignorent.
+    "ALTER TABLE rarities ALTER COLUMN recycle_value SET DEFAULT 0",
+    "ALTER TABLE qualities ALTER COLUMN recycle_value SET DEFAULT 0",
+    "ALTER TABLE specialties ALTER COLUMN recycle_value SET DEFAULT 0",
+    "ALTER TABLE jewelries ALTER COLUMN recycle_value SET DEFAULT 0",
     # Interrupteurs de visibilité/activation d'un booster.
     "ALTER TABLE boosters ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE boosters ADD COLUMN IF NOT EXISTS visible_in_shop BOOLEAN NOT NULL DEFAULT TRUE",
@@ -219,6 +226,7 @@ _DEFAULT_RESOURCES = [
     ("coins", "Pièces", "Monnaie de base. Ne peut pas être supprimée."),
     ("dust", "Poussière", "Obtenue en recyclant des cartes. Dépensable au shop."),
     ("shards", "Éclats", "Monnaie premium, achetée en euros. Liée au compte : ni échangeable ni offrable."),
+    *NEW_RESOURCES,
 ]
 _PROTECTED_RESOURCES = {"coins", "shards"}
 _NON_TRADEABLE_RESOURCES = {"shards"}
@@ -339,21 +347,6 @@ _DEFAULT_SHARD_PACKS = [
     ("shards_9999", "Trésor d'Éclats", 9_999, 13_000),
 ]
 
-# Valeurs de recyclage par défaut, par table et par id. Appliquées uniquement
-# si la valeur est encore à 0 (ne stomp pas un réglage déjà fait par un admin).
-_RECYCLE_DEFAULTS: dict[str, dict[str, int]] = {
-    "rarities": {"common": 5, "rare": 20, "epic": 60, "legendary": 200},
-    "qualities": {
-        "authentic": 500, "mint": 300, "graded": 200, "excellent": 120,
-        "preserved": 60, "fair": 40, "worn": 25, "faded": 15,
-        "scratched": 10, "torn": 6, "damaged": 4,
-        "unplayable": 2, "unreadable": 2, "destroyed": 1,
-    },
-    "specialties": {"normal": 0, "full_art": 50, "ex": 80, "shiny": 150},
-    "jewelries": {"none": 0, "silver": 20, "gold": 60, "diamond": 150, "prismatic": 400},
-}
-
-
 async def apply_patches(conn: AsyncConnection) -> None:
     for sql in _STATEMENTS:
         try:
@@ -425,7 +418,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
             logger.warning("seed level tier %r: %s", level, exc)
 
     # Ne renseigne le booster-bonus que si la colonne est encore vide (ne
-    # stomp pas un réglage déjà fait par un admin), même logique que recycle_value.
+    # stomp pas un réglage déjà fait par un admin).
     set_level_booster = text(
         "UPDATE level_tiers SET reward_booster_id = :booster_id "
         "WHERE level = :level AND reward_booster_id IS NULL"
@@ -488,16 +481,6 @@ async def apply_patches(conn: AsyncConnection) -> None:
         except Exception as exc:  # noqa: BLE001
             logger.warning("seed shard pack %r: %s", pack_id, exc)
 
-    for table, values in _RECYCLE_DEFAULTS.items():
-        update = text(
-            f"UPDATE {table} SET recycle_value = :v WHERE id = :id AND recycle_value = 0"
-        )
-        for row_id, value in values.items():
-            try:
-                await conn.execute(update, {"id": row_id, "v": value})
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("recycle_value %s.%s: %s", table, row_id, exc)
-
     # Réglages globaux (récompense quotidienne) — ligne singleton, remplace
     # les anciennes variables d'environnement DAILY_BASE_REWARD/DAILY_STREAK_BONUS.
     try:
@@ -507,6 +490,8 @@ async def apply_patches(conn: AsyncConnection) -> None:
         ))
     except Exception as exc:  # noqa: BLE001
         logger.warning("seed game_config: %s", exc)
+
+    await _add_resource_converter_pairs(conn)
 
     # Backfill de la puissance (colonne ajoutée après coup) pour les cartes
     # déjà en base — chacune reçoit un tirage rétroactif, une seule fois.
@@ -536,6 +521,30 @@ async def apply_patches(conn: AsyncConnection) -> None:
         await _normalize_card_powers(conn)
     except Exception as exc:  # noqa: BLE001
         logger.warning("normalisation des puissances : %s", exc)
+
+
+async def _add_resource_converter_pairs(conn: AsyncConnection) -> None:
+    """Paires du convertisseur des ressources de recyclage, ajoutées une seule fois
+    aux réglages déjà enregistrés depuis l'admin : une liste enregistrée remplace
+    celle par défaut (cf. activities_config._merge), les nouvelles n'apparaîtraient pas."""
+    marker = "recycling_resources_v1"
+    try:
+        row = (await conn.execute(text("SELECT activities FROM game_config WHERE id = 1"))).first()
+        stored = row[0] if row else None
+        if isinstance(stored, str):
+            stored = json.loads(stored)
+        if not stored or marker in stored.get("_applied", []):
+            return
+        pairs = (stored.get("converter") or {}).get("pairs")
+        if pairs is not None:
+            known = {(p.get("from"), p.get("to")) for p in pairs}
+            pairs.extend(p for p in converter_pairs() if (p["from"], p["to"]) not in known)
+        stored["_applied"] = [*stored.get("_applied", []), marker]
+        await conn.execute(
+            text("UPDATE game_config SET activities = CAST(:v AS JSON) WHERE id = 1"), {"v": json.dumps(stored)},
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("paires du convertisseur : %s", exc)
 
 
 async def _normalize_card_powers(conn: AsyncConnection) -> None:

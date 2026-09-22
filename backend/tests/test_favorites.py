@@ -19,7 +19,7 @@ from tests.conftest import make_user
 async def _setup(session):
     session.add_all([
         Set(id="s", name="S"), Character(id="c", name="C", type="feu"),
-        Rarity(id="common", name="Commune", weight=1, recycle_value=1),
+        Rarity(id="common", name="Commune", weight=1),
         Quality(id="fair", name="Correcte", weight=1), Specialty(id="normal", name="Normale", weight=1),
         Jewelry(id="none", name="Aucun", weight=1), Resource(id="dust", name="Poussière"),
     ])

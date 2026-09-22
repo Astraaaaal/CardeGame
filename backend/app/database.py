@@ -69,11 +69,14 @@ async def init_db():
 
     # Rattrape le meilleur rang des joueurs existants (colonne ajoutée après
     # coup) et tout changement de puissance fait hors des routes (admin, script).
+    from app.services import activities_config, recycling
     from app.services.ranking import refresh_all_best_ranks
     from app.services.reroll import backfill_missing_powers
     async with async_session() as session:
         await backfill_missing_powers(session)
         await refresh_all_best_ranks(session)
+        cfg = await activities_config.get_config(session)
+        await recycling.seed_starter_offers(session, cfg["reward_booster_id"])
         await session.commit()
 
 

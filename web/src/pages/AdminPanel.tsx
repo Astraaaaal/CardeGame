@@ -753,7 +753,7 @@ function SettingsPanel() {
 
     const [gameConfigDraft, setGameConfigDraft] = useState<Partial<GameConfig>>({});
     const [resourceDrafts, setResourceDrafts] = useState<Record<string, number>>({});
-    const [tuningDrafts, setTuningDrafts] = useState<Record<string, Partial<Pick<TuningEntry, "weight" | "recycle_value">>>>({});
+    const [tuningDrafts, setTuningDrafts] = useState<Record<string, Partial<Pick<TuningEntry, "weight">>>>({});
     const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
     const dirtyCount = Object.keys(gameConfigDraft).length + Object.keys(resourceDrafts).length + Object.keys(tuningDrafts).length;
@@ -803,13 +803,6 @@ function SettingsPanel() {
                                 <input
                                     type="number" step="0.1" className={inputCls} value={draft.weight ?? 0}
                                     onChange={(e) => setTuningDrafts((d) => ({ ...d, [key]: { ...d[key], weight: Number(e.target.value) } }))}
-                                />
-                            </div>
-                            <div className="flex-1 min-w-[90px]">
-                                <label className="block text-white/40 text-[10px]">Poussière (recyclage)</label>
-                                <input
-                                    type="number" className={inputCls} value={draft.recycle_value ?? 0}
-                                    onChange={(e) => setTuningDrafts((d) => ({ ...d, [key]: { ...d[key], recycle_value: Number(e.target.value) } }))}
                                 />
                             </div>
                         </div>

@@ -25,12 +25,26 @@ class RecycleByIdsRequest(BaseModel):
     card_ids: list[str] = Field(min_length=1, max_length=20_000)
 
 
+class RecycleGainOut(BaseModel):
+    resource_id: str
+    name: str
+    amount: int
+    new_balance: int | None = None
+
+
+class RecyclePreviewResponse(BaseModel):
+    count: int
+    gains: list[RecycleGainOut]
+
+
 class RecycleByIdsResponse(BaseModel):
+    # Poussière (compatibilité) ; toutes les ressources gagnées dans `gains`.
     resource_id: str
     resource_name: str
     gained: int
     new_balance: int
     recycled_count: int
+    gains: list[RecycleGainOut] = []
 
 
 class ShopOfferResponse(BaseModel):

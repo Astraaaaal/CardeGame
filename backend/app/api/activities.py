@@ -170,6 +170,8 @@ class UpgradeBody(BaseModel):
     booster_id: str | None = None
     bonus_id: int | None = None
     token_id: int | None = None
+    # Ressources ajoutées pour augmenter la réussite : {id de ressource: quantité}.
+    extra: dict[str, int] = Field(default_factory=dict, max_length=20)
 
 
 class ConvertBody(BaseModel):
@@ -187,7 +189,8 @@ async def machine_state(user: User = Depends(get_current_user), session: AsyncSe
 async def machine_upgrade(body: UpgradeBody, user: User = Depends(get_current_user),
                           session: AsyncSession = Depends(get_session)):
     await unlocks.require(session, user, "machine")
-    return await machine.upgrade(session, user, body.item, body.kind, body.booster_id, body.bonus_id, body.token_id)
+    return await machine.upgrade(session, user, body.item, body.kind, body.booster_id, body.bonus_id, body.token_id,
+                                 body.extra)
 
 
 @router.get("/converter")

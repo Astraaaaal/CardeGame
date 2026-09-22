@@ -1,18 +1,18 @@
 import { formatNumber as fmt, formatPercent as pct } from "@/utils/format";
+import { inputCls } from "@/components/ui/formStyles";
 import { useState } from "react";
 import { BoosterIcon, RerollIcon } from "@/components/ui/ItemIcon";
 import LockedFeature from "@/components/ui/LockedFeature";
 import { toast } from "@/stores/toastStore";
 import { useToastMessage } from "@/hooks/useToastMessage";
+import { useResourceNames } from "@/hooks/useResourceNames";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { activitiesApi, type MachineItem, type MachineResult } from "@/api/activities";
+import { activitiesApi, type MachineItem, type MachineResult, type MachineUpgrade } from "@/api/activities";
 import { useAuthStore } from "@/stores/authStore";
 import { getResourceBalance } from "@/utils/resources";
 import Button from "@/components/ui/Button";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import { errMsg } from "@/utils/errors";
-
-const RESOURCE_NAME: Record<string, string> = { coins: "pièces", dust: "poussière" };
 
 /** Machine d'amélioration (booster / reroll, amélioration du jour) + convertisseur de ressources. */
 export default function MachineTab() {
@@ -24,29 +24,38 @@ export default function MachineTab() {
     );
 }
 
+/** Réussite avec les ressources ajoutées (même règle que le serveur : plafond du cran). */
+function chanceWith(u: MachineUpgrade, extra: Record<string, number>): number {
+    const bonus = u.bonus_options.reduce((sum, o) => sum + o.per_unit * (extra[o.resource_id] ?? 0), 0);
+    return bonus > 0 ? Math.max(u.chance, Math.min(u.cap, u.chance + bonus)) : u.chance;
+}
+
 function Machine() {
     const qc = useQueryClient();
     const { user } = useAuthStore();
     const { data } = useQuery({ queryKey: ["machine"], queryFn: activitiesApi.machine });
     const [last, setLast] = useState<{ key: string; res: MachineResult } | null>(null);
-    const setErr = (m: string | null) => { if (m) toast.error(m); };
     const [showRotation, setShowRotation] = useState(false);
+    // Ressources ajoutées, par amélioration (clé objet + type).
+    const [extras, setExtras] = useState<Record<string, Record<string, number>>>({});
+    const [openExtra, setOpenExtra] = useState<string | null>(null);
 
     const upgrade = useMutation({
-        mutationFn: ({ item, kind }: { item: MachineItem; kind: string; key: string }) => activitiesApi.upgrade(item, kind),
-        onSuccess: (res, { key }) => {
-            setErr("");
+        mutationFn: ({ item, kind, extra }: { item: MachineItem; kind: string; key: string; extra: Record<string, number> }) =>
+            activitiesApi.upgrade(item, kind, extra),
+        onSuccess: (res, { key, kind }) => {
             setLast({ key, res });
+            setExtras((e) => ({ ...e, [`${key}:${kind}`]: {} }));
             qc.setQueryData(["machine"], res.state);
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["booster-inventory"] });
             qc.invalidateQueries({ queryKey: ["reroll-tokens"] });
         },
-        onError: (e) => setErr(errMsg(e)),
+        onError: (e) => toast.error(errMsg(e)),
     });
 
     if (!data) return null;
-    const coins = getResourceBalance(user, "coins");
+    const balance = (id: string) => getResourceBalance(user, id);
     const itemKey = (i: MachineItem) => (i.item === "booster" ? `b-${i.booster_id}-${i.bonus_id ?? "base"}` : `r-${i.token_id}`);
     const upgradable = data.items.filter((i) => i.upgrades.length > 0);
 
@@ -79,6 +88,7 @@ function Machine() {
                 )}
                 <p className="text-white/40 text-[11px]">
                     Un échec garde l'objet (sauf jour risqué) et augmente la chance du prochain essai.
+                    Ajoute des ressources liées pour augmenter la réussite.
                 </p>
             </div>
 
@@ -98,19 +108,71 @@ function Machine() {
                             </div>
                             <span className="text-white/50 text-xs shrink-0">×{item.quantity}</span>
                         </div>
-                        {item.upgrades.map((u) => (
-                            <div key={u.kind} className="flex items-center gap-2 bg-black/20 rounded-lg px-2.5 py-2">
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-white text-xs">→ {u.next}</p>
-                                    <p className="text-white/40 text-[11px]">Réussite {pct(u.chance)} · cran {u.level + 1}</p>
+                        {item.upgrades.map((u) => {
+                            const uKey = `${key}:${u.kind}`;
+                            const extra = extras[uKey] ?? {};
+                            const need = u.required;
+                            // Quantité ajoutable : le solde, moins la part obligatoire si c'est la même ressource.
+                            const spare = (id: string) => balance(id) - (need?.resource_id === id ? need.amount : 0);
+                            const setQty = (id: string, qty: number) =>
+                                setExtras((e) => ({ ...e, [uKey]: { ...extra, [id]: Math.max(0, Math.min(qty, spare(id))) } }));
+                            const needOk = !need || balance(need.resource_id) - (extra[need.resource_id] ?? 0) >= need.amount;
+                            const chance = chanceWith(u, extra);
+                            const added = Object.values(extra).some((q) => q > 0);
+                            return (
+                                <div key={u.kind} className="bg-black/20 rounded-lg px-2.5 py-2 space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-white text-xs">→ {u.next}</p>
+                                            <p className="text-white/40 text-[11px]">
+                                                Réussite <span className={added ? "text-green-400 font-semibold" : ""}>{pct(chance)}</span>
+                                                {" "}· cran {u.level + 1}
+                                            </p>
+                                        </div>
+                                        <Button variant="gold" size="sm"
+                                            disabled={balance("coins") < u.cost || !needOk || upgrade.isPending}
+                                            loading={upgrade.isPending && upgrade.variables?.key === key && upgrade.variables?.kind === u.kind}
+                                            onClick={() => upgrade.mutate({ item, kind: u.kind, key, extra })}>
+                                            <span className="inline-flex items-center gap-1">
+                                                {fmt(u.cost)} <ResourceIcon resourceId="coins" />
+                                                {need && <>+ {need.amount} <ResourceIcon resourceId={need.resource_id} /></>}
+                                            </span>
+                                        </Button>
+                                    </div>
+                                    {need && (
+                                        <p className={`text-[11px] ${needOk ? "text-white/50" : "text-red-400"}`}>
+                                            Requis à ce cran : {need.amount} {need.name} (tu en as {fmt(balance(need.resource_id))})
+                                        </p>
+                                    )}
+                                    {u.bonus_options.length > 0 && (
+                                        <button className="text-accent text-[11px]" onClick={() => setOpenExtra(openExtra === uKey ? null : uKey)}>
+                                            {openExtra === uKey ? "Masquer les ressources" : `Ajouter des ressources (jusqu'à ${pct(u.cap)})`}
+                                        </button>
+                                    )}
+                                    {openExtra === uKey && (
+                                        <div className="space-y-1.5">
+                                            {u.bonus_options.map((o) => {
+                                                const qty = extra[o.resource_id] ?? 0;
+                                                const owned = spare(o.resource_id);
+                                                return (
+                                                    <div key={o.resource_id} className="flex items-center gap-2 text-[11px]">
+                                                        <ResourceIcon resourceId={o.resource_id} className="w-4 h-4 shrink-0" />
+                                                        <span className="flex-1 min-w-0 truncate text-white/70">
+                                                            {o.name} <span className="text-white/40">+{Math.round(o.per_unit * 100)} % · {fmt(owned)}</span>
+                                                        </span>
+                                                        <button className="w-6 h-6 rounded bg-white/10 text-white disabled:opacity-30"
+                                                            disabled={qty <= 0} onClick={() => setQty(o.resource_id, qty - 1)}>−</button>
+                                                        <span className="w-6 text-center text-white tabular-nums">{qty}</span>
+                                                        <button className="w-6 h-6 rounded bg-white/10 text-white disabled:opacity-30"
+                                                            disabled={qty >= owned || chance >= u.cap} onClick={() => setQty(o.resource_id, qty + 1)}>+</button>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
-                                <Button variant="gold" size="sm" disabled={coins < u.cost || upgrade.isPending}
-                                    loading={upgrade.isPending && upgrade.variables?.key === key && upgrade.variables?.kind === u.kind}
-                                    onClick={() => upgrade.mutate({ item, kind: u.kind, key })}>
-                                    <span className="inline-flex items-center gap-1">{fmt(u.cost)} <ResourceIcon resourceId="coins" /></span>
-                                </Button>
-                            </div>
-                        ))}
+                            );
+                        })}
                         {last?.key === key && (
                             <p className={`text-xs font-semibold ${last.res.success ? "text-green-400" : "text-red-400"}`}>
                                 {last.res.success
@@ -133,30 +195,36 @@ function Machine() {
 function Converter() {
     const qc = useQueryClient();
     const { user } = useAuthStore();
+    const names = useResourceNames();
     const { data } = useQuery({ queryKey: ["converter"], queryFn: activitiesApi.converter });
-    const [pairIndex, setPairIndex] = useState(0);
+    const [fromId, setFromId] = useState("coins");
+    const [toId, setToId] = useState("dust");
     const [amount, setAmount] = useState("");
     const [, setMsg] = useToastMessage();
+    const label = (id: string) => (id === "coins" ? "Pièces" : names[id] ?? id);
+
+    const pairs = data?.pairs ?? [];
+    const sources = [...new Set(pairs.map((p) => p.from))];
+    const from = sources.includes(fromId) ? fromId : sources[0];
+    const targets = pairs.filter((p) => p.from === from);
+    const pair = targets.find((p) => p.to === toId) ?? targets[0];
 
     const convert = useMutation({
-        mutationFn: () => {
-            const p = data!.pairs[pairIndex];
-            return activitiesApi.convert(p.from, p.to, Number(amount));
-        },
+        mutationFn: () => activitiesApi.convert(pair.from, pair.to, Number(amount)),
         onSuccess: (r) => {
-            const p = data!.pairs[pairIndex];
             qc.setQueryData(["converter"], r.state);
             qc.invalidateQueries({ queryKey: ["player"] });
-            setMsg({ text: `${fmt(r.spent)} ${RESOURCE_NAME[p.from] ?? p.from} → ${fmt(r.gained)} ${RESOURCE_NAME[p.to] ?? p.to}`, ok: true });
+            setMsg({ text: `${fmt(r.spent)} ${label(pair.from)} → ${fmt(r.gained)} ${label(pair.to)}`, ok: true });
             setAmount("");
         },
         onError: (e) => setMsg({ text: errMsg(e), ok: false }),
     });
 
-    if (!data?.pairs.length) return null;
-    const pair = data.pairs[Math.min(pairIndex, data.pairs.length - 1)];
+    if (!data || !pair) return null;
     const value = Math.floor(Number(amount) || 0);
-    const valid = value >= pair.give && value % pair.give === 0 && value <= pair.max_in && value <= getResourceBalance(user, pair.from);
+    const owned = getResourceBalance(user, pair.from);
+    const valid = value >= pair.give && value % pair.give === 0 && value <= pair.max_in && value <= owned;
+    const best = Math.min(pair.max_in, owned - (owned % pair.give));
 
     return (
         <section className="bg-game-surface border border-white/10 rounded-2xl p-4 space-y-3">
@@ -165,29 +233,41 @@ function Converter() {
                 <span className="text-white/50 text-xs">{data.uses_left} / {data.daily_uses} aujourd'hui</span>
             </div>
             <p className="text-white/40 text-[11px]">Pour compléter une ressource qui manque (avec perte).</p>
-            <div className="flex gap-1.5">
-                {data.pairs.map((p, i) => (
-                    <button key={`${p.from}-${p.to}`}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1 ${i === pairIndex ? "bg-accent text-white" : "bg-white/10 text-white/60"}`}
-                        onClick={() => { setPairIndex(i); setAmount(""); }}>
-                        <ResourceIcon resourceId={p.from} /> → <ResourceIcon resourceId={p.to} />
-                    </button>
-                ))}
+            <div className="grid grid-cols-2 gap-2">
+                <label className="text-white/50 text-[11px] space-y-1">
+                    <span>De</span>
+                    <select className={inputCls} value={from} onChange={(e) => { setFromId(e.target.value); setAmount(""); }}>
+                        {sources.map((id) => <option key={id} value={id}>{label(id)} ({fmt(getResourceBalance(user, id))})</option>)}
+                    </select>
+                </label>
+                <label className="text-white/50 text-[11px] space-y-1">
+                    <span>Vers</span>
+                    <select className={inputCls} value={pair.to} onChange={(e) => { setToId(e.target.value); setAmount(""); }}>
+                        {targets.map((p) => <option key={p.to} value={p.to}>{label(p.to)}</option>)}
+                    </select>
+                </label>
             </div>
-            <p className="text-white/60 text-xs">
-                {pair.give} {RESOURCE_NAME[pair.from] ?? pair.from} → {pair.get} {RESOURCE_NAME[pair.to] ?? pair.to} ·
-                {" "}{fmt(pair.max_in)} au plus par conversion
+            <p className="text-white/60 text-xs inline-flex items-center gap-1 flex-wrap">
+                {pair.give} <ResourceIcon resourceId={pair.from} /> → {pair.get} <ResourceIcon resourceId={pair.to} />
+                · {fmt(pair.max_in)} au plus par conversion
             </p>
             <div className="flex gap-2">
                 <input type="number" min={pair.give} step={pair.give} max={pair.max_in} placeholder={`Multiple de ${pair.give}`}
                     className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
                     value={amount} onChange={(e) => setAmount(e.target.value)} />
+                {best >= pair.give && (
+                    <button className="text-accent text-xs px-1" onClick={() => setAmount(String(best))}>Max</button>
+                )}
                 <Button variant="gold" size="sm" disabled={!valid || data.uses_left <= 0} loading={convert.isPending} success={convert.isSuccess}
                     onClick={() => { setMsg(null); convert.mutate(); }}>
                     Convertir
                 </Button>
             </div>
-            {valid && <p className="text-white/40 text-[11px]">→ {fmt(Math.floor(value / pair.give) * pair.get)} {RESOURCE_NAME[pair.to] ?? pair.to}</p>}
+            {valid && (
+                <p className="text-white/40 text-[11px] inline-flex items-center gap-1">
+                    → {fmt(Math.floor(value / pair.give) * pair.get)} <ResourceIcon resourceId={pair.to} /> {label(pair.to)}
+                </p>
+            )}
         </section>
     );
 }

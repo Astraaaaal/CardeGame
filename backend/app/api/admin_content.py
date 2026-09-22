@@ -593,7 +593,6 @@ async def tuning(session: AsyncSession = Depends(get_session)):
         return [
             {
                 "id": r.id, "name": r.name, "weight": getattr(r, "weight", None),
-                "recycle_value": getattr(r, "recycle_value", None),
             }
             for r in rows
         ]
@@ -619,7 +618,7 @@ async def update_tuning(table: str, item_id: str, body: TuningPatch, session: As
     for k, v in body.model_dump(exclude_unset=True).items():
         setattr(row, k, v)
     await session.commit()
-    return {"id": row.id, "name": row.name, "weight": row.weight, "recycle_value": row.recycle_value}
+    return {"id": row.id, "name": row.name, "weight": row.weight}
 
 
 # ────────────────────  PROGRESSION (niveaux / achievements / quêtes)  ─────

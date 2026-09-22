@@ -27,8 +27,8 @@ async def _reference(session):
     session.add_all([
         Resource(id="coins", name="Pièces", protected=True), Resource(id="dust", name="Poussière"),
         Set(id="s1", name="Set"), Character(id="c", name="C", type="feu", image_url="c.png"),
-        Rarity(id="common", name="Commune", weight=90, recycle_value=5),
-        Quality(id="fair", name="Correcte", weight=1, recycle_value=1),
+        Rarity(id="common", name="Commune", weight=90),
+        Quality(id="fair", name="Correcte", weight=1),
         Specialty(id="normal", name="Normale", weight=1), Jewelry(id="none", name="Aucun", weight=1),
     ])
     await session.commit()
@@ -74,12 +74,14 @@ async def test_recycling_pays_only_for_cards_actually_removed(session):
     cards = [await _card(session, user) for _ in range(3)]
 
     result = await recycle_cards(RecycleByIdsRequest(card_ids=[c.id for c in cards]), user, session)
-    assert result.gained == 18 and result.new_balance == 18 and result.recycled_count == 3
+    # Puissance au maximum de la carte : haut des plages (commune 1→5, correcte → poussière fine 1→5).
+    assert result.gained == 15 and result.new_balance == 15 and result.recycled_count == 3
+    assert {g.resource_id: g.amount for g in result.gains} == {"dust": 15, "dust_fine": 15}
 
     with pytest.raises(HTTPException) as exc:  # déjà recyclées : rien de plus
         await recycle_cards(RecycleByIdsRequest(card_ids=[cards[0].id]), user, session)
     assert exc.value.status_code == 404
-    assert await wallet.get_balance(session, user, "dust") == 18
+    assert await wallet.get_balance(session, user, "dust") == 15
 
 
 async def test_a_listing_can_only_be_bought_once(session):
@@ -104,7 +106,7 @@ async def test_a_listing_can_only_be_bought_once(session):
 
 # ── Noms ──
 
-@pytest.mark.parametrize("name", ["Administration", "Àdmin", "ad min", "Modérateur", "CardeGame", "Bo​b", "   "])
+@pytest.mark.parametrize("name", ["Administration", "Àdmin", "ad min", "Modérateur", "CardeGame", "Bo\u200bb", "   "])
 def test_reserved_or_invisible_display_names_are_refused(name):
     with pytest.raises(HTTPException):
         names.clean_display_name(name)

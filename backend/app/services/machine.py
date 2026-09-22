@@ -8,7 +8,12 @@ Chaque cran est plus cher et moins probable que le précédent ; un échec coût
 le paiement (l'objet reste, sauf jour risqué) et rend le prochain essai un peu
 plus probable mais plus cher. Tout revient à zéro après une réussite.
 
-Convertisseur : échange pièces ↔ poussière avec perte, quelques fois par jour,
+À partir d'un certain cran, une ressource liée à l'amélioration est aussi
+demandée (fragments pour la rareté, minerais pour le bijou…). Dès le premier
+cran, on peut en ajouter pour augmenter la réussite, dans la limite d'un
+plafond qui baisse avec le cran : un palier rare n'est jamais garanti.
+
+Convertisseur : échange de ressources avec perte, quelques fois par jour,
 pour compléter une ressource qui manque — pas pour s'enrichir.
 """
 
@@ -22,6 +27,7 @@ from sqlmodel import select
 
 from app.models.booster import Booster
 from app.models.booster_inventory import UserBonusBooster, UserBoosterInventory
+from app.models.economy import Resource
 from app.models.reference import Jewelry, Quality, Rarity
 from app.models.reroll_inventory import UserRerollToken
 from app.models.user import User
@@ -29,9 +35,10 @@ from app.services import activities_config, booster_inventory, reroll_inventory
 from app.services.presence_bonus import get_activity
 from app.services.reroll import reroll_axes
 from app.services.tier_order import rank
-from app.services.wallet import apply_delta
 from app.services import unlocks
-from app.services.wallet import require_balance
+from app.services.wallet import apply_delta, require_balance
+
+MAX_EXTRA_PER_RESOURCE = 1000
 
 # Améliorations de booster : champ du bonus modifié et paliers successifs.
 BOOSTER_LADDERS = {
@@ -137,6 +144,64 @@ def _cost_and_chance(cfg: dict, level: int, failures: int, event: dict | None) -
     return max(1, int(round(cost))), round(min(m["max_chance"], max(0.01, chance)), 3)
 
 
+# ─────────────────────────────  RESSOURCES  ─────────────────────────────
+
+def _resource_for(cfg: dict, kind: str, level: int) -> str | None:
+    """Ressource liée à ce cran (niveau actuel 0 = premier cran) ; la dernière vaut pour la suite."""
+    table = cfg["machine"]["resources"].get(kind) or []
+    return table[min(level, len(table) - 1)] if table else None
+
+
+def required_resource(cfg: dict, kind: str, level: int) -> dict | None:
+    """Ressource obligatoire pour passer ce cran, ou None avant le cran de départ."""
+    m = cfg["machine"]
+    step = level + 1
+    resource_id = _resource_for(cfg, kind, level)
+    if step < m["resource_from_level"] or not resource_id:
+        return None
+    return {"resource_id": resource_id,
+            "amount": int(m["resource_base_qty"] + m["resource_qty_step"] * (step - m["resource_from_level"]))}
+
+
+def bonus_options(cfg: dict, kind: str) -> list[dict]:
+    """Ressources qu'on peut ajouter à cette amélioration, et la réussite gagnée par unité."""
+    per_unit = cfg["machine"]["bonus_per_unit"]
+    ids = dict.fromkeys(cfg["machine"]["resources"].get(kind) or [])
+    return [{"resource_id": r, "per_unit": float(per_unit[r])} for r in ids if per_unit.get(r)]
+
+
+def bonus_cap(cfg: dict, level: int) -> float:
+    caps = cfg["machine"]["bonus_caps"]
+    return float(caps[min(level, len(caps) - 1)]) if caps else float(cfg["machine"]["max_chance"])
+
+
+def chance_with_extra(cfg: dict, kind: str, level: int, chance: float, extra: dict[str, int]) -> float:
+    """Réussite avec les ressources ajoutées : jamais au-delà du plafond du cran
+    (mais jamais en dessous de la réussite sans ajout)."""
+    per_unit = {o["resource_id"]: o["per_unit"] for o in bonus_options(cfg, kind)}
+    bonus = sum(per_unit[r] * q for r, q in extra.items() if r in per_unit and q > 0)
+    if bonus <= 0:
+        return chance
+    return round(max(chance, min(bonus_cap(cfg, level), chance + bonus)), 3)
+
+
+async def _resource_names(session: AsyncSession) -> dict[str, str]:
+    return {r.id: r.name for r in (await session.execute(select(Resource))).scalars().all()}
+
+
+def _with_names(entry: dict | None, names: dict) -> dict | None:
+    return {**entry, "name": names.get(entry["resource_id"], entry["resource_id"])} if entry else None
+
+
+def _upgrade_out(cfg: dict, kind: str, level: int, nxt_label: str, cost: int, chance: float, res_names: dict) -> dict:
+    return {
+        "kind": kind, "label": KIND_LABEL[kind], "next": nxt_label, "level": level, "cost": cost, "chance": chance,
+        "required": _with_names(required_resource(cfg, kind, level), res_names),
+        "bonus_options": [_with_names(o, res_names) for o in bonus_options(cfg, kind)],
+        "cap": bonus_cap(cfg, level),
+    }
+
+
 # ─────────────────────────────  LIBELLÉS  ─────────────────────────────
 
 async def _names(session: AsyncSession) -> dict[str, str]:
@@ -209,6 +274,7 @@ async def machine_state(session: AsyncSession, user: User) -> dict:
     row = await get_activity(session, user.id)
     failures = row.machine_failures or {}
     names = await _names(session)
+    res_names = await _resource_names(session)
     items = []
 
     for owned in await booster_inventory.list_owned(session, user.id):
@@ -221,8 +287,7 @@ async def machine_state(session: AsyncSession, user: User) -> dict:
             if nxt is None:
                 continue
             cost, chance = _cost_and_chance(cfg, level, failures.get(kind, 0), plan["event"])
-            upgrades.append({"kind": kind, "label": KIND_LABEL[kind], "next": _next_label(kind, nxt, names),
-                             "level": level, "cost": cost, "chance": chance})
+            upgrades.append(_upgrade_out(cfg, kind, level, _next_label(kind, nxt, names), cost, chance, res_names))
         items.append({
             "item": "booster", "booster_id": owned["booster_id"], "bonus_id": owned["bonus_id"],
             "name": owned["booster_name"], "detail": describe_bonus(bonus, names) or "sans bonus",
@@ -242,9 +307,8 @@ async def machine_state(session: AsyncSession, user: User) -> dict:
             if nxt is None:
                 continue
             cost, chance = _cost_and_chance(cfg, level, failures.get(kind, 0), plan["event"])
-            upgrades.append({"kind": kind, "label": KIND_LABEL[kind],
-                             "next": _next_label(kind, nxt[0] if isinstance(nxt, list) else nxt, names),
-                             "level": level, "cost": cost, "chance": chance})
+            label = _next_label(kind, nxt[0] if isinstance(nxt, list) else nxt, names)
+            upgrades.append(_upgrade_out(cfg, kind, level, label, cost, chance, res_names))
         items.append({
             "item": "reroll", "token_id": token.id, "name": token.label or "Reroll",
             "detail": describe_reroll(reroll_inventory.rules_of(token)), "quantity": token.quantity, "upgrades": upgrades,
@@ -265,7 +329,8 @@ async def machine_state(session: AsyncSession, user: User) -> dict:
 # ─────────────────────────────  AMÉLIORATION  ─────────────────────────────
 
 async def upgrade(session: AsyncSession, user: User, item: str, kind: str, booster_id: str | None = None,
-                  bonus_id: int | None = None, token_id: int | None = None) -> dict:
+                  bonus_id: int | None = None, token_id: int | None = None,
+                  extra: dict[str, int] | None = None) -> dict:
     cfg = await activities_config.get_config(session)
     plan = today_plan(cfg)
     if kind not in plan["kinds"]:
@@ -280,14 +345,14 @@ async def upgrade(session: AsyncSession, user: User, item: str, kind: str, boost
         if kind not in BOOSTER_LADDERS or not booster_id:
             raise HTTPException(400, "Amélioration invalide pour un booster.")
         if bonus_id is not None:
-            source = await session.get(UserBonusBooster, bonus_id)
+            source = await session.get(UserBonusBooster, bonus_id, **booster_inventory.LOCKED)
             if not source or source.user_id != user.id or source.booster_id != booster_id or source.quantity < 1:
                 raise HTTPException(400, "Tu ne possèdes plus ce booster.")
             bonus = {"force_min_rarity_id": source.force_min_rarity_id,
                      "rarity_weight_multiplier": source.rarity_weight_multiplier,
                      **booster_inventory.extra_bonus(source)}
         else:
-            source = await session.get(UserBoosterInventory, (user.id, booster_id))
+            source = await session.get(UserBoosterInventory, (user.id, booster_id), **booster_inventory.LOCKED)
             if not source or source.quantity < 1:
                 raise HTTPException(400, "Tu ne possèdes plus ce booster.")
             bonus = {"force_min_rarity_id": None, "rarity_weight_multiplier": None,
@@ -296,7 +361,7 @@ async def upgrade(session: AsyncSession, user: User, item: str, kind: str, boost
     elif item == "reroll":
         if kind not in REROLL_KINDS or token_id is None:
             raise HTTPException(400, "Amélioration invalide pour un reroll.")
-        source = await session.get(UserRerollToken, token_id)
+        source = await session.get(UserRerollToken, token_id, **booster_inventory.LOCKED)
         if not source or source.user_id != user.id or source.quantity < 1:
             raise HTTPException(400, "Tu ne possèdes plus ce reroll.")
         level, nxt = reroll_step(kind, source)
@@ -306,8 +371,22 @@ async def upgrade(session: AsyncSession, user: User, item: str, kind: str, boost
         raise HTTPException(400, "Cet objet est déjà au maximum pour cette amélioration.")
 
     cost, chance = _cost_and_chance(cfg, level, failures.get(kind, 0), event)
-    await require_balance(session, user, "coins", cost)
-    await apply_delta(session, user, "coins", -cost)
+    # Ressources ajoutées : seulement celles liées à l'amélioration, quantités bornées.
+    allowed = {o["resource_id"] for o in bonus_options(cfg, kind)}
+    extra = {r: int(q) for r, q in (extra or {}).items() if int(q) > 0}
+    if any(r not in allowed or q > MAX_EXTRA_PER_RESOURCE for r, q in extra.items()):
+        raise HTTPException(400, "Ressource ajoutée invalide pour cette amélioration.")
+    chance = chance_with_extra(cfg, kind, level, chance, extra)
+    required = required_resource(cfg, kind, level)
+    spend = {"coins": cost}
+    if required:
+        spend[required["resource_id"]] = required["amount"]
+    for res_id, qty in extra.items():
+        spend[res_id] = spend.get(res_id, 0) + qty
+    for res_id, qty in spend.items():
+        await require_balance(session, user, res_id, qty)
+    for res_id, qty in spend.items():
+        await apply_delta(session, user, res_id, -qty)
 
     roll = random.random()
     success = roll < chance
@@ -350,11 +429,11 @@ async def upgrade(session: AsyncSession, user: User, item: str, kind: str, boost
     session.add(row)
     await session.commit()
     # Trace de chaque essai (vérification des chances en production).
-    logger.info("Machine : joueur %s, %s %s, cran %s, chance %.3f, tirage %.3f -> %s%s",
-                user.id, item, kind, level + 1, chance, roll,
+    logger.info("Machine : joueur %s, %s %s, cran %s, chance %.3f, tirage %.3f, dépense %s -> %s%s",
+                user.id, item, kind, level + 1, chance, roll, spend,
                 "réussi" if success else "raté", " (objet détruit)" if destroyed else "")
     return {"success": success, "destroyed": destroyed, "cost": cost, "chance": chance, "result": result_label,
-            "state": await machine_state(session, user)}
+            "spent": spend, "state": await machine_state(session, user)}
 
 
 # ─────────────────────────────  CONVERTISSEUR  ─────────────────────────────

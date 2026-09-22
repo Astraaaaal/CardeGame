@@ -105,7 +105,6 @@ export interface TuningEntry {
     id: string;
     name: string;
     weight: number | null;
-    recycle_value: number | null;
 }
 
 export type TuningTable = "rarities" | "qualities" | "specialties" | "jewelries";

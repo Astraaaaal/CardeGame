@@ -108,6 +108,12 @@ export interface WheelSpin {
     state: WheelState;
 }
 
+export interface MachineResourceNeed {
+    resource_id: string;
+    name: string;
+    amount: number;
+}
+
 export interface MachineUpgrade {
     kind: string;
     label: string;
@@ -115,6 +121,12 @@ export interface MachineUpgrade {
     level: number;
     cost: number;
     chance: number;
+    /** Ressource obligatoire à ce cran (null avant le cran de départ). */
+    required: MachineResourceNeed | null;
+    /** Ressources qu'on peut ajouter pour augmenter la réussite (par unité). */
+    bonus_options: { resource_id: string; name: string; per_unit: number }[];
+    /** Réussite maximale atteignable en ajoutant des ressources, à ce cran. */
+    cap: number;
 }
 
 export interface MachineItem {
@@ -144,6 +156,7 @@ export interface MachineResult {
     cost: number;
     chance: number;
     result: string | null;
+    spent: Record<string, number>;
     state: MachineState;
 }
 
@@ -155,9 +168,9 @@ export interface ConverterState {
 
 export const activitiesApi = {
     machine: () => api.get<MachineState>("/activities/machine").then((r) => r.data),
-    upgrade: (item: MachineItem, kind: string) =>
+    upgrade: (item: MachineItem, kind: string, extra: Record<string, number> = {}) =>
         api.post<MachineResult>("/activities/machine/upgrade", {
-            item: item.item, kind, booster_id: item.booster_id, bonus_id: item.bonus_id ?? null, token_id: item.token_id,
+            item: item.item, kind, booster_id: item.booster_id, bonus_id: item.bonus_id ?? null, token_id: item.token_id, extra,
         }).then((r) => r.data),
     converter: () => api.get<ConverterState>("/activities/converter").then((r) => r.data),
     convert: (fromId: string, toId: string, amount: number) =>

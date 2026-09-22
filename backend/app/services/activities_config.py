@@ -10,6 +10,7 @@ import copy
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.game_config import GameConfig
+from app.services import resource_catalog
 
 DEFAULTS: dict = {
     # Booster utilisé pour les récompenses (atelier, expéditions, roue).
@@ -101,7 +102,7 @@ DEFAULTS: dict = {
     "trade_tax": {
         "base_rate": 0.05, "per_level": 0.01, "max_rate": 0.25,
         "card_anchor": 4, "card_exponent": 1.15, "card_cap": 3000,
-        "resource_values": {"dust": 5},
+        "resource_values": {"dust": 5, **resource_catalog.coin_values()},
         "booster_value": 100, "reroll_value": 300,
     },
     # Machine d'amélioration : cycle de N jours (une amélioration par jour + les
@@ -130,6 +131,35 @@ DEFAULTS: dict = {
         "level_chance_factor": 0.7,
         "failure_chance_step": 0.05,
         "max_chance": 0.9,
+        # Ressources : obligatoires à partir d'un cran (quantité base + pas × crans
+        # au-delà), et facultatives dès le premier cran pour réduire le risque
+        # d'échec. Ressource demandée par cran (la dernière vaut pour les suivants).
+        "resource_from_level": 3,
+        "resource_base_qty": 2,
+        "resource_qty_step": 2,
+        "resources": {
+            "rarity_chances": ["frag_rare", "frag_rare", "frag_epic", "frag_legendary"],
+            "rarity_guarantee": ["frag_rare", "frag_epic", "frag_legendary"],
+            "quality_guarantee": ["dust_lustrous", "dust_lustrous", "dust_pearly", "dust_pearly", "dust_star"],
+            "jewelry_guarantee": ["silver_ore", "gold_nugget", "rough_diamond", "prism_crystal"],
+            "specialty_chances": ["art_ink", "art_ink", "ex_seal", "glitter"],
+            "quality_chances": ["dust_fine", "dust_lustrous", "dust_pearly", "dust_star"],
+            "jewelry_chances": ["silver_ore", "gold_nugget", "rough_diamond", "prism_crystal"],
+            "power_chances": ["dust_fine", "dust_lustrous", "dust_pearly", "dust_star"],
+            "reroll_guarantee": ["dust_pearly"],
+            "reroll_axis": ["dust_fine", "dust_lustrous", "dust_pearly", "dust_star"],
+            "reroll_boost": ["dust_lustrous", "dust_pearly", "dust_star"],
+        },
+        # Réussite ajoutée par unité de ressource ajoutée volontairement (plus la
+        # ressource est rare, plus elle aide), dans la limite du plafond du cran :
+        # un cran élevé n'est jamais garanti.
+        "bonus_per_unit": {
+            "frag_rare": 0.02, "frag_epic": 0.05, "frag_legendary": 0.12,
+            "silver_ore": 0.02, "gold_nugget": 0.04, "rough_diamond": 0.08, "prism_crystal": 0.15,
+            "art_ink": 0.03, "ex_seal": 0.06, "glitter": 0.10,
+            "dust_fine": 0.01, "dust_lustrous": 0.03, "dust_pearly": 0.06, "dust_star": 0.12,
+        },
+        "bonus_caps": [1.0, 0.85, 0.70, 0.55, 0.40],
     },
     # Convertisseur : un nombre d'utilisations par jour, une quantité maximale
     # par conversion ; `give` de la ressource de départ donnent `get` de l'autre.
@@ -138,7 +168,28 @@ DEFAULTS: dict = {
         "pairs": [
             {"from": "coins", "to": "dust", "give": 10, "get": 1, "max_in": 2000},
             {"from": "dust", "to": "coins", "give": 1, "get": 5, "max_in": 200},
+            *resource_catalog.converter_pairs(),
         ],
+    },
+    # Recyclage : poussière pour toute carte (plage selon sa rareté), plus une
+    # ressource par palier atteint sur chaque caractéristique. La quantité se
+    # place dans la plage [min, max] selon la puissance de la carte rapportée
+    # à SON maximum (un très bon tirage rapporte le maximum).
+    "recycling": {
+        "dust_by_rarity": {"common": [1, 5], "rare": [5, 30], "epic": [20, 150], "legendary": [100, 1000]},
+        "rarity": {"rare": "frag_rare", "epic": "frag_epic", "legendary": "frag_legendary"},
+        "jewelry": {"silver": "silver_ore", "gold": "gold_nugget", "diamond": "rough_diamond",
+                    "prismatic": "prism_crystal"},
+        "specialty": {"full_art": "art_ink", "ex": "ex_seal", "shiny": "glitter"},
+        "quality": {"faded": "dust_fine", "worn": "dust_fine", "fair": "dust_fine",
+                    "preserved": "dust_lustrous", "excellent": "dust_lustrous",
+                    "graded": "dust_pearly", "mint": "dust_pearly", "authentic": "dust_star"},
+        "ranges": {
+            "frag_rare": [1, 3], "frag_epic": [1, 5], "frag_legendary": [1, 10],
+            "silver_ore": [1, 3], "gold_nugget": [1, 5], "rough_diamond": [1, 8], "prism_crystal": [1, 15],
+            "art_ink": [1, 3], "ex_seal": [1, 5], "glitter": [1, 8],
+            "dust_fine": [1, 5], "dust_lustrous": [1, 5], "dust_pearly": [1, 8], "dust_star": [1, 15],
+        },
     },
     "wheel": {
         "extra_spin_cost": 200,

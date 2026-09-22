@@ -60,12 +60,20 @@ export interface RecycleByIdsRequest {
     card_ids: string[];
 }
 
+export interface RecycleGain {
+    resource_id: string;
+    name: string;
+    amount: number;
+    new_balance: number | null;
+}
+
 export interface RecycleByIdsResponse {
     resource_id: string;
     resource_name: string;
     gained: number;
     new_balance: number;
     recycled_count: number;
+    gains: RecycleGain[];
 }
 
 export interface CardComboParams {
@@ -105,6 +113,11 @@ export const collectionApi = {
 
     recycle: async (body: RecycleByIdsRequest): Promise<RecycleByIdsResponse> => {
         const res = await api.post("/collection/recycle", body);
+        return res.data;
+    },
+
+    recyclePreview: async (body: RecycleByIdsRequest): Promise<{ count: number; gains: RecycleGain[] }> => {
+        const res = await api.post("/collection/recycle/preview", body);
         return res.data;
     },
 

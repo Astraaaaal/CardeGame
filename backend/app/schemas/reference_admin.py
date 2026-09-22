@@ -9,4 +9,3 @@ from pydantic import BaseModel
 
 class TuningPatch(BaseModel):
     weight: float | None = None
-    recycle_value: int | None = None

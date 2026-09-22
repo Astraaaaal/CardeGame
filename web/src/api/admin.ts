@@ -48,7 +48,7 @@ export const adminApi = {
     },
 
     tuning: () => http.get<Tuning>("/tuning").then((r) => r.data),
-    updateTuning: (table: TuningTable, id: string, b: Partial<Pick<TuningEntry, "weight" | "recycle_value">>) =>
+    updateTuning: (table: TuningTable, id: string, b: Partial<Pick<TuningEntry, "weight">>) =>
         http.patch<TuningEntry>(`/tuning/${table}/${id}`, b).then((r) => r.data),
 
     // ── Sets ──
@@ -197,10 +197,18 @@ export interface ActivitiesConfig {
         events: { id: string; label: string; cost_factor: number; success_bonus: number; lose_on_fail: boolean }[];
         base_cost: number; level_cost_factor: number; failure_cost_factor: number;
         base_chance: number; level_chance_factor: number; failure_chance_step: number; max_chance: number;
+        resource_from_level: number; resource_base_qty: number; resource_qty_step: number;
+        resources: Record<string, string[]>; bonus_per_unit: Record<string, number>; bonus_caps: number[];
     };
     converter: {
         daily_uses: number;
         pairs: { from: string; to: string; give: number; get: number; max_in: number }[];
+    };
+    recycling: {
+        dust_by_rarity: Record<string, [number, number]>;
+        rarity: Record<string, string>; jewelry: Record<string, string>;
+        specialty: Record<string, string>; quality: Record<string, string>;
+        ranges: Record<string, [number, number]>;
     };
     wheel: {
         extra_spin_cost: number; extra_spins_per_day: number;

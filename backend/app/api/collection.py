@@ -2,6 +2,8 @@
 Routes collection — Inventaire du joueur (groupé, filtré, trié).
 """
 
+from collections import Counter
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import delete
 from app.models.social import TradeListing
@@ -21,11 +23,12 @@ from app.models.reference import Set, Rarity, Quality, Specialty, Jewelry
 from app.models.economy import Resource
 from app.schemas.card import CardResponse, CardGroupResponse, CardCopyOut, CardCopiesResponse
 from app.schemas.collection import CollectionResponse, ProbabilityItem, ProbabilityTableResponse
-from app.schemas.economy import RecycleByIdsRequest, RecycleByIdsResponse
+from app.schemas.economy import RecycleByIdsRequest, RecycleByIdsResponse, RecycleGainOut, RecyclePreviewResponse
 from app.services.card_view import build_card_response
 from app.services.power import combined_rarity
-from app.services import expeditions, quest_progress
-from app.services.wallet import apply_delta
+from app.services import activities_config, expeditions, quest_progress, recycling
+from app.services.resource_catalog import NEW_RESOURCES
+from app.services.wallet import apply_delta, get_balance
 from app.services.ranking import refresh_all_best_ranks
 from app.services.tier_order import (
     RARITY_ORDER, QUALITY_ORDER, SPECIALTY_ORDER, JEWELRY_ORDER, rank,
@@ -352,6 +355,46 @@ async def get_card_detail(
     return await build_card_response(session, card)
 
 
+async def _recyclable(session: AsyncSession, user: User, card_ids: list[str]) -> tuple[list[str], list[UserCard]]:
+    """Exemplaires demandés, tous possédés, non verrouillés et pas en expédition."""
+    ids = list(dict.fromkeys(card_ids))  # dédoublonne en gardant l'ordre
+    owned = (await session.execute(
+        select(UserCard).where(UserCard.id.in_(ids), UserCard.user_id == user.id)
+    )).scalars().all()
+    if len(owned) != len(ids):
+        raise HTTPException(status_code=404, detail="Une ou plusieurs cartes sont introuvables ou ne t'appartiennent pas.")
+    locked = sum(1 for c in owned if c.locked)
+    if locked:
+        raise HTTPException(status_code=400, detail=f"{locked} exemplaire(s) verrouillé(s) : déverrouille-les pour les recycler.")
+    await expeditions.ensure_not_on_expedition(session, ids)
+    return ids, list(owned)
+
+
+async def _gains_out(session: AsyncSession, gains, user: User | None = None) -> list[RecycleGainOut]:
+    """Gains triés comme le catalogue (poussière d'abord), avec nom et solde éventuel."""
+    order = {res_id: i for i, (res_id, *_rest) in enumerate([("dust",), *NEW_RESOURCES])}
+    out = []
+    for res_id, amount in sorted(gains.items(), key=lambda kv: order.get(kv[0], 99)):
+        resource = await session.get(Resource, res_id)
+        out.append(RecycleGainOut(
+            resource_id=res_id, name=resource.name if resource else res_id, amount=amount,
+            new_balance=await get_balance(session, user, res_id) if user else None,
+        ))
+    return out
+
+
+@router.post("/recycle/preview", response_model=RecyclePreviewResponse)
+async def preview_recycling(
+    request: RecycleByIdsRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Ce que rapporterait le recyclage de ces exemplaires (rien n'est modifié)."""
+    _, owned = await _recyclable(session, user, request.card_ids)
+    cfg = await activities_config.get_config(session)
+    return RecyclePreviewResponse(count=len(owned), gains=await _gains_out(session, recycling.total_yield(owned, cfg)))
+
+
 @router.post(
     "/recycle",
     response_model=RecycleByIdsResponse,
@@ -363,45 +406,15 @@ async def recycle_cards(
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Recycle des exemplaires PRÉCIS (par id) contre de la poussière — pas un
-    simple compte sur une combinaison, pour pouvoir choisir lesquels quand
-    plusieurs exemplaires d'une même carte ont des puissances différentes.
-    Valeur par carte = somme des `recycle_value` de sa propre rareté/qualité/
-    spécialité/jewelry (tunable côté données, cf. app/migrations.py).
+    Recycle des exemplaires PRÉCIS (par id) — pas un simple compte sur une
+    combinaison, pour pouvoir choisir lesquels quand plusieurs exemplaires
+    d'une même carte ont des puissances différentes. Chaque carte rapporte de
+    la poussière et les ressources de ses paliers (cf. services/recycling.py).
     """
-    ids = list(dict.fromkeys(request.card_ids))  # dédoublonne en gardant l'ordre
-    owned = (await session.execute(
-        select(UserCard).where(UserCard.id.in_(ids), UserCard.user_id == user.id)
-    )).scalars().all()
+    ids, owned = await _recyclable(session, user, request.card_ids)
+    cfg = await activities_config.get_config(session)
+    yields = {card.id: recycling.card_yield(card, cfg) for card in owned}
 
-    if len(owned) != len(ids):
-        raise HTTPException(status_code=404, detail="Une ou plusieurs cartes sont introuvables ou ne t'appartiennent pas.")
-    locked = sum(1 for c in owned if c.locked)
-    if locked:
-        raise HTTPException(status_code=400, detail=f"{locked} exemplaire(s) verrouillé(s) : déverrouille-les pour les recycler.")
-    await expeditions.ensure_not_on_expedition(session, ids)
-
-    resource = await session.get(Resource, RECYCLE_RESOURCE_ID)
-    if not resource:
-        raise HTTPException(status_code=500, detail="Ressource de recyclage introuvable.")
-
-    rarities_map = await _load_map(session, Rarity)
-    qualities_map = await _load_map(session, Quality)
-    specialties_map = await _load_map(session, Specialty)
-    jewelries_map = await _load_map(session, Jewelry)
-
-    values = {}
-    for card in owned:
-        rarity = rarities_map.get(card.rarity_id)
-        quality = qualities_map.get(card.quality_id)
-        specialty = specialties_map.get(card.specialty_id)
-        jewelry = jewelries_map.get(card.jewelry_id)
-        values[card.id] = (
-            (rarity.recycle_value if rarity else 0)
-            + (quality.recycle_value if quality else 0)
-            + (specialty.recycle_value if specialty else 0)
-            + (jewelry.recycle_value if jewelry else 0)
-        )
     # Suppression en une requête (des milliers de cartes d'un coup) ; les
     # emplacements de vitrine qui les montraient sont libérés.
     for slot in ("showcase_card_1_id", "showcase_card_2_id", "showcase_card_3_id"):
@@ -415,23 +428,29 @@ async def recycle_cards(
     recycled = (await session.execute(
         delete(UserCard).where(UserCard.id.in_(ids), UserCard.user_id == user.id).returning(UserCard.id)
     )).scalars().all()
-    total_gain = sum(values[card_id] for card_id in recycled)
+    gains = Counter()
+    for card_id in recycled:
+        gains.update(yields[card_id])
+    for res_id, amount in gains.items():
+        await apply_delta(session, user, res_id, amount)
 
-    new_balance = await apply_delta(session, user, RECYCLE_RESOURCE_ID, total_gain)
+    dust = gains.get(RECYCLE_RESOURCE_ID, 0)
     user.total_cards = max(0, user.total_cards - len(recycled))
     user.cards_recycled += len(recycled)
-    user.dust_from_recycling += total_gain
+    user.dust_from_recycling += dust
 
     await quest_progress.increment(session, user.id, "cards_recycled", len(recycled))
     await refresh_all_best_ranks(session)
     await session.commit()
 
+    resource = await session.get(Resource, RECYCLE_RESOURCE_ID)
     return RecycleByIdsResponse(
         resource_id=RECYCLE_RESOURCE_ID,
-        resource_name=resource.name,
-        gained=total_gain,
-        new_balance=new_balance,
+        resource_name=resource.name if resource else RECYCLE_RESOURCE_ID,
+        gained=dust,
+        new_balance=await get_balance(session, user, RECYCLE_RESOURCE_ID),
         recycled_count=len(recycled),
+        gains=await _gains_out(session, gains, user),
     )
 
 

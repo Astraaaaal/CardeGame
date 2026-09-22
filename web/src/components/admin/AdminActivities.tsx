@@ -54,8 +54,11 @@ const FIELDS: { section: Section; title: string; fields: [string, string, number
         ["base_cost", "Prix de base (pièces)", 10], ["level_cost_factor", "Prix ×, par cran déjà obtenu", 0.1],
         ["failure_cost_factor", "Prix ×, par échec", 0.05], ["base_chance", "Chance de base (0-1)", 0.01],
         ["level_chance_factor", "Chance ×, par cran déjà obtenu", 0.05], ["failure_chance_step", "Chance +, par échec", 0.01],
-        ["max_chance", "Chance maximum", 0.01],
+        ["max_chance", "Chance maximum", 0.01], ["resource_from_level", "Ressource obligatoire dès le cran", 1],
+        ["resource_base_qty", "Quantité obligatoire au 1er cran concerné", 1],
+        ["resource_qty_step", "Quantité en plus par cran suivant", 1],
     ] },
+    { section: "recycling", title: "Recyclage", fields: [] },
     { section: "converter", title: "Convertisseur", fields: [
         ["daily_uses", "Conversions par jour", 1],
     ] },
@@ -124,6 +127,39 @@ export default function AdminActivities() {
                                 label="Jours d'événement du cycle (cost_factor, success_bonus, lose_on_fail) — la durée du cycle = améliorations + événements"
                                 value={cfg.machine.events}
                                 onChange={(v) => setCfg({ ...cfg, machine: { ...cfg.machine, events: v as ActivitiesConfig["machine"]["events"] } })} />
+                            <JsonField
+                                label="Ressource liée à chaque amélioration, cran par cran (la dernière vaut pour les crans suivants)"
+                                value={cfg.machine.resources}
+                                onChange={(v) => setCfg({ ...cfg, machine: { ...cfg.machine, resources: v as Record<string, string[]> } })} />
+                            <JsonField
+                                label="Réussite ajoutée par unité de ressource ajoutée (0,05 = +5 %)"
+                                value={cfg.machine.bonus_per_unit}
+                                onChange={(v) => setCfg({ ...cfg, machine: { ...cfg.machine, bonus_per_unit: v as Record<string, number> } })} />
+                            <JsonField
+                                label="Réussite maximale avec ressources ajoutées, par cran (1er, 2e… le dernier vaut pour la suite)"
+                                value={cfg.machine.bonus_caps}
+                                onChange={(v) => setCfg({ ...cfg, machine: { ...cfg.machine, bonus_caps: v as number[] } })} />
+                        </>
+                    )}
+                    {section === "recycling" && (
+                        <>
+                            <p className="text-white/40 text-[11px]">
+                                Plages [min, max] : la quantité s'y place selon la puissance de la carte rapportée à son maximum.
+                            </p>
+                            <JsonField
+                                label="Poussière selon la rareté de la carte"
+                                value={cfg.recycling.dust_by_rarity}
+                                onChange={(v) => setCfg({ ...cfg, recycling: { ...cfg.recycling, dust_by_rarity: v as Record<string, [number, number]> } })} />
+                            <JsonField
+                                label="Plage de chaque ressource"
+                                value={cfg.recycling.ranges}
+                                onChange={(v) => setCfg({ ...cfg, recycling: { ...cfg.recycling, ranges: v as Record<string, [number, number]> } })} />
+                            {(["rarity", "jewelry", "specialty", "quality"] as const).map((axis) => (
+                                <JsonField key={axis}
+                                    label={`Ressource par palier — ${{ rarity: "rareté", jewelry: "bijou", specialty: "spécialité", quality: "qualité" }[axis]}`}
+                                    value={cfg.recycling[axis]}
+                                    onChange={(v) => setCfg({ ...cfg, recycling: { ...cfg.recycling, [axis]: v as Record<string, string> } })} />
+                            ))}
                         </>
                     )}
                     {section === "converter" && (

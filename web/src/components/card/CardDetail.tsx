@@ -1,3 +1,4 @@
+import RecyclePreview from "@/components/collection/RecyclePreview";
 import { parseUtc, rgbCss as rarityColorToCSS } from "@/utils/format";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -84,9 +85,9 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
         onSuccess: (res) => {
             showRewards({
                 title: `Recyclage ×${res.recycled_count}`,
-                items: [{ kind: "resource", resourceId: res.resource_id, amount: res.gained, name: res.resource_name }],
+                items: res.gains.map((g) => ({ kind: "resource" as const, resourceId: g.resource_id, amount: g.amount, name: g.name })),
             });
-            setResult(`+${res.gained.toLocaleString("fr-FR")} ${res.resource_name} (solde : ${res.new_balance.toLocaleString("fr-FR")})`);
+            setResult(res.gains.map((g) => `+${g.amount.toLocaleString("fr-FR")} ${g.name}`).join(" · "));
             setConfirmingRecycle(false);
             setSelectedIds(new Set());
             qc.invalidateQueries({ queryKey: ["collection"] });
@@ -285,7 +286,7 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                             {!readOnly && (
                                 <div className="mt-3 pt-3 border-t border-white/10">
                                     <p className="text-white/60 text-xs mb-2">
-                                        Recycler contre de la poussière (irréversible)
+                                        Recycler contre des ressources (irréversible)
                                     </p>
 
                                     {owned > 1 && (
@@ -362,7 +363,7 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                     <ConfirmModal
                         open={confirmingRecycle}
                         title="Confirmer le recyclage"
-                        message={`Recycler ${recycleCount} exemplaire${recycleCount > 1 ? "s" : ""} de « ${cardLabel} » contre de la poussière ? Cette action est irréversible.`}
+                        message={`Recycler ${recycleCount} exemplaire${recycleCount > 1 ? "s" : ""} de « ${cardLabel} » ? Cette action est irréversible.`}
                         warning={losesAllCopies
                             ? `Tu recycles ${owned > 1 ? "tous tes exemplaires" : "ton dernier exemplaire"} de cette carte : tu n'en posséderas plus aucun après cette opération.`
                             : undefined}
@@ -371,7 +372,9 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly }: 
                         busy={recycle.isPending}
                         onConfirm={() => recycle.mutate()}
                         onCancel={() => setConfirmingRecycle(false)}
-                    />
+                    >
+                        {confirmingRecycle && <RecyclePreview cardIds={recycleIds} />}
+                    </ConfirmModal>
                 </motion.div>
             )}
         </AnimatePresence>
