@@ -4,6 +4,7 @@ newsletter et récupération de mot de passe par code à 6 chiffres.
 """
 
 import hashlib
+import hmac
 import html
 import re
 import secrets
@@ -164,15 +165,27 @@ async def confirm_password_reset(session: AsyncSession, identifier: str, code: s
     ).order_by(EmailToken.created_at.desc()))).scalars().first()
     if not row or row.expires_at < datetime.utcnow() or row.attempts >= RESET_CODE_MAX_ATTEMPTS:
         raise invalid
-    if row.token_hash != _hash(code.strip()):
-        row.attempts += 1
-        session.add(row)
-        await session.commit()
+    # Chaque essai est compté AVANT la vérification, en une requête atomique :
+    # des essais envoyés en parallèle ne dépassent pas la limite.
+    counted = (await session.execute(
+        update(EmailToken).where(EmailToken.id == row.id, EmailToken.attempts < RESET_CODE_MAX_ATTEMPTS)
+        .values(attempts=EmailToken.attempts + 1).returning(EmailToken.id)
+        .execution_options(synchronize_session=False)
+    )).first()
+    await session.commit()
+    if not counted or not hmac.compare_digest(row.token_hash, _hash(code.strip())):
         raise invalid
 
+    # Code utilisable une seule fois, même par deux essais corrects simultanés.
+    used = (await session.execute(
+        update(EmailToken).where(EmailToken.id == row.id, EmailToken.used_at.is_(None))
+        .values(used_at=datetime.utcnow()).returning(EmailToken.id)
+        .execution_options(synchronize_session=False)
+    )).first()
+    if not used:
+        raise invalid
     user.password_hash = hash_password(new_password)
-    row.used_at = datetime.utcnow()
-    session.add_all([user, row])
+    session.add(user)
     # Toutes les sessions ouvertes sont déconnectées.
     await session.execute(delete(RefreshToken).where(RefreshToken.user_id == user.id))
     await session.commit()

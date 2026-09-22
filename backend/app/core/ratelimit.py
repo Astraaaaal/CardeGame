@@ -72,3 +72,28 @@ def check_global_rate_limit(ip: str) -> bool:
 
 def client_ip(request: Request) -> str:
     return _client_ip(request)
+
+
+# ── Échecs de connexion par compte : ne dépend pas de l'IP (un essai de mots
+# de passe réparti sur plusieurs adresses reste plafonné pour ce compte).
+_login_failures: dict[str, list[float]] = defaultdict(list)
+LOGIN_MAX_FAILURES = 10
+LOGIN_FAILURE_WINDOW_S = 900
+
+
+def login_blocked(account: str) -> bool:
+    now = time.time()
+    _gc(_login_failures, now, LOGIN_FAILURE_WINDOW_S, "login")
+    recent = [t for t in _login_failures.get(account, []) if now - t < LOGIN_FAILURE_WINDOW_S]
+    return len(recent) >= LOGIN_MAX_FAILURES
+
+
+def record_login_failure(account: str) -> None:
+    now = time.time()
+    recent = [t for t in _login_failures.get(account, []) if now - t < LOGIN_FAILURE_WINDOW_S]
+    recent.append(now)
+    _login_failures[account] = recent
+
+
+def clear_login_failures(account: str) -> None:
+    _login_failures.pop(account, None)

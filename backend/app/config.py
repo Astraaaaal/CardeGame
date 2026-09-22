@@ -4,6 +4,10 @@ Configuration centralisée — chargée depuis les variables d'environnement.
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Valeur de développement : en production, un secret connu permettrait de
+# fabriquer des jetons de connexion pour n'importe quel compte.
+DEV_JWT_SECRET = "change-me-to-a-random-secret-key"  # noqa: S105
+
 
 class Settings(BaseSettings):
     # ── Environnement ──
@@ -13,7 +17,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://cardegame_user:password@localhost:5432/cardegame"
 
     # ── JWT ──
-    JWT_SECRET: str = "change-me-to-a-random-secret-key"
+    JWT_SECRET: str = DEV_JWT_SECRET
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
@@ -61,6 +65,11 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() == "production"
+
+    def check_production_secrets(self) -> None:
+        """Refuse de démarrer en production avec un secret JWT par défaut ou trop court."""
+        if self.is_production and (self.JWT_SECRET == DEV_JWT_SECRET or len(self.JWT_SECRET) < 32):
+            raise RuntimeError("JWT_SECRET doit être un secret aléatoire d'au moins 32 caractères en production.")
 
 
 settings = Settings()

@@ -3,6 +3,7 @@ AuthService — Gestion de l'inscription, connexion, refresh tokens.
 """
 
 from datetime import datetime
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from fastapi import HTTPException, status
@@ -11,7 +12,8 @@ from app.models.user import User
 from app.models.token import RefreshToken
 from app.models.economy import Resource, UserResource
 from app.services.wallet import COINS_ID
-from app.services import account_email
+from app.services import account_email, names
+from app.core import ratelimit
 from app.core.security import (
     hash_password,
     verify_password,
@@ -29,6 +31,7 @@ class AuthService:
     ) -> User:
         """Crée un nouveau compte."""
         username_lower = username.strip().lower()
+        names.ensure_not_reserved(username_lower)
 
         # Vérifier unicité
         result = await session.execute(
@@ -72,16 +75,28 @@ class AuthService:
         """
         Vérifie les identifiants, retourne les tokens JWT.
         """
+        # Plafond d'échecs par compte, en plus de la limite par IP de la route.
+        account_key = username.strip().lower()
+        if ratelimit.login_blocked(account_key):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Trop de tentatives sur ce compte : réessaie dans quelques minutes.",
+            )
         user = await account_email.find_user_by_identifier(session, username)
 
         if not user or not verify_password(password, user.password_hash):
+            ratelimit.record_login_failure(account_key)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Identifiants incorrects.",
             )
+        ratelimit.clear_login_failures(account_key)
 
-        # Mettre à jour last_login
+        # Mettre à jour last_login ; les sessions expirées du compte sont purgées.
         user.last_login = datetime.utcnow()
+        await session.execute(delete(RefreshToken).where(
+            RefreshToken.user_id == user.id, RefreshToken.expires_at < datetime.utcnow(),
+        ))
 
         # Générer les tokens
         access = create_access_token(user.id)
@@ -106,15 +121,10 @@ class AuthService:
         self, session: AsyncSession, refresh_token_str: str
     ) -> None:
         """Révoque un refresh token (best-effort : pas d'erreur s'il est inconnu)."""
-        result = await session.execute(
-            select(RefreshToken).where(
-                RefreshToken.token_hash == hash_token(refresh_token_str)
-            )
+        await session.execute(
+            delete(RefreshToken).where(RefreshToken.token_hash == hash_token(refresh_token_str))
         )
-        stored = result.scalar_one_or_none()
-        if stored:
-            await session.delete(stored)
-            await session.commit()
+        await session.commit()
 
     async def refresh_tokens(
         self, session: AsyncSession, refresh_token_str: str
@@ -133,23 +143,20 @@ class AuthService:
         user_id = int(payload["sub"])
         token_hash = hash_token(refresh_token_str)
 
-        # Trouver le token en BDD
-        result = await session.execute(
-            select(RefreshToken).where(
+        # Rotation : l'ancien token est supprimé en une requête atomique — deux
+        # renouvellements simultanés avec le même token n'en valident qu'un.
+        consumed = (await session.execute(
+            delete(RefreshToken).where(
                 RefreshToken.user_id == user_id,
                 RefreshToken.token_hash == token_hash,
-            )
-        )
-        stored = result.scalar_one_or_none()
+            ).returning(RefreshToken.id).execution_options(synchronize_session=False)
+        )).first()
 
-        if not stored:
+        if not consumed:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Refresh token inconnu ou déjà utilisé.",
             )
-
-        # Supprimer l'ancien (rotation)
-        await session.delete(stored)
 
         # Émettre de nouveaux tokens
         new_access = create_access_token(user_id)

@@ -51,7 +51,7 @@ class SendGiftBody(BaseModel):
     item_type: str = Field(pattern="^(card|resource|booster|reroll)$")
     user_card_id: str | None = None
     resource_id: str | None = None
-    amount: int | None = None
+    amount: int | None = Field(default=None, ge=1, le=1_000_000_000)
     booster_id: str | None = None
     bonus_id: int | None = None  # booster à bonus (cf. UserBonusBooster)
     reroll_token_id: int | None = None

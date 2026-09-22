@@ -51,8 +51,8 @@ class AddCardItemBody(BaseModel):
 
 
 class AddResourceItemBody(BaseModel):
-    resource_id: str
-    amount: int
+    resource_id: str = Field(max_length=30)
+    amount: int = Field(ge=1, le=1_000_000_000)
 
 
 class SetReadyBody(BaseModel):
@@ -62,9 +62,9 @@ class SetReadyBody(BaseModel):
 class AddBoosterItemBody(BaseModel):
     booster_id: str
     bonus_id: int | None = None
-    amount: int = Field(ge=1)
+    amount: int = Field(ge=1, le=100_000)
 
 
 class AddRerollItemBody(BaseModel):
     reroll_token_id: int
-    amount: int = Field(ge=1)
+    amount: int = Field(ge=1, le=100_000)

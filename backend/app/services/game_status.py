@@ -10,7 +10,7 @@ import time
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
+from app.core.security import is_admin_key
 from app.models.game_config import GameConfig
 
 DEFAULT_CLOSED_MESSAGE = (
@@ -36,10 +36,6 @@ async def get_status(session: AsyncSession) -> dict:
     }
     _cache.update(at=time.monotonic(), value=value)
     return value
-
-
-def is_admin_key(key: str) -> bool:
-    return bool(settings.ADMIN_KEY) and key == settings.ADMIN_KEY
 
 
 async def ensure_open(session: AsyncSession, admin_key: str = "") -> None:

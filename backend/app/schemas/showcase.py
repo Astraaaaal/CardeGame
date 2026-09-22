@@ -66,7 +66,7 @@ class UpdateShowcaseRequest(BaseModel):
 class TradeListingSlotIn(BaseModel):
     user_card_id: str
     resource_id: str
-    price: int = Field(ge=0)
+    price: int = Field(ge=0, le=1_000_000_000)
     mode: Literal["buy_now", "offer"]
 
 

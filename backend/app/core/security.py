@@ -3,10 +3,12 @@ Sécurité — Hashing bcrypt + JWT.
 """
 
 import hashlib
+import hmac
+import secrets
 from datetime import datetime, timedelta
 
 import bcrypt
-from jose import jwt, JWTError
+import jwt
 from app.config import settings
 
 
@@ -33,6 +35,18 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 
+# ── Clés partagées ──
+
+def same_secret(given: str, expected: str) -> bool:
+    """Comparaison en temps constant (ne révèle rien par le temps de réponse)."""
+    return hmac.compare_digest(given.encode(), expected.encode())
+
+
+def is_admin_key(key: str) -> bool:
+    """Clé admin valide. Aucune ne l'est si ADMIN_KEY est vide."""
+    return bool(settings.ADMIN_KEY) and same_secret(key, settings.ADMIN_KEY)
+
+
 # ── JWT ──
 
 def create_access_token(user_id: int) -> str:
@@ -44,6 +58,7 @@ def create_access_token(user_id: int) -> str:
         "sub": str(user_id),
         "exp": expire,
         "type": "access",
+        "jti": secrets.token_urlsafe(12),
     }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
@@ -53,10 +68,13 @@ def create_refresh_token(user_id: int) -> str:
     expire = datetime.utcnow() + timedelta(
         days=settings.REFRESH_TOKEN_EXPIRE_DAYS
     )
+    # jti aléatoire : deux jetons émis dans la même seconde restent différents
+    # (sinon la rotation redonnait le même jeton, toujours valide).
     payload = {
         "sub": str(user_id),
         "exp": expire,
         "type": "refresh",
+        "jti": secrets.token_urlsafe(12),
     }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
@@ -70,7 +88,7 @@ def decode_token(token: str) -> dict | None:
             algorithms=[settings.JWT_ALGORITHM],
         )
         return payload
-    except JWTError:
+    except jwt.PyJWTError:
         return None
 
 

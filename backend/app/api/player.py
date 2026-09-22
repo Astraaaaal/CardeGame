@@ -30,7 +30,7 @@ from app.services.account import delete_account
 from app.services.player_stats import build_player_stats
 from app.services.ranking import refresh_all_best_ranks
 from app.services.premium import ensure_tradeable
-from app.services import account_email
+from app.services import account_email, names
 from app.services import unlocks
 
 router = APIRouter()
@@ -98,7 +98,7 @@ async def update_profile(
     session: AsyncSession = Depends(get_session),
 ):
     """Modifie le profil du joueur (pour l'instant : le nom affiché)."""
-    user.display_name = body.display_name.strip()
+    user.display_name = names.clean_display_name(body.display_name)
     session.add(user)
     await session.commit()
     return await _profile_response(session, user)
@@ -206,7 +206,7 @@ async def update_showcase(
     user.avatar_character_id = body.avatar_character_id
 
     slot_fields = ["showcase_card_1_id", "showcase_card_2_id", "showcase_card_3_id"]
-    for field, card_id in zip(slot_fields, body.card_slots):
+    for field, card_id in zip(slot_fields, body.card_slots, strict=True):
         if card_id:
             card = await session.get(UserCard, card_id)
             if not card or card.user_id != user.id:
@@ -216,7 +216,7 @@ async def update_showcase(
     chosen = [a for a in body.achievement_slots if a]
     if len(set(chosen)) != len(chosen):
         raise HTTPException(400, "Un même achievement est affiché plusieurs fois.")
-    for field, achievement_id in zip(ACHIEVEMENT_SLOT_FIELDS, body.achievement_slots):
+    for field, achievement_id in zip(ACHIEVEMENT_SLOT_FIELDS, body.achievement_slots, strict=True):
         if achievement_id and not await session.get(UserAchievement, (user.id, achievement_id)):
             raise HTTPException(400, "Tu n'as pas encore débloqué cet achievement.")
         setattr(user, field, achievement_id)

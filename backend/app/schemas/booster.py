@@ -28,7 +28,7 @@ class PackOpenRequest(BaseModel):
 
 class OpenOwnedRequest(BaseModel):
     booster_id: str
-    quantity: int = 1
+    quantity: int = Field(default=1, ge=1, le=100_000)
     bonus_id: int | None = None  # booster à bonus (cf. UserBonusBooster)
 
 

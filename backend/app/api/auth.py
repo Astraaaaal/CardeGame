@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_session
 from app.core.ratelimit import rate_limit
+from app.core.security import same_secret
 from app.schemas.auth import (
     RegisterRequest,
     LoginRequest,
@@ -28,6 +29,8 @@ router = APIRouter()
 async def public_status(session: AsyncSession = Depends(get_session)):
     """État public du jeu (fermé ou non, message affiché sur la page de connexion)."""
     return await game_status.get_status(session)
+
+
 auth_service = AuthService()
 
 
@@ -43,7 +46,7 @@ async def register(
 ):
     """Inscription d'un nouveau joueur."""
     await game_status.ensure_open(session, x_admin_key)
-    if settings.BETA_INVITE_CODE and request.invite_code.strip() != settings.BETA_INVITE_CODE:
+    if settings.BETA_INVITE_CODE and not same_secret(request.invite_code.strip(), settings.BETA_INVITE_CODE):
         raise HTTPException(status_code=403, detail="Code d'invitation invalide.")
     user = await auth_service.register(
         session, request.username, request.password, request.email, request.newsletter,

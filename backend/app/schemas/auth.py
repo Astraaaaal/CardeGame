@@ -16,8 +16,8 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    username: str  # pseudo OU adresse e-mail
-    password: str
+    username: str = Field(max_length=254)  # pseudo OU adresse e-mail
+    password: str = Field(max_length=200)
 
 
 class VerifyEmailRequest(BaseModel):
@@ -36,7 +36,7 @@ class PasswordResetConfirm(BaseModel):
 
 class ChangeEmailRequest(BaseModel):
     email: str = Field(min_length=3, max_length=254)
-    password: str
+    password: str = Field(max_length=200)
 
 
 class NewsletterRequest(BaseModel):
@@ -50,7 +50,7 @@ class TokenResponse(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str = Field(max_length=2000)
 
 
 class MessageResponse(BaseModel):
@@ -58,9 +58,9 @@ class MessageResponse(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str
+    current_password: str = Field(max_length=200)
     new_password: str = Field(min_length=4, max_length=100)
 
 
 class DeleteAccountRequest(BaseModel):
-    password: str
+    password: str = Field(max_length=200)
