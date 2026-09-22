@@ -62,6 +62,11 @@ const FIELDS: { section: Section; title: string; fields: [string, string, number
     { section: "ranking", title: "Classement", fields: [
         ["min_players", "Joueurs classés minimum pour retenir les rangs (succès « top N »)", 1],
     ] },
+    { section: "prestige", title: "Prestige (niveaux après la route)", fields: [
+        ["power_growth", "Puissance en plus par niveau (0,25 = +25 %)", 0.05],
+        ["reward_growth", "Récompense en plus par prestige (0,1 = +10 %)", 0.05],
+        ["bonus_amount", "Bonus : quantité", 1],
+    ] },
     { section: "converter", title: "Convertisseur", fields: [
         ["daily_uses", "Conversions par jour", 1],
     ] },

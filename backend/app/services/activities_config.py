@@ -101,6 +101,10 @@ DEFAULTS: dict = {
     # Classement : le meilleur rang (et les succès « top N ») n'est retenu qu'à
     # partir de ce nombre de joueurs classés — sinon être premier serait automatique.
     "ranking": {"min_players": 10},
+    # Prestige : niveaux au-delà de la route. Chacun demande power_growth de
+    # puissance en plus du précédent et rapporte la récompense du dernier palier
+    # majorée de reward_growth par prestige, plus un bonus.
+    "prestige": {"power_growth": 0.25, "reward_growth": 0.10, "bonus_resource_id": "frag_legendary", "bonus_amount": 1},
     # Taxe sur les transferts entre joueurs (cf. services/trade_tax.py).
     "trade_tax": {
         "base_rate": 0.05, "per_level": 0.01, "max_rate": 0.25,

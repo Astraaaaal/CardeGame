@@ -65,7 +65,7 @@ export default function TrophyRoad() {
                             animate={flying ? { scale: [1, 1.5, 1], boxShadow: ["0 0 0px #fbbf24", "0 0 24px #fbbf24", "0 0 0px #fbbf24"] } : undefined}
                             transition={{ duration: 0.8 }}
                         >
-                            {t.level}
+                            {t.prestige ? `P${t.prestige}` : t.level}
                         </motion.div>
                         <div
                             className={`relative ml-3 rounded-xl border px-3 py-2 space-y-1
@@ -74,7 +74,7 @@ export default function TrophyRoad() {
                             <div className="flex items-center justify-between gap-2">
                                 <div>
                                     <p className={`text-sm font-semibold ${state === "locked" ? "text-white/40" : "text-white"}`}>
-                                        Niveau {t.level}
+                                        {t.prestige ? <span className="text-gold">Prestige {t.prestige}</span> : `Niveau ${t.level}`}
                                     </p>
                                     <p className="text-white/30 text-[11px]">
                                         {t.power_required.toLocaleString("fr-FR")} puissance
@@ -89,6 +89,13 @@ export default function TrophyRoad() {
                                     )}
                                     {t.reward_booster_id && (
                                         <span className={state === "locked" ? "text-white/30" : "text-white/70"}>booster</span>
+                                    )}
+                                    {t.bonus_amount != null && t.bonus_resource_id && (
+                                        <span className={`flex items-center gap-1 ${state === "locked" ? "text-white/30" : "text-white/70"}`}
+                                            title={t.bonus_resource_name ?? undefined}>
+                                            <ResourceIcon resourceId={t.bonus_resource_id} className="w-3.5 h-3.5" />
+                                            {t.bonus_amount}
+                                        </span>
                                     )}
                                 </div>
                             </div>

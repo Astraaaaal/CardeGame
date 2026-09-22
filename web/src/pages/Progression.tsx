@@ -30,8 +30,13 @@ function RoadTab() {
         mutationFn: (_pending: PendingLevelReward[]) => progressionApi.claimLevel(),
         onSuccess: (status, pending) => {
             showRewards({
-                title: pending.length > 1 ? "Récompenses de niveau" : `Niveau ${pending[0]?.level}`,
-                items: pending.flatMap((r) => rewardItems(r)),
+                title: pending.length > 1 ? "Récompenses de niveau"
+                    : pending[0]?.prestige ? `Prestige ${pending[0].prestige}` : `Niveau ${pending[0]?.level}`,
+                items: pending.flatMap((r) => [
+                    ...rewardItems(r),
+                    ...(r.bonus_resource_id && r.bonus_amount
+                        ? [{ kind: "resource" as const, resourceId: r.bonus_resource_id, amount: r.bonus_amount }] : []),
+                ]),
             });
             qc.setQueryData(["level-status"], status);
             qc.invalidateQueries({ queryKey: ["player"] });
@@ -50,7 +55,7 @@ function RoadTab() {
                     <div className="space-y-1.5 mb-3">
                         {data.pending_rewards.map((r) => (
                             <div key={r.level} className="flex items-center gap-2 text-sm text-white/80">
-                                <span className="text-accent font-semibold">Niv. {r.level}</span>
+                                <span className="text-accent font-semibold">{r.prestige ? `Prestige ${r.prestige}` : `Niv. ${r.level}`}</span>
                                 {r.reward_amount != null && r.reward_resource_id && (
                                     <span className="flex items-center gap-1">
                                         <ResourceIcon resourceId={r.reward_resource_id} className="w-4 h-4" />
@@ -58,6 +63,12 @@ function RoadTab() {
                                     </span>
                                 )}
                                 {r.reward_booster_id && <span>{r.reward_booster_name}</span>}
+                                {r.bonus_amount != null && r.bonus_resource_id && (
+                                    <span className="flex items-center gap-1">
+                                        <ResourceIcon resourceId={r.bonus_resource_id} className="w-4 h-4" />
+                                        {r.bonus_amount}
+                                    </span>
+                                )}
                             </div>
                         ))}
                     </div>

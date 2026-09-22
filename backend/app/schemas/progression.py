@@ -12,10 +12,15 @@ class PendingLevelReward(BaseModel):
     reward_amount: int | None = None
     reward_booster_id: str | None = None
     reward_booster_name: str | None = None
+    # Niveaux de prestige (au-delà de la route) : numéro et bonus.
+    prestige: int = 0
+    bonus_resource_id: str | None = None
+    bonus_amount: int | None = None
 
 
 class LevelStatus(BaseModel):
     current_level: int
+    prestige: int = 0  # 0 tant que la route n'est pas terminée
     total_power: int
     claimed_level: int
     next_level_power_required: int | None = None
@@ -33,6 +38,10 @@ class LevelTierOut(BaseModel):
     reward_amount: int | None = None
     reward_booster_id: str | None = None
     reward_booster_name: str | None = None
+    prestige: int = 0
+    bonus_resource_id: str | None = None
+    bonus_resource_name: str | None = None
+    bonus_amount: int | None = None
     reached: bool = False
     claimed: bool = False
 

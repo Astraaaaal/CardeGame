@@ -205,6 +205,7 @@ export interface ActivitiesConfig {
         pairs: { from: string; to: string; give: number; get: number; max_in: number }[];
     };
     ranking: { min_players: number };
+    prestige: { power_growth: number; reward_growth: number; bonus_resource_id: string; bonus_amount: number };
     recycling: {
         dust_by_rarity: Record<string, [number, number]>;
         rarity: Record<string, string>; jewelry: Record<string, string>;

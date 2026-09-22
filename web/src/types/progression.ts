@@ -4,10 +4,15 @@ export interface PendingLevelReward {
     reward_amount: number | null;
     reward_booster_id: string | null;
     reward_booster_name: string | null;
+    /** Niveau de prestige (0 = route normale) et son bonus. */
+    prestige: number;
+    bonus_resource_id: string | null;
+    bonus_amount: number | null;
 }
 
 export interface LevelStatus {
     current_level: number;
+    prestige: number;
     total_power: number;
     claimed_level: number;
     next_level_power_required: number | null;
@@ -23,6 +28,10 @@ export interface LevelTierOverview {
     reward_amount: number | null;
     reward_booster_id: string | null;
     reward_booster_name: string | null;
+    prestige: number;
+    bonus_resource_id: string | null;
+    bonus_resource_name: string | null;
+    bonus_amount: number | null;
     reached: boolean;
     claimed: boolean;
 }
