@@ -1,6 +1,8 @@
 # Versions exactes, identiques à l'environnement de test : une mise à jour
 # automatique au déploiement a déjà cassé la production (sqlmodel 0.0.46 refuse
 # les dates sans fuseau horaire). Monter une version = la tester en local d'abord.
+# Dépendances indirectes figées dans constraints.txt.
+-c constraints.txt
 fastapi==0.141.1
 starlette==1.6.0
 uvicorn[standard]==0.52.4
