@@ -42,6 +42,14 @@ def normalize_email(raw: str) -> str:
     return email
 
 
+def require_verified_email(user: User) -> None:
+    """Cadeaux, échanges et annonces : adresse e-mail confirmée obligatoire (une
+    adresse = un compte), pour qu'on ne puisse pas créer des comptes jetables et
+    en transférer le contenu vers son compte principal."""
+    if not user.email_verified_at:
+        raise HTTPException(403, "Confirme ton adresse e-mail (Réglages) pour envoyer des cadeaux, échanger ou vendre.")
+
+
 async def ensure_email_available(session: AsyncSession, email: str, exclude_user_id: int | None = None) -> None:
     query = select(User.id).where(User.email == email)
     if exclude_user_id is not None:

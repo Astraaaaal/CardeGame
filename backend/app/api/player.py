@@ -239,6 +239,8 @@ async def update_trade_listings(
     une demande d'échange). Remplace entièrement la configuration précédente.
     """
     await unlocks.require(session, user, "listings")
+    if any(body.slots):
+        account_email.require_verified_email(user)
     for slot, slot_in in enumerate(body.slots):
         existing = await session.get(TradeListing, (user.id, slot))
         if slot_in is None:

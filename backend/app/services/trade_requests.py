@@ -19,12 +19,13 @@ from app.models.trade_session import TradeSession
 from app.schemas.social import TradeRequestOut, TradePulseOut
 from app.services.trade_policy import can_send_trade_request
 from app.services.trade_session import create_session, get_active_session_for
-from app.services import unlocks
+from app.services import account_email, unlocks
 
 
 async def create_trade_request(session: AsyncSession, requester: User, target: User) -> TradeRequest:
     if requester.id == target.id:
         raise HTTPException(400, "Tu ne peux pas te proposer un échange à toi-même.")
+    account_email.require_verified_email(requester)
     if await get_active_session_for(session, requester.id):
         raise HTTPException(409, "Tu as déjà un échange en cours.")
     if not await can_send_trade_request(session, requester.id, target):
@@ -54,6 +55,7 @@ async def accept_trade_request(session: AsyncSession, request_id: int, user_id: 
     req = await session.get(TradeRequest, request_id)
     if not req or req.status != "pending" or req.addressee_id != user_id:
         raise HTTPException(404, "Demande introuvable.")
+    account_email.require_verified_email(await session.get(User, user_id))
 
     participants = [req.requester_id, req.addressee_id]
     trade = await create_session(session, *participants)

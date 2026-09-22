@@ -21,7 +21,7 @@ from app.services.gift_policy import can_send_gift
 from app.services import quest_progress
 from app.services import booster_inventory, expeditions, message_rewards, reroll_inventory
 from app.services.premium import ensure_tradeable
-from app.services import favorites
+from app.services import account_email, favorites
 from app.services import trade_tax
 from app.services.wallet import require_balance
 
@@ -177,6 +177,7 @@ async def send_gift(
 ) -> Message:
     if item_type not in ("card", "resource", "booster", "reroll"):
         raise HTTPException(400, "Type de cadeau invalide.")
+    account_email.require_verified_email(sender)
 
     target = (await session.execute(
         select(User).where(User.username == target_username.strip().lower())

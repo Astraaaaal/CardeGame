@@ -13,7 +13,7 @@ from app.database import get_session
 from app.core.dependencies import get_current_user
 from app.core.ratelimit import rate_limit
 from app.models.user import User
-from app.services import expeditions
+from app.services import account_email, expeditions
 from app.models.card import UserCard
 from app.models.social import TradeListing
 from app.schemas.showcase import ShowcaseResponse
@@ -58,6 +58,7 @@ async def buy_trade_listing(
     de la ressource (vendeur <- acheteur) et de la carte (vendeur -> acheteur).
     """
     await unlocks.require(session, buyer, "listings")
+    account_email.require_verified_email(buyer)
     if buyer.id == user_id:
         raise HTTPException(400, "Tu ne peux pas acheter ta propre carte.")
 
