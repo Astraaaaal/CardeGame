@@ -15,6 +15,7 @@ from app.models.booster import Booster, BoosterSet
 from app.models.reference import Set
 from app.models.economy import Resource
 from app.services.card_generator import CardGeneratorService
+from app.services.card_view import card_image
 from app.services.card_renderer import CardRendererService
 from app.services.wallet import get_balance, apply_delta
 from app.services.power import roll_drawn_power, combined_rarity
@@ -125,7 +126,7 @@ class PackService:
                     character_type=char.get("type", ""),
                     character_description=char.get("description", ""),
                     gen=char.get("gen", 1),
-                    image_url=char.get("image_url", ""),
+                    image_url=card_image(char, card_data["specialty_id"]),
                     set_id=card_data["set_id"],
                     set_name=set_info.name if set_info else card_data["set_id"],
                     rarity_id=rarity.id if rarity else "",

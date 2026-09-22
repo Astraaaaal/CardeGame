@@ -98,6 +98,9 @@ export interface AdminCharacter {
     type: string;
     gen: number;
     image_url: string;
+    /** Full art possible (sinon un tirage full art donne une carte sans spécialité). */
+    full_art: boolean;
+    full_art_image_url: string;
     sets: CharacterSetLink[];
 }
 

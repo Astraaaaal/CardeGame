@@ -211,7 +211,7 @@ async def _char_out(session: AsyncSession, c: Character) -> CharacterOut:
     )).scalars().all()
     return CharacterOut(
         id=c.id, name=c.name, description=c.description, type=c.type,
-        gen=c.gen, image_url=c.image_url,
+        gen=c.gen, image_url=c.image_url, full_art=c.full_art, full_art_image_url=c.full_art_image_url,
         sets=[CharacterSetLink(set_id=l.set_id, weight=l.weight) for l in links],
     )
 
@@ -244,6 +244,7 @@ async def create_character(
     c = Character(
         id=body.id, name=body.name, description=body.description,
         type=body.type, gen=body.gen, image_url=body.image_url,
+        full_art=body.full_art, full_art_image_url=body.full_art_image_url,
     )
     session.add(c)
     await _set_links(session, body.id, body.sets)

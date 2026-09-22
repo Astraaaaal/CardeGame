@@ -14,6 +14,10 @@ class Character(SQLModel, table=True):
     type: str = Field(max_length=30)
     gen: int = Field(default=1)
     image_url: str = Field(default="")
+    # Full art possible seulement si coché (une illustration dédiée par personnage) ;
+    # sinon un tirage « full art » donne une carte sans spécialité.
+    full_art: bool = Field(default=False)
+    full_art_image_url: str = Field(default="", max_length=300)
 
 
 class CharacterSet(SQLModel, table=True):

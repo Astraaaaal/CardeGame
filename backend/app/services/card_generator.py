@@ -13,6 +13,14 @@ from app.models.character import Character, CharacterSet
 from app.services.tier_order import rank
 
 
+def merge_full_art(specialties, weights: list[float]) -> list[float]:
+    """Poids des spécialités pour un personnage SANS full art : la part du full
+    art s'ajoute à « normale » (tirer full art = carte sans spécialité)."""
+    full_art = sum(w for sp, w in zip(specialties, weights, strict=True) if sp.id == "full_art")
+    return [0.0 if sp.id == "full_art" else w + (full_art if sp.id == "normal" else 0)
+            for sp, w in zip(specialties, weights, strict=True)]
+
+
 class CardGeneratorService:
     """Génère des cartes avec tirage aléatoire pondéré (côté serveur = anti-triche)."""
 
@@ -103,13 +111,23 @@ class CardGeneratorService:
         def boosted(items, multiplier, better):
             return [i.weight * (multiplier if multiplier and better(i) else 1) for i in items]
 
+        def base_weights(items):
+            return [i.weight for i in items]
+
+        # Personnage sans version full art : un tirage « full art » donne une
+        # carte sans spécialité (sa part du tirage revient à « normale »).
+        specialty_weights = boosted(specialties, specialty_weight_multiplier, lambda sp: sp.id != "normal")
+        specialty_base = base_weights(specialties)
+        if not character.get("full_art"):
+            specialty_weights = merge_full_art(specialties, specialty_weights)
+            specialty_base = merge_full_art(specialties, specialty_base)
+
         axes = [
             ("rarity", rarities, min_rarity_id,
              boosted(rarities, rarity_weight_multiplier, lambda r: r.id != "common")),
             ("quality", qualities, min_quality_id,
              boosted(qualities, quality_weight_multiplier, lambda q: rank("quality", q.id) >= rank("quality", "preserved"))),
-            ("specialty", specialties, None,
-             boosted(specialties, specialty_weight_multiplier, lambda sp: sp.id != "normal")),
+            ("specialty", specialties, None, specialty_weights),
             ("jewelry", jewelries, min_jewelry_id,
              boosted(jewelries, jewelry_weight_multiplier, lambda j: j.id != "none")),
         ]
@@ -130,7 +148,8 @@ class CardGeneratorService:
         drop_prob = char_prob(same_set)
         for axis, items, min_id, weights in axes:
             draw_prob *= self._axis_factor(items, weights, axis, picked[axis], min_id)
-            drop_prob *= self._axis_factor(items, [i.weight for i in items], axis, picked[axis], min_id)
+            base = specialty_base if axis == "specialty" else base_weights(items)
+            drop_prob *= self._axis_factor(items, base, axis, picked[axis], min_id)
 
         return {
             "character_id": character["id"],
@@ -173,6 +192,8 @@ class CardGeneratorService:
                 "type": char.type,
                 "gen": char.gen,
                 "image_url": char.image_url,
+                "full_art": char.full_art,
+                "full_art_image_url": char.full_art_image_url,
                 "weight": weight,
                 "set_id": set_id,
             })

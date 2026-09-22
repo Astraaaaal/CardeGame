@@ -84,6 +84,8 @@ class CharacterIn(BaseModel):
     type: str = Field(default="Normal", max_length=30)
     gen: int = Field(default=1, ge=1, le=99)
     image_url: str = Field(default="", max_length=300)
+    full_art: bool = False
+    full_art_image_url: str = Field(default="", max_length=300)
     sets: list[CharacterSetLink] = []
 
 
@@ -93,6 +95,8 @@ class CharacterPatch(BaseModel):
     type: str | None = Field(default=None, max_length=30)
     gen: int | None = Field(default=None, ge=1, le=99)
     image_url: str | None = Field(default=None, max_length=300)
+    full_art: bool | None = None
+    full_art_image_url: str | None = Field(default=None, max_length=300)
     sets: list[CharacterSetLink] | None = None  # si fourni, remplace tous les liens
 
 
@@ -103,6 +107,8 @@ class CharacterOut(BaseModel):
     type: str
     gen: int
     image_url: str
+    full_art: bool = False
+    full_art_image_url: str = ""
     sets: list[CharacterSetLink] = []
 
 

@@ -13,6 +13,17 @@ from app.schemas.card import CardResponse
 from app.services.power import combined_rarity
 
 
+def card_image(char, specialty_id: str) -> str:
+    """Illustration de la carte : la version full art si la carte l'est et que le
+    personnage en a une (objet Character ou dict du générateur)."""
+    if not char:
+        return ""
+    get = char.get if isinstance(char, dict) else (lambda k, d=None: getattr(char, k, d))
+    if specialty_id == "full_art" and get("full_art_image_url"):
+        return get("full_art_image_url")
+    return get("image_url") or ""
+
+
 async def build_card_response(session: AsyncSession, card: UserCard) -> CardResponse:
     char = await session.get(Character, card.character_id)
     set_info = await session.get(Set, card.set_id)
@@ -29,7 +40,7 @@ async def build_card_response(session: AsyncSession, card: UserCard) -> CardResp
         character_type=char.type if char else "",
         character_description=char.description if char else "",
         gen=char.gen if char else 1,
-        image_url=char.image_url if char else "",
+        image_url=card_image(char, card.specialty_id),
         set_id=card.set_id,
         set_name=set_info.name if set_info else card.set_id,
         rarity_id=card.rarity_id,

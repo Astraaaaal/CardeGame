@@ -263,7 +263,7 @@ function CharacterForm({
     const isNew = !initial;
     const { data: types } = useTypes();
     const [f, setF] = useState<AdminCharacter>(
-        initial ?? { id: "", name: "", description: "", type: "Normal", gen: 1, image_url: "", sets: [] }
+        initial ?? { id: "", name: "", description: "", type: "Normal", gen: 1, image_url: "", full_art: false, full_art_image_url: "", sets: [] }
     );
     const [err, setErr] = useState("");
     const m = useMutation({
@@ -316,6 +316,19 @@ function CharacterForm({
                 <input className={inputCls} value={f.image_url}
                     placeholder="mon-perso.png"
                     onChange={(e) => setF({ ...f, image_url: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+                <label className="flex items-center gap-2 text-white/80 text-sm">
+                    <input type="checkbox" checked={f.full_art} onChange={(e) => setF({ ...f, full_art: e.target.checked })} />
+                    Peut être full art
+                </label>
+                <p className="text-white/40 text-[11px]">
+                    Sinon, un tirage « full art » de ce personnage donne une carte sans spécialité.
+                </p>
+                {f.full_art && (
+                    <input className={inputCls} value={f.full_art_image_url} placeholder="Image full art : mon-perso-full.png"
+                        onChange={(e) => setF({ ...f, full_art_image_url: e.target.value })} />
+                )}
             </div>
             <div>
                 <label className={labelCls}>Description</label>

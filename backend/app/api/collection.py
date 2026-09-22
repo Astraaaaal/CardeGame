@@ -24,7 +24,7 @@ from app.models.economy import Resource
 from app.schemas.card import CardResponse, CardGroupResponse, CardCopyOut, CardCopiesResponse
 from app.schemas.collection import CollectionResponse, ProbabilityItem, ProbabilityTableResponse
 from app.schemas.economy import RecycleByIdsRequest, RecycleByIdsResponse, RecycleGainOut, RecyclePreviewResponse
-from app.services.card_view import build_card_response
+from app.services.card_view import build_card_response, card_image
 from app.services.power import combined_rarity
 from app.services import activities_config, expeditions, quest_progress, recycling
 from app.services.resource_catalog import NEW_RESOURCES
@@ -176,7 +176,7 @@ async def get_collection(
                     character_type=char.type if char else "",
                     character_description=char.description if char else "",
                     gen=char.gen if char else 1,
-                    image_url=char.image_url if char else "",
+                    image_url=card_image(char, card.specialty_id),
                     set_id=card.set_id,
                     set_name=set_info.name if set_info else card.set_id,
                     rarity_id=card.rarity_id,

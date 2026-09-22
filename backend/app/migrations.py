@@ -33,6 +33,8 @@ _STATEMENTS = [
     "ALTER TABLE jewelries ADD COLUMN IF NOT EXISTS recycle_value INTEGER NOT NULL DEFAULT 0",
     # recycle_value n'est plus utilisé (recyclage : réglages « recycling ») ; la
     # colonne reste, avec une valeur par défaut pour les insertions qui l'ignorent.
+    "ALTER TABLE characters ADD COLUMN IF NOT EXISTS full_art BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE characters ADD COLUMN IF NOT EXISTS full_art_image_url VARCHAR(300) NOT NULL DEFAULT ''",
     "ALTER TABLE rarities ALTER COLUMN recycle_value SET DEFAULT 0",
     "ALTER TABLE qualities ALTER COLUMN recycle_value SET DEFAULT 0",
     "ALTER TABLE specialties ALTER COLUMN recycle_value SET DEFAULT 0",
@@ -557,6 +559,7 @@ async def _normalize_card_powers(conn: AsyncConnection) -> None:
     axis = {t: weights(t) for t in rows}
     totals = {t: sum(w.values()) for t, w in axis.items()}
     links = (await conn.execute(text("SELECT set_id, character_id, weight FROM character_sets"))).all()
+    full_art_chars = {r.id for r in (await conn.execute(text("SELECT id FROM characters WHERE full_art"))).all()}
     link_weight = {(l.set_id, l.character_id): l.weight for l in links}
     set_totals: dict[str, float] = {}
     for l in links:
@@ -575,8 +578,11 @@ async def _normalize_card_powers(conn: AsyncConnection) -> None:
     for c in cards:
         total = set_totals.get(c.set_id, 0)
         char = (link_weight.get((c.set_id, c.character_id), 0) / total) if total else 0.0
+        specialty = frac("specialties", c.specialty_id)
+        if c.specialty_id == "normal" and c.character_id not in full_art_chars:
+            specialty += frac("specialties", "full_art")
         base = (char * frac("rarities", c.rarity_id) * frac("qualities", c.quality_id)
-                * frac("specialties", c.specialty_id) * frac("jewelries", c.jewelry_id))
+                * specialty * frac("jewelries", c.jewelry_id))
         if base <= 0:
             continue  # référentiel incomplet : on ne touche pas à la carte
         n = power_range(base, c.rarity_id, c.quality_id, c.specialty_id, c.jewelry_id)

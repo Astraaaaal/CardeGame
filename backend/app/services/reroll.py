@@ -11,9 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.models.card import UserCard
-from app.models.character import CharacterSet
+from app.models.character import Character, CharacterSet
 from app.models.reference import Rarity, Quality, Specialty, Jewelry
 from app.services.power import power_range, roll_power
+from app.services.card_generator import merge_full_art
 from app.services.tier_order import rank
 
 REROLL_MODELS = {
@@ -47,11 +48,15 @@ async def _recompute_probability(session: AsyncSession, card: UserCard) -> float
         item = next((r for r in rows if r.id == id_), None)
         return (item.weight / total) if (item and total) else 0.0
 
+    specialty = await frac(Specialty, card.specialty_id)
+    character = await session.get(Character, card.character_id)
+    if card.specialty_id == "normal" and not (character and character.full_art):
+        specialty += await frac(Specialty, "full_art")  # sans full art, sa part revient à « normale »
     combined = (
         char_prob
         * await frac(Rarity, card.rarity_id)
         * await frac(Quality, card.quality_id)
-        * await frac(Specialty, card.specialty_id)
+        * specialty
         * await frac(Jewelry, card.jewelry_id)
     )
     # Pas d'arrondi : les combinaisons ultra-rares descendent sous 1e-12 et
@@ -71,6 +76,10 @@ async def apply_reroll(session: AsyncSession, card: UserCard, rules) -> None:
         # Bonus de la machine : chances multipliées pour les paliers meilleurs que l'actuel.
         boost = getattr(rules, "reroll_boost", None)
         weights = [i.weight * (boost if boost and rank(axis, i.id) > current_rank else 1) for i in items]
+        if axis == "specialty":
+            char = await session.get(Character, card.character_id)
+            if not (char and char.full_art):
+                weights = merge_full_art(items, weights)  # pas de full art pour ce personnage
         picked = random.choices(items, weights=weights, k=1)[0]
         # « Garanti égal ou mieux » : tirage normal ; s'il est moins bien, la carte
         # garde son palier actuel (les paliers supérieurs restent à leur chance de base).
