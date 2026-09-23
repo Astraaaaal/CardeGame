@@ -14,7 +14,7 @@ from app.core.security import is_admin_key
 from app.models.game_config import GameConfig
 
 DEFAULT_CLOSED_MESSAGE = (
-    "La bêta 2.0 ouvre mercredi 23 septembre à 16 h. "
+    "La bêta 2.0 ouvre mercredi 23 septembre à 17 h. "
     "Les comptes repartent de zéro, mais personne ne repart les mains vides : "
     "celles et ceux qui ont joué à la première bêta retrouveront un cadeau en arrivant. "
     "À tout à l'heure !"
