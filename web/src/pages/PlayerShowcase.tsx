@@ -10,6 +10,8 @@ import CardImage from "@/components/card/CardImage";
 import CardDetail from "@/components/card/CardDetail";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Button from "@/components/ui/Button";
+import StatTile from "@/components/player/StatTile";
+import StreakFlame from "@/components/player/StreakFlame";
 import BottomNav from "@/components/layout/BottomNav";
 import { errMsg } from "@/utils/errors";
 import type { Card } from "@/types/card";
@@ -106,23 +108,17 @@ export default function PlayerShowcase() {
                                     {data.monthly_badge}
                                 </p>
                             )}
-                            <div className="grid grid-cols-2 gap-2 w-full mt-2">
-                                {[
-                                    { label: "Niveau", value: String(data.level), detail: null },
-                                    { label: "Puissance", value: `⚡ ${data.total_power.toLocaleString("fr-FR")}`, detail: null },
-                                    { label: "Meilleure série", value: `${data.best_login_streak} j`, detail: null },
-                                    {
-                                        label: "Rang",
-                                        value: data.current_global_rank ? `#${data.current_global_rank}` : "—",
-                                        detail: data.best_global_rank ? `meilleur #${data.best_global_rank}` : null,
-                                    },
-                                ].map((stat) => (
-                                    <div key={stat.label} className="bg-game-surface border border-white/10 rounded-xl px-2 py-2 text-center">
-                                        <p className="text-accent font-extrabold text-lg leading-tight">{stat.value}</p>
-                                        <p className="text-white/40 text-[10px] uppercase tracking-wide">{stat.label}</p>
-                                        {stat.detail && <p className="text-gold text-[10px] mt-0.5">{stat.detail}</p>}
-                                    </div>
-                                ))}
+                            <div className="grid grid-cols-2 gap-2 w-full mt-3">
+                                <StatTile label="Niveau" value={data.level} accent />
+                                <StatTile label="Puissance" value={data.total_power.toLocaleString("fr-FR")}
+                                    icon={<span className="text-gold text-base leading-none">⚡</span>} />
+                                <StatTile label="Meilleure série" value={`${data.best_login_streak} j`}
+                                    icon={<StreakFlame streak={data.best_login_streak} size={16} animateOnMount={false} />} />
+                                <StatTile
+                                    label="Rang"
+                                    value={data.current_global_rank ? `#${data.current_global_rank}` : "—"}
+                                    detail={data.best_global_rank ? `meilleur #${data.best_global_rank}` : null}
+                                />
                             </div>
                             {!isSelf && data.friendship_status === "none" && (
                                 <>
