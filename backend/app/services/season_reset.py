@@ -3,13 +3,18 @@ Remise à zéro de tous les comptes (fin de bêta) : chaque joueur garde son
 compte (pseudo, e-mail, mot de passe), ses réglages, ses amis et ses groupes
 d'amis ; tout le reste repart comme un compte neuf. Tout le monde est déconnecté.
 
-Deux choses traversent la remise à zéro, délibérément :
+Trois choses traversent la remise à zéro, délibérément :
 - les **cosmétiques** possédés, et celui qui est équipé — ils ont souvent été
   payés en argent réel, les effacer serait retirer ce qui a été acheté ;
 - les **distinctions permanentes** (« Fondateur », « Bêta testeur »), qui
   racontent une histoire qu'aucune saison ne peut reconstituer. Celles marquées
-  saisonnières (`keeps_on_reset = False`) repartent, elles, avec la saison.
+  saisonnières (`keeps_on_reset = False`) repartent, elles, avec la saison ;
+- l'**historique des achats en euros**, qui reste attaché à son compte : c'est
+  la preuve de ce qu'un joueur a payé. Seules les limites « une fois par
+  compte » se rouvrent, bornées à la date de cette remise à zéro.
 """
+
+from datetime import datetime
 
 from sqlalchemy import delete, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +33,7 @@ from app.models.guild import (
 from app.models.message import Message
 from app.models.monthly import GuildMonthlyScore, MonthlyResult, MonthlyScore
 from app.models.distinction import Distinction, UserDistinction
+from app.models.game_config import GameConfig
 from app.models.premium import ORDER_PAID, PremiumOrder
 from app.models.quest import QuestProgress, UserQuest
 from app.models.reroll_inventory import UserRerollToken
@@ -80,9 +86,13 @@ async def reset_all_accounts(session: AsyncSession) -> dict:
         session, list(buyers), FOUNDER_ID, reason="acheteur de la bêta"
     )
 
-    # Commandes en euros conservées pour la comptabilité, détachées des comptes
-    # (sinon elles compteraient encore dans les limites d'achat).
-    await session.execute(update(PremiumOrder).values(user_id=None))
+    # Les commandes en euros RESTENT attachées à leur compte : c'est la preuve
+    # de ce qu'un joueur a payé, et elle ne se reconstitue pas. Ce sont les
+    # limites « une fois par compte » qui se rouvrent, en ne comptant que les
+    # achats postérieurs à cette date (cf. purchase_limits.account_start).
+    config = await session.get(GameConfig, 1) or GameConfig()
+    config.last_reset_at = datetime.utcnow()
+    session.add(config)
 
     resources = (await session.execute(select(Resource))).scalars().all()
     coins_start = next((r.starting_amount for r in resources if r.id == COINS_ID), 500)

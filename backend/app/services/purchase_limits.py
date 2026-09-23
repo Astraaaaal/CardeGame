@@ -38,3 +38,13 @@ def window_start(period: str, today: date | None = None) -> datetime | None:
 
 def label(period: str) -> str:
     return _LABELS.get(period, "")
+
+
+async def account_start(session) -> datetime | None:
+    """Début de la période « une fois par compte » : la dernière remise à zéro,
+    ou None si le jeu n'en a jamais connu. L'historique d'achat n'est jamais
+    effacé — c'est seulement le décompte qui repart."""
+    from app.models.game_config import GameConfig
+
+    config = await session.get(GameConfig, 1)
+    return config.last_reset_at if config else None

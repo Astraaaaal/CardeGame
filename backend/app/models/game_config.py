@@ -7,6 +7,9 @@ serveur — elles n'ont pas leur place dans .env, éditable seulement via
 redéploiement.
 """
 
+from datetime import datetime
+from typing import Optional
+
 from sqlalchemy import JSON, Column
 from sqlmodel import SQLModel, Field
 
@@ -28,3 +31,7 @@ class GameConfig(SQLModel, table=True):
     # la page de connexion affiche `closed_message` (cf. services/game_status.py).
     game_closed: bool = Field(default=False)
     closed_message: str = Field(default="")
+    # Dernière remise à zéro des comptes. Les limites « une fois par compte »
+    # ne comptent que les achats postérieurs : l'historique reste entier, mais
+    # une nouvelle saison rouvre les offres à usage unique.
+    last_reset_at: Optional[datetime] = Field(default=None)

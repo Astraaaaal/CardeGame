@@ -103,6 +103,8 @@ async def create_order(session: AsyncSession, user: User, product_id: str) -> Pr
             PremiumOrder.status == ORDER_PAID,
         )
         start = purchase_limits.window_start(period)
+        if start is None and period == purchase_limits.PERIOD_ACCOUNT:
+            start = await purchase_limits.account_start(session)
         if start is not None:
             query = query.where(PremiumOrder.paid_at >= start)
         done = (await session.execute(query)).scalar_one()

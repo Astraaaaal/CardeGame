@@ -193,6 +193,9 @@ _STATEMENTS = [
     # Distinctions : tag de survie à une remise à zéro (vrai par défaut —
     # oublier le tag ne doit jamais faire disparaître « Fondateur »).
     "ALTER TABLE distinctions ADD COLUMN IF NOT EXISTS keeps_on_reset BOOLEAN NOT NULL DEFAULT TRUE",
+    # Borne des limites « une fois par compte » : les achats d'avant la
+    # dernière remise à zéro ne bloquent plus les offres à usage unique.
+    "ALTER TABLE game_config ADD COLUMN IF NOT EXISTS last_reset_at TIMESTAMP",
     # Jours de connexion déjà cumulés avant le compteur : au moins la meilleure série.
     "UPDATE users SET login_days_total = best_login_streak WHERE login_days_total < best_login_streak",
     # Achievements de série : basés sur la meilleure série atteinte (plus perdus si la série casse).

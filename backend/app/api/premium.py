@@ -27,6 +27,7 @@ from app.schemas.premium import (
     PremiumOrderOut, PremiumConfigOut, PremiumConfigPatch,
 )
 from app.services import premium as svc
+from app.services import purchase_limits
 from app.services import stripe_client
 from app.services.wallet import get_balance
 
@@ -54,9 +55,15 @@ async def _grant_name(session: AsyncSession, kind: str, item_id: str) -> str:
 async def _product_out(session: AsyncSession, p: PremiumProduct, user_id: int | None = None) -> PremiumProductOut:
     already = False
     if user_id is not None and p.once_per_account:
-        already = bool((await session.execute(select(PremiumOrder.id).where(
+        query = select(PremiumOrder.id).where(
             PremiumOrder.user_id == user_id, PremiumOrder.product_id == p.id, PremiumOrder.status == ORDER_PAID,
-        ))).first())
+        )
+        # Même borne que l'achat lui-même : un achat d'avant la dernière remise
+        # à zéro reste dans l'historique, mais ne bloque plus l'offre.
+        start = await purchase_limits.account_start(session)
+        if start is not None:
+            query = query.where(PremiumOrder.paid_at >= start)
+        already = bool((await session.execute(query)).first())
     return PremiumProductOut(
         id=p.id, name=p.name, description=p.description, price_cents=p.price_cents, currency=p.currency,
         grants=[GrantOut(**g, name=await _grant_name(session, g["kind"], g["id"])) for g in p.grants],
