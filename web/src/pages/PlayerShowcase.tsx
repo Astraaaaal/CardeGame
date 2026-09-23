@@ -10,7 +10,6 @@ import CardImage from "@/components/card/CardImage";
 import CardDetail from "@/components/card/CardDetail";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import Button from "@/components/ui/Button";
-import StatTile from "@/components/player/StatTile";
 import StreakFlame from "@/components/player/StreakFlame";
 import BottomNav from "@/components/layout/BottomNav";
 import { errMsg } from "@/utils/errors";
@@ -103,22 +102,49 @@ export default function PlayerShowcase() {
                                 {data.display_name}
                             </h2>
                             <p className="text-white/40 text-xs">@{data.username}</p>
-                            {data.monthly_badge && (
-                                <p className="mt-1 text-[11px] font-bold text-gold border border-gold/40 bg-gold/10 rounded-full px-2 py-0.5">
-                                    {data.monthly_badge}
-                                </p>
-                            )}
-                            <div className="grid grid-cols-2 gap-2 w-full mt-3">
-                                <StatTile label="Niveau" value={data.level} accent />
-                                <StatTile label="Puissance" value={data.total_power.toLocaleString("fr-FR")}
-                                    icon={<span className="text-gold text-base leading-none">⚡</span>} />
-                                <StatTile label="Meilleure série" value={`${data.best_login_streak} j`}
-                                    icon={<StreakFlame streak={data.best_login_streak} size={16} animateOnMount={false} />} />
-                                <StatTile
-                                    label="Rang"
-                                    value={data.current_global_rank ? `#${data.current_global_rank}` : "—"}
-                                    detail={data.best_global_rank ? `meilleur #${data.best_global_rank}` : null}
-                                />
+
+                            {/* Ce qui définit le joueur, en clair : son niveau, puis sa
+                                puissance. Les libellés sont inutiles — « Niveau 7 » se lit
+                                seul, et l'éclair dit la puissance mieux qu'un mot. */}
+                            <p className="mt-2 flex items-baseline gap-2">
+                                <span className="text-white/40 text-sm">Niveau</span>
+                                <span className="text-accent text-4xl font-extrabold leading-none tabular-nums">
+                                    {data.level}
+                                </span>
+                            </p>
+                            <p className="flex items-center gap-1.5 text-white/70 text-sm">
+                                <span className="text-gold">⚡</span>
+                                <span className="font-semibold tabular-nums">
+                                    {data.total_power.toLocaleString("fr-FR")}
+                                </span>
+                            </p>
+
+                            {/* Distinctions, en pastilles : même langage visuel que le tag
+                                de guilde ou le titre de champion, qui accueilleront d'autres
+                                badges plus tard. */}
+                            <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+                                {data.best_login_streak > 0 && (
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-white/80"
+                                        title="Meilleure série de connexion">
+                                        <StreakFlame streak={data.best_login_streak} size={14} animateOnMount={false} />
+                                        {data.best_login_streak} j
+                                    </span>
+                                )}
+                                {data.current_global_rank && (
+                                    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-white/80"
+                                        title="Rang au classement général">
+                                        <span className="text-white/40">Rang</span>
+                                        <span className="tabular-nums">#{data.current_global_rank}</span>
+                                        {data.best_global_rank && data.best_global_rank < data.current_global_rank && (
+                                            <span className="text-gold/80 tabular-nums">· record #{data.best_global_rank}</span>
+                                        )}
+                                    </span>
+                                )}
+                                {data.monthly_badge && (
+                                    <span className="inline-flex items-center rounded-full border border-gold/40 bg-gold/10 px-2.5 py-1 text-[11px] font-bold text-gold">
+                                        {data.monthly_badge}
+                                    </span>
+                                )}
                             </div>
                             {!isSelf && data.friendship_status === "none" && (
                                 <>

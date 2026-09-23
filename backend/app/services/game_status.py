@@ -14,8 +14,10 @@ from app.core.security import is_admin_key
 from app.models.game_config import GameConfig
 
 DEFAULT_CLOSED_MESSAGE = (
-    "Merci à toutes et à tous d'avoir participé à la bêta ! "
-    "Le jeu revient encore meilleur d'ici demain ou après-demain. À très vite !"
+    "La bêta 2.0 ouvre mercredi 23 septembre à 16 h. "
+    "Les comptes repartent de zéro, mais personne ne repart les mains vides : "
+    "celles et ceux qui ont joué à la première bêta retrouveront un cadeau en arrivant. "
+    "À tout à l'heure !"
 )
 
 _CACHE_TTL_S = 5.0
