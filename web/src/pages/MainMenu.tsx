@@ -15,6 +15,7 @@ import PresencePanel from "@/components/activities/PresencePanel";
 import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
 import BottomNav from "@/components/layout/BottomNav";
+import { useIsDesktop } from "@/hooks/useViewport";
 import { FramedAvatar } from "@/components/cosmetics/CosmeticVisuals";
 
 export default function MainMenu() {
@@ -45,25 +46,35 @@ export default function MainMenu() {
   }, [player, setUser]);
 
   const { isUnlocked, levelFor } = useUnlocks();
-  const menuItems: { label: string; path: string; feature?: FeatureKey }[] = [
-    { label: "Boutique", path: "/shop" },
-    { label: "Ma Collection", path: "/collection" },
-    { label: "Activités", path: "/activities", feature: "workshop" },
-    { label: "Guilde", path: "/guild", feature: "guild_join" },
-    { label: "Inventaire", path: "/inventory" },
-    { label: "Classement", path: "/leaderboard", feature: "leaderboard" },
-    { label: "Progression", path: "/progression" },
-  ];
+  const isDesktop = useIsDesktop();
+
+  // « Progression » n'est plus une entrée : on y accède par la bannière de
+  // niveau juste au-dessus. Sur téléphone, les quatre écrans de la barre
+  // d'onglets (boutique, collection, activités, guilde) ne sont pas répétés ici.
+  type MenuItem = { label: string; path: string; feature?: FeatureKey; wide?: boolean; highlight?: boolean };
+  const menuItems: MenuItem[] = isDesktop
+    ? [
+      { label: "Boutique", path: "/shop", wide: true, highlight: true },
+      { label: "Guilde", path: "/guild", feature: "guild_join" },
+      { label: "Classement", path: "/leaderboard", feature: "leaderboard" },
+      { label: "Activités", path: "/activities", feature: "workshop" },
+      { label: "Inventaire", path: "/inventory" },
+      { label: "Ma Collection", path: "/collection", wide: true },
+    ]
+    : [
+      { label: "Classement", path: "/leaderboard", feature: "leaderboard" },
+      { label: "Inventaire", path: "/inventory" },
+    ];
 
   const powerPct = levelStatus?.next_level_power_required
     ? Math.min(100, Math.round((levelStatus.total_power / levelStatus.next_level_power_required) * 100))
     : 100;
 
   return (
-    <div className="min-h-screen bg-game-bg flex flex-col">
+    <div className="min-h-screen bg-game-bg flex flex-col pb-14 desktop:pb-0">
       <DailyRewardPopup />
 
-      <div className="px-4 pt-4 max-w-sm mx-auto w-full space-y-2">
+      <div className="px-4 pt-4 max-w-sm desktop:max-w-2xl mx-auto w-full space-y-2">
         <div className="flex items-center justify-between">
           <WalletMenu />
           <CoinDisplay coins={user?.coins ?? 0} />
@@ -119,14 +130,14 @@ export default function MainMenu() {
         </button>
       </div>
 
-      <div className="px-4 pt-2 max-w-sm mx-auto w-full">
+      <div className="px-4 pt-2 max-w-sm desktop:max-w-2xl mx-auto w-full">
         <PresencePanel />
       </div>
 
       {user && (!user.email || !user.email_verified) && (
         <button
           className="mx-4 mt-3 flex items-center justify-between gap-2 bg-amber-400/10 border border-amber-400/40
-                     rounded-xl px-4 py-2.5 text-left max-w-sm self-center w-[calc(100%-2rem)]"
+                     rounded-xl px-4 py-2.5 text-left max-w-sm desktop:max-w-2xl self-center w-[calc(100%-2rem)]"
           onClick={() => navigate("/settings")}
         >
           <span className="text-white text-sm">
@@ -140,21 +151,24 @@ export default function MainMenu() {
 
       {/* Content */}
       <main className="flex-1 flex flex-col items-center justify-center gap-5 px-4 pb-24">
-        <motion.h1
-          className="text-3xl font-extrabold text-white text-center"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
+        {/* Le nom tenait en gros au milieu de l écran, coincé entre les bandeaux
+            et les entrées : il devient une signature discrète au-dessus du menu,
+            ce qui rend la place que la grille réclamait. */}
+        <motion.p
+          className="w-full max-w-sm desktop:max-w-2xl text-[11px] font-bold uppercase tracking-[0.35em] text-white/25"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
         >
-          Carde<span className="text-accent">Game</span>
-        </motion.h1>
+          Carde<span className="text-accent/60">Game</span>
+        </motion.p>
 
-        {/* Deux colonnes : les 7 entrées tiennent dans l'écran, sans passer sous les
-            boutons flottants ; la dernière prend toute la largeur si le nombre est impair. */}
-        <div className="w-full max-w-sm grid grid-cols-2 gap-2.5">
+        {/* Deux colonnes ; les entrées principales (boutique, collection)
+            prennent toute la largeur. */}
+        <div className="w-full max-w-sm desktop:max-w-2xl grid grid-cols-2 gap-2.5">
           {menuItems.map((item, idx) => (
             <motion.div
               key={item.path}
-              className={idx === menuItems.length - 1 && menuItems.length % 2 === 1 ? "col-span-2" : ""}
+              className={item.wide ? "col-span-2" : ""}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 * (idx + 1) }}
@@ -172,8 +186,8 @@ export default function MainMenu() {
                 </Button>
               ) : (
                 <Button
-                  variant="secondary"
-                  className="w-full"
+                  variant={item.highlight ? "gold" : "secondary"}
+                  className={item.wide ? "w-full py-5 text-lg" : "w-full"}
                   onClick={() => navigate(item.path)}
                 >
                   {item.label}
