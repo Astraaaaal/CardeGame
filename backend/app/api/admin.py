@@ -4,13 +4,17 @@ Routes admin — Seed des données, utilitaires.
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app.database import get_session
 from app.core.dependencies import require_admin
 from app.schemas.auth import MessageResponse
+from app.models.distinction import Distinction, UserDistinction
 from app.models.game_config import GameConfig
-from app.services import game_status, season_reset
+from app.models.user import User
+from app.services import distinctions, game_status, season_reset
 
 # Toutes les routes de ce routeur exigent l'en-tête X-Admin-Key.
 router = APIRouter(dependencies=[Depends(require_admin)])
@@ -58,6 +62,12 @@ class ResetBody(BaseModel):
     confirm: str
 
 
+class GrantDistinctionBody(BaseModel):
+    distinction_id: str
+    # Trace lisible dans la table d'attribution (« cadeau de réouverture »).
+    reason: str | None = None
+
+
 RESET_CONFIRM_WORD = "REINITIALISER"
 
 
@@ -81,6 +91,39 @@ async def set_game_status(body: GameStatusBody, session: AsyncSession = Depends(
     await session.commit()
     game_status.invalidate()
     return await get_game_status(session)
+
+
+@router.get("/distinctions")
+async def list_distinctions(session: AsyncSession = Depends(get_session)):
+    """Toutes les distinctions existantes, avec le nombre de joueurs qui les portent."""
+    rows = (await session.execute(select(Distinction).order_by(Distinction.sort_order))).scalars().all()
+    counts = dict((await session.execute(
+        select(UserDistinction.distinction_id, func.count())
+        .group_by(UserDistinction.distinction_id)
+    )).all())
+    return [
+        {"id": d.id, "name": d.name, "description": d.description, "color": d.color,
+         "active": d.active, "holders": counts.get(d.id, 0)}
+        for d in rows
+    ]
+
+
+@router.post("/distinctions/grant-all")
+async def grant_distinction_to_all(
+    body: GrantDistinctionBody, session: AsyncSession = Depends(get_session),
+):
+    """Attribue une distinction à **tous les comptes existants** (cadeau de
+    réouverture). Idempotent : relancer ne crée pas de doublon et ne retire
+    rien. À lancer APRÈS la remise à zéro — elle ne touche pas aux
+    distinctions, mais l'ordre reste le bon pour que le cadeau soit visible."""
+    if not await session.get(Distinction, body.distinction_id):
+        raise HTTPException(404, "Distinction inconnue.")
+    user_ids = (await session.execute(select(User.id))).scalars().all()
+    granted = await distinctions.grant_many(
+        session, list(user_ids), body.distinction_id, reason=body.reason,
+    )
+    await session.commit()
+    return {"accounts": len(user_ids), "granted": granted}
 
 
 @router.post("/reset-accounts")

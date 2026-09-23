@@ -12,7 +12,8 @@ from app.models.character import Character
 from app.models.economy import Resource
 from app.models.social import TradeListing, FriendRequest
 from app.models.achievement import AchievementDef, UserAchievement
-from app.schemas.showcase import ShowcaseResponse, AvatarInfo, TradeListingOut, ShowcaseAchievement
+from app.services import distinctions
+from app.schemas.showcase import DistinctionOut, ShowcaseResponse, AvatarInfo, TradeListingOut, ShowcaseAchievement
 from app.services import guilds, level_gap, monthly, trade_tax
 from app.services.card_view import build_card_response
 from app.services.levels import get_all_tiers, get_total_power, current_level_for_power
@@ -116,6 +117,10 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
         current_global_rank=await current_global_rank(session, target.id),
         best_global_rank=target.best_global_rank,
         monthly_badge=await monthly.champion_badge(session, target.id),
+        distinctions=[
+            DistinctionOut(id=d.id, name=d.name, description=d.description, color=d.color)
+            for d in await distinctions.for_user(session, target.id)
+        ],
         trade_gap_reason=gap_reason,
         achievements=achievements,
         achievement_slots=achievement_slots,

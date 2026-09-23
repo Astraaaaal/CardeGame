@@ -33,6 +33,14 @@ class TradeListingOut(BaseModel):
     tax: int = 0
 
 
+class DistinctionOut(BaseModel):
+    """Badge accordé, affiché en pastille sur la vitrine."""
+    id: str
+    name: str
+    description: str = ""
+    color: str = "#b08d57"
+
+
 class ShowcaseResponse(BaseModel):
     user_id: int
     username: str
@@ -50,6 +58,7 @@ class ShowcaseResponse(BaseModel):
     current_global_rank: int | None = None
     best_global_rank: int | None = None
     monthly_badge: str | None = None  # « Champion de septembre 2026 » (dernier mois clôturé)
+    distinctions: list[DistinctionOut] = []  # badges accordés (bêta testeur, fondateur…)
     # Non nul si l'écart de niveau avec le visiteur interdit échange, cadeau et
     # achat d'annonce : la phrase est affichée sous les boutons, grisés.
     trade_gap_reason: str | None = None

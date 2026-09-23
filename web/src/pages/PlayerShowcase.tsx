@@ -145,6 +145,18 @@ export default function PlayerShowcase() {
                                         {data.monthly_badge}
                                     </span>
                                 )}
+                                {/* Distinctions accordées : chacune porte sa teinte,
+                                    ce qui les distingue des mesures (série, rang). */}
+                                {data.distinctions?.map((d) => (
+                                    <span
+                                        key={d.id}
+                                        className="inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold"
+                                        style={{ borderColor: `${d.color}66`, background: `${d.color}1f`, color: d.color }}
+                                        title={d.description}
+                                    >
+                                        {d.name}
+                                    </span>
+                                ))}
                             </div>
                             {!isSelf && data.friendship_status === "none" && (
                                 <>
@@ -249,9 +261,6 @@ export default function PlayerShowcase() {
                             )}
                         </div>
 
-                        <p className="text-white/20 text-xs text-center">
-                            D'autres infos (badges, etc.) pourront apparaître ici plus tard.
-                        </p>
                     </div>
                 )}
             </main>

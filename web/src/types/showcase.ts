@@ -1,3 +1,11 @@
+/** Badge accordé (bêta testeur, fondateur…), affiché en pastille. */
+export interface Distinction {
+    id: string;
+    name: string;
+    description: string;
+    color: string;
+}
+
 import type { GuildTag } from "./social";
 import type { Card } from "./card";
 import type { Cosmetic } from "./premium";
@@ -46,6 +54,7 @@ export interface Showcase {
     best_global_rank: number | null;
     /** « Champion de septembre 2026 » : vainqueur du dernier défi mensuel clôturé. */
     monthly_badge: string | null;
+    distinctions: Distinction[];
     /** Non nul si l'écart de niveau interdit échange, cadeau et achat d'annonce. */
     trade_gap_reason: string | null;
     achievements: ShowcaseAchievement[];

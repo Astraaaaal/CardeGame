@@ -12,6 +12,7 @@ from app.models.achievement import UserAchievement
 from app.models.activity import Expedition, HigherLowerGame, UserActivity
 from app.models.booster_inventory import UserBonusBooster, UserBoosterInventory
 from app.models.card import UserCard
+from app.models.distinction import FOUNDER_ID
 from app.models.economy import Resource, ShopPurchase, UserResource
 from app.models.favorite import FavoriteCard, FavoriteCategory
 from app.models.guild import (
@@ -19,13 +20,14 @@ from app.models.guild import (
 )
 from app.models.message import Message
 from app.models.monthly import GuildMonthlyScore, MonthlyResult, MonthlyScore
-from app.models.premium import PremiumOrder, UserCosmetic
+from app.models.premium import ORDER_PAID, PremiumOrder, UserCosmetic
 from app.models.quest import QuestProgress, UserQuest
 from app.models.reroll_inventory import UserRerollToken
 from app.models.social import FriendRequest, TradeListing, TradeRequest
 from app.models.token import RefreshToken
 from app.models.trade_session import TradeSession, TradeSessionItem
 from app.models.user import User
+from app.services import distinctions
 from app.services.wallet import COINS_ID
 
 # Tables vidées entièrement, dans un ordre compatible avec les clés étrangères.
@@ -50,6 +52,17 @@ async def reset_all_accounts(session: AsyncSession) -> dict:
         await session.execute(delete(model))
     # Demandes d'ami en attente supprimées ; les amitiés (acceptées) restent.
     await session.execute(delete(FriendRequest).where(FriendRequest.status != "accepted"))
+    # Avant de détacher les commandes, on grave la distinction de fondateur :
+    # après coup, plus personne ne saurait dire qui avait soutenu le jeu.
+    buyers = (await session.execute(
+        select(PremiumOrder.user_id).where(
+            PremiumOrder.status == ORDER_PAID, PremiumOrder.user_id.is_not(None)
+        ).distinct()
+    )).scalars().all()
+    founders = await distinctions.grant_many(
+        session, list(buyers), FOUNDER_ID, reason="acheteur de la bêta"
+    )
+
     # Commandes en euros conservées pour la comptabilité, détachées des comptes
     # (sinon elles compteraient encore dans les limites d'achat).
     await session.execute(update(PremiumOrder).values(user_id=None))
@@ -75,4 +88,4 @@ async def reset_all_accounts(session: AsyncSession) -> dict:
             session.add_all(UserResource(user_id=uid, resource_id=r.id, amount=r.starting_amount) for uid in user_ids)
 
     await session.commit()
-    return {"users": users, "cards_removed": cards}
+    return {"users": users, "cards_removed": cards, "founders_granted": founders}

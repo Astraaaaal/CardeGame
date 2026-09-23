@@ -17,6 +17,8 @@ from app.models.premium import (
     ORDER_PENDING, ORDER_PAID, ORDER_FAILED, ORDER_REFUNDED,
 )
 from app.models.user import User
+from app.models.distinction import FOUNDER_ID
+from app.services import distinctions
 from app.services import booster_inventory
 from app.services import purchase_limits
 from app.services.wallet import apply_delta
@@ -139,6 +141,11 @@ async def fulfill_order(
     session.add(order)
     if user:
         await apply_grants(session, user, order.grants)
+        # Soutenir le jeu pendant la bêta vaut la distinction de fondateur ;
+        # elle survivra à la remise à zéro, contrairement au contenu crédité.
+        await distinctions.grant(
+            session, user.id, FOUNDER_ID, reason=f"achat {order.product_id}"
+        )
     await session.commit()
     return True
 
