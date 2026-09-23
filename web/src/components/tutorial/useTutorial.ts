@@ -50,6 +50,12 @@ export function useUnlockAnnouncements(): void {
         if (nouvelles.length) {
             const etapes = nouvelles.map(unlockStep).filter((s): s is TutorialStep => !!s);
             if (etapes.length) enqueue(userId, etapes);
+        }
+        // On réécrit dès que la liste change, y compris quand elle rétrécit :
+        // après une remise à zéro des comptes, tout se reverrouille, et sans
+        // cette mise à jour un joueur revenu ne reverrait plus jamais une seule
+        // bulle d'explication.
+        if (nouvelles.length || ouvertes.length !== connues.length) {
             writeKnown(userId, ouvertes);
         }
     }, [data, userId, enqueue]);

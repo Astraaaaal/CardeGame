@@ -6,6 +6,7 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -262,8 +263,20 @@ async def admin_delete_product(product_id: str, session: AsyncSession = Depends(
     product = await session.get(PremiumProduct, product_id)
     if not product:
         raise HTTPException(404, "Produit introuvable.")
-    if (await session.execute(select(PremiumOrder.id).where(PremiumOrder.product_id == product_id))).first():
-        raise HTTPException(409, "Produit déjà commandé : désactive-le plutôt (historique des commandes).")
+    # Seule une commande **payée** est un historique comptable à préserver. Une
+    # commande abandonnée ou échouée (un essai, typiquement) ne vaut rien : elle
+    # part avec le produit, sinon un produit de test reste à vie dans la base.
+    if (await session.execute(
+        select(PremiumOrder.id).where(
+            PremiumOrder.product_id == product_id, PremiumOrder.status == ORDER_PAID,
+        )
+    )).first():
+        raise HTTPException(
+            409,
+            "Ce produit a déjà été payé : désactive-le plutôt, l'historique des "
+            "commandes doit continuer d'y renvoyer.",
+        )
+    await session.execute(delete(PremiumOrder).where(PremiumOrder.product_id == product_id))
     await session.delete(product)
     await session.commit()
 
