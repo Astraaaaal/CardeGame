@@ -26,10 +26,12 @@ export default function WalletMenu() {
         return () => document.removeEventListener("pointerdown", close);
     }, [open]);
 
-    // Pièces et Éclats sont déjà affichés en haut du menu ; ressources possédées d'abord.
-    const others = (catalog ?? [])
-        .filter((r) => r.id !== "coins" && r.id !== PREMIUM_RESOURCE_ID)
-        .sort((a, b) => Number(getResourceBalance(user, b.id) > 0) - Number(getResourceBalance(user, a.id) > 0));
+    // Pièces et Éclats sont déjà affichés dans la barre du haut. On ne liste que
+    // les ressources réellement possédées : une liste de zéros n'apprend rien et
+    // noie les deux ou trois lignes qui comptent.
+    const others = (catalog ?? []).filter(
+        (r) => r.id !== "coins" && r.id !== PREMIUM_RESOURCE_ID && getResourceBalance(user, r.id) > 0
+    );
 
     return (
         <div ref={ref} className="relative">
@@ -50,10 +52,10 @@ export default function WalletMenu() {
                 <div className="absolute left-0 top-full mt-2 z-40 w-60 max-h-[70vh] overflow-y-auto bg-game-surface border border-white/10 rounded-xl shadow-2xl p-2">
                     <p className="text-white/40 text-[11px] font-semibold uppercase tracking-wide px-2 pt-1 pb-2">Ressources</p>
                     {others.length === 0 ? (
-                        <p className="text-white/40 text-xs px-2 pb-2">Aucune autre ressource.</p>
+                        <p className="text-white/40 text-xs px-2 pb-2">Aucune autre ressource pour l'instant.</p>
                     ) : (
                         others.map((r) => (
-                            <div key={r.id} className={`flex items-center gap-2 px-2 py-1.5 text-sm ${getResourceBalance(user, r.id) ? "" : "opacity-40"}`}>
+                            <div key={r.id} className="flex items-center gap-2 px-2 py-1.5 text-sm">
                                 <ResourceIcon resourceId={r.id} />
                                 <span className="flex-1 text-white/80">{r.name}</span>
                                 <span className="text-white font-bold tabular-nums">

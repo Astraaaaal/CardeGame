@@ -82,9 +82,13 @@ export default function MainMenu() {
 
       <div className="px-4 pt-4 max-w-sm mx-auto w-full space-y-2">
         <div className="flex items-center justify-between gap-2 pr-11">
-          <WalletMenu />
-          <div className="flex items-center gap-2">
+          {/* Les deux monnaies ensemble : on lit son porte-monnaie d'un regard
+              au lieu de balayer l'écran d'un bord à l'autre. */}
+          <div className="flex items-center gap-2 min-w-0">
+            <WalletMenu />
             <CoinDisplay coins={user?.coins ?? 0} />
+          </div>
+          <div className="flex items-center gap-2">
             {/* Les réglages ne vivent que sur l'accueil : on n'a pas besoin d'y
                 accéder en permanence, et ils encombraient tous les écrans. */}
             <button

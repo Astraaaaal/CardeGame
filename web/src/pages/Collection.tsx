@@ -50,6 +50,11 @@ const SORT_OPTIONS = [
     { value: "favorite", label: "Favoris" },
 ];
 
+/** Pastille flottante de la collection (outils à gauche, défilement à droite). */
+const BUBBLE =
+    "pointer-events-auto w-10 h-10 rounded-full bg-game-surface border border-white/15 text-white/80 " +
+    "shadow-lg flex items-center justify-center text-lg hover:border-accent hover:text-white transition-colors";
+
 export default function Collection() {
     const navigate = useNavigate();
     const [filters, setFilters] = useState<CollectionParams>({ sort_by: "rarity" });
@@ -215,49 +220,26 @@ export default function Collection() {
     return (
         <div className="min-h-screen bg-game-bg flex flex-col relative pb-14 desktop:pb-0">
             {/* Header */}
-            <header className="flex items-center justify-between pl-4 pr-14 py-3 bg-game-surface/50 border-b border-white/5">
+            <header className="relative flex items-center justify-between pl-4 pr-14 py-3 bg-game-surface/50 border-b border-white/5">
                 <button
                     className="text-accent text-sm font-semibold"
                     onClick={() => inSelectionMode ? cancelAndLeave() : recycleMode ? leaveRecycleMode() : navigate("/")}
                 >
                     {inSelectionMode || recycleMode ? "× Annuler" : "Retour"}
                 </button>
-                <h1 className="text-white font-bold">
+                <h1 className="absolute left-1/2 -translate-x-1/2 max-w-[55%] truncate text-white font-bold pointer-events-none">
                     {inSelectionMode ? selectionRequest!.title : recycleMode ? "Recyclage" : "Collection"}
                 </h1>
-                <div className="flex items-center gap-3">
-                    {!inSelectionMode && !recycleMode && (
-                        <>
-                            <button
-                                className="text-white/50 hover:text-white text-lg"
-                                title="Recycler plusieurs cartes"
-                                onClick={() => setRecycleMode(true)}
-                            >
-                                ♻️
-                            </button>
-                            <button
-                                className="text-white/50 hover:text-white text-lg"
-                                title="Table des probabilités"
-                                onClick={() => setProbModalOpen(true)}
-                            >
-                                📊
-                            </button>
-                        </>
-                    )}
-                    <div className="text-white/40 text-xs text-right">
-                        {inSelectionMode ? (
-                            <p>{picked.size} / {selectionRequest!.max}</p>
-                        ) : recycleMode ? (
-                            <p>{recycleSelected.size} choisi{recycleSelected.size > 1 ? "s" : ""}</p>
-                        ) : data ? (
-                            <>
-                                <p>{data.unique_cards} uniques</p>
-                                <p>{data.total_cards} total</p>
-                            </>
-                        ) : (
-                            <p>...</p>
-                        )}
-                    </div>
+                {/* À droite, seulement ce qui appartient au mode en cours. Le
+                    décompte de la collection vit dans les statistiques du profil,
+                    et les outils sont passés en pastilles flottantes : le titre
+                    peut enfin tenir au centre. */}
+                <div className="w-14 text-white/40 text-xs text-right">
+                    {inSelectionMode ? (
+                        <p>{picked.size} / {selectionRequest!.max}</p>
+                    ) : recycleMode ? (
+                        <p>{recycleSelected.size} choisi{recycleSelected.size > 1 ? "s" : ""}</p>
+                    ) : null}
                 </div>
             </header>
 
@@ -385,19 +367,44 @@ export default function Collection() {
             {!inSelectionMode && <SocialButton />}
 
             <div className={`fixed inset-x-0 z-30 pointer-events-none ${inSelectionMode ? "bottom-24" : "bottom-20"}`}>
-                <div className="max-w-mobile mx-auto px-4 flex flex-col items-end gap-2">
-                    {([["top", "↑", "Tout en haut"], ["bottom", "↓", "Tout en bas"]] as const).map(([to, icon, label]) => (
-                        <button
-                            key={to}
-                            className="pointer-events-auto w-10 h-10 rounded-full bg-game-surface border border-white/15 text-white/80
-                             shadow-lg flex items-center justify-center text-lg hover:border-accent hover:text-white transition-colors"
-                            title={label}
-                            aria-label={label}
-                            onClick={() => scrollPage(to)}
-                        >
-                            {icon}
-                        </button>
-                    ))}
+                <div className="max-w-mobile mx-auto px-4 flex items-end justify-between">
+                    {/* Outils de la collection, en miroir des flèches de défilement. */}
+                    <div className="flex flex-col items-start gap-2">
+                        {!inSelectionMode && !recycleMode && (
+                            <>
+                                <button
+                                    className={BUBBLE}
+                                    title="Recycler plusieurs cartes"
+                                    aria-label="Recycler plusieurs cartes"
+                                    onClick={() => setRecycleMode(true)}
+                                >
+                                    ♻️
+                                </button>
+                                <button
+                                    className={BUBBLE}
+                                    title="Table des probabilités"
+                                    aria-label="Table des probabilités"
+                                    onClick={() => setProbModalOpen(true)}
+                                >
+                                    📊
+                                </button>
+                            </>
+                        )}
+                    </div>
+
+                    <div className="flex flex-col items-end gap-2">
+                        {([["top", "↑", "Tout en haut"], ["bottom", "↓", "Tout en bas"]] as const).map(([to, icon, label]) => (
+                            <button
+                                key={to}
+                                className={BUBBLE}
+                                title={label}
+                                aria-label={label}
+                                onClick={() => scrollPage(to)}
+                            >
+                                {icon}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 

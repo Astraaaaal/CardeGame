@@ -230,11 +230,11 @@ export default function Profile() {
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col">
-            <header className="flex items-center justify-between pl-4 pr-14 py-3 bg-game-surface/50 border-b border-white/5">
+            <header className="relative flex items-center justify-between pl-4 pr-14 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
                     Retour
                 </button>
-                <h1 className="text-white font-bold">Profil</h1>
+                <h1 className="absolute left-1/2 -translate-x-1/2 max-w-[55%] truncate text-white font-bold pointer-events-none">Profil</h1>
                 <span className="w-14" />
             </header>
 
