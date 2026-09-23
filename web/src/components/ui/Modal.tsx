@@ -21,6 +21,7 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
         <AnimatePresence>
             {open && (
                 <motion.div
+                    data-no-swipe
                     className="fixed inset-0 z-50 flex items-center justify-center p-4"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

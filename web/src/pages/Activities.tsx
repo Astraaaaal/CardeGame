@@ -43,7 +43,7 @@ export default function Activities() {
     };
 
     return (
-        <div className="min-h-screen bg-game-bg flex flex-col">
+        <div className="min-h-screen bg-game-bg flex flex-col pb-14 desktop:pb-0">
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
                     Retour

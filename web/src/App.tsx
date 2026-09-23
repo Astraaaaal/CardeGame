@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import LevelWatcher from "@/components/player/LevelWatcher";
 import { Routes, Route, Navigate } from "react-router-dom";
+import MobileTabBar from "@/components/layout/MobileTabBar";
+import SwipeNavigator from "@/components/layout/SwipeNavigator";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
 import { playerApi } from "@/api/player";
@@ -50,12 +52,15 @@ export default function App() {
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     // Signal de présence (bonus de chance, coffre d'absence) tant que l'appli est affichée.
     usePresencePing();
+    // Téléphone : une colonne ; ordinateur : de la place pour respirer.
     return (
-        <div className="max-w-mobile mx-auto min-h-screen">
+        <div className="max-w-mobile desktop:max-w-3xl mx-auto min-h-screen">
             <TradeWatcher />
             <RewardPopup />
             <Toaster />
             {isAuthenticated && <LevelWatcher />}
+            {isAuthenticated && <MobileTabBar />}
+            {isAuthenticated && <SwipeNavigator />}
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/admin" element={<AdminPanel />} />

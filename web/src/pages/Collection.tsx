@@ -213,7 +213,7 @@ export default function Collection() {
     });
 
     return (
-        <div className="min-h-screen bg-game-bg flex flex-col relative">
+        <div className="min-h-screen bg-game-bg flex flex-col relative pb-14 desktop:pb-0">
             {/* Header */}
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button

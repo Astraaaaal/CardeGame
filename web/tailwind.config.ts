@@ -28,6 +28,10 @@ export default {
             maxWidth: {
                 mobile: "405px",
             },
+            screens: {
+                // Aligné sur DESKTOP_MIN_WIDTH (hooks/useViewport.ts).
+                desktop: "900px",
+            },
         },
     },
     plugins: [],
