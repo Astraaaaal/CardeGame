@@ -284,8 +284,6 @@ export default function Collection() {
                     </p>
                     <RecycleTools
                         groups={groups}
-                        rarities={probabilities?.rarities ?? []}
-                        qualities={probabilities?.qualities ?? []}
                         includeFavorites={includeFavorites}
                         onIncludeFavorites={setIncludeFavorites}
                         onSelect={addToSelection}

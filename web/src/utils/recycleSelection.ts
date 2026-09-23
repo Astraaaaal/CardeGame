@@ -54,27 +54,6 @@ export function selectDuplicates(groups: CardGroup[], options: SelectionOptions)
     });
 }
 
-/**
- * Tout ce qui est d'un palier donné ou en dessous, sur un axe (rareté ou
- * qualité). `order` liste les paliers du plus faible au plus fort.
- */
-export function selectUpToTier(
-    groups: CardGroup[],
-    axis: "rarity_id" | "quality_id",
-    tierId: string,
-    order: string[],
-    options: SelectionOptions,
-): string[] {
-    const limit = order.indexOf(tierId);
-    if (limit < 0) return [];
-    return groups
-        .filter((g) => {
-            const rank = order.indexOf(g.card[axis]);
-            return rank >= 0 && rank <= limit;
-        })
-        .flatMap((g) => (g.copies ?? []).filter((c) => eligible(c, options)).map((c) => c.id));
-}
-
 /** Ce que contient la sélection, pour la fenêtre de confirmation. */
 export interface SelectionSummary {
     count: number;
