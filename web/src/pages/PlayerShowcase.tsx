@@ -182,6 +182,11 @@ export default function PlayerShowcase() {
                             <p className="text-white/50 text-xs font-semibold uppercase tracking-wide mb-2">
                                 Cartes à échanger
                             </p>
+                            {!isSelf && data.trade_gap_reason && (
+                                <p className="text-amber-300/80 text-[11px] bg-amber-300/10 border border-amber-300/20 rounded-lg px-2 py-1.5 mb-2">
+                                    {data.trade_gap_reason}
+                                </p>
+                            )}
                             {data.trade_listings.length === 0 ? (
                                 <p className="text-white/30 text-sm text-center py-6">
                                     {isSelf ? "Tu n'as listé aucune carte à échanger." : "Aucune carte à échanger."}
@@ -202,6 +207,7 @@ export default function PlayerShowcase() {
                                                     variant={listing.mode === "buy_now" ? "gold" : "secondary"}
                                                     size="sm"
                                                     className="w-full !text-[10px] !px-1 !py-1"
+                                                    disabled={!!data.trade_gap_reason}
                                                     loading={
                                                         (buy.isPending && buy.variables === listing.slot) ||
                                                         (propose.isPending && propose.variables === listing.slot)

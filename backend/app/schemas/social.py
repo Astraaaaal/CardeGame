@@ -22,6 +22,9 @@ class FriendOut(BaseModel):
     close_friend: bool = False
     group_ids: list[int] = []
     guild: GuildTagOut | None = None
+    # Faux si l'écart de niveau interdit les transferts (échange, cadeau) :
+    # les boutons correspondants sont grisés dans la liste d'amis.
+    trade_gap_ok: bool = True
 
 
 class FriendGroupOut(BaseModel):

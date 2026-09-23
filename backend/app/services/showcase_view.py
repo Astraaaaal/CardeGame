@@ -13,7 +13,7 @@ from app.models.economy import Resource
 from app.models.social import TradeListing, FriendRequest
 from app.models.achievement import AchievementDef, UserAchievement
 from app.schemas.showcase import ShowcaseResponse, AvatarInfo, TradeListingOut, ShowcaseAchievement
-from app.services import guilds, monthly, trade_tax
+from app.services import guilds, level_gap, monthly, trade_tax
 from app.services.card_view import build_card_response
 from app.services.levels import get_all_tiers, get_total_power, current_level_for_power
 from app.services.ranking import current_global_rank
@@ -45,6 +45,8 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
     trade_listings = []
     viewer = await session.get(User, viewer_id) if viewer_id and viewer_id != target.id else None
     viewer_rate = await trade_tax.rate_for(session, viewer, target) if viewer else 0
+    gap, gap_limit = await level_gap.between(session, viewer, target) if viewer else (0, 0)
+    gap_reason = level_gap.reason(gap, gap_limit) if viewer and gap > gap_limit else None
     for listing in listings_rows:
         card = await session.get(UserCard, listing.user_card_id)
         # Comme pour la vitrine cosmétique : ignore une annonce dont la carte
@@ -114,6 +116,7 @@ async def build_showcase_response(session: AsyncSession, target: User, viewer_id
         current_global_rank=await current_global_rank(session, target.id),
         best_global_rank=target.best_global_rank,
         monthly_badge=await monthly.champion_badge(session, target.id),
+        trade_gap_reason=gap_reason,
         achievements=achievements,
         achievement_slots=achievement_slots,
         avatar_frame=await equipped(target.equipped_avatar_frame_id),

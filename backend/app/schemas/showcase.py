@@ -50,6 +50,9 @@ class ShowcaseResponse(BaseModel):
     current_global_rank: int | None = None
     best_global_rank: int | None = None
     monthly_badge: str | None = None  # « Champion de septembre 2026 » (dernier mois clôturé)
+    # Non nul si l'écart de niveau avec le visiteur interdit échange, cadeau et
+    # achat d'annonce : la phrase est affichée sous les boutons, grisés.
+    trade_gap_reason: str | None = None
     achievements: list[ShowcaseAchievement] = []  # 0 à 3, emplacements vides omis
     # Emplacements bruts (3, None = vide) — pour que l'éditeur conserve l'ordre.
     achievement_slots: list[str | None] = [None, None, None]

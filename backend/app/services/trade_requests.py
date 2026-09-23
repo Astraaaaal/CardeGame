@@ -19,7 +19,7 @@ from app.models.trade_session import TradeSession
 from app.schemas.social import TradeRequestOut, TradePulseOut
 from app.services.trade_policy import can_send_trade_request
 from app.services.trade_session import create_session, get_active_session_for
-from app.services import account_email, unlocks
+from app.services import account_email, level_gap, unlocks
 
 
 async def create_trade_request(session: AsyncSession, requester: User, target: User) -> TradeRequest:
@@ -30,6 +30,7 @@ async def create_trade_request(session: AsyncSession, requester: User, target: U
         raise HTTPException(409, "Tu as déjà un échange en cours.")
     if not await can_send_trade_request(session, requester.id, target):
         raise HTTPException(403, "Ce joueur n'accepte pas ce type de demande d'échange de ta part.")
+    await level_gap.require(session, requester, target, "Impossible d'échanger avec ce joueur.")
 
     existing = (await session.execute(
         select(TradeRequest).where(
@@ -55,7 +56,11 @@ async def accept_trade_request(session: AsyncSession, request_id: int, user_id: 
     req = await session.get(TradeRequest, request_id)
     if not req or req.status != "pending" or req.addressee_id != user_id:
         raise HTTPException(404, "Demande introuvable.")
-    account_email.require_verified_email(await session.get(User, user_id))
+    addressee = await session.get(User, user_id)
+    account_email.require_verified_email(addressee)
+    # Revérifié à l'acceptation : les deux niveaux ont pu bouger depuis la demande.
+    await level_gap.require(session, await session.get(User, req.requester_id), addressee,
+                            "Impossible d'échanger avec ce joueur.")
 
     participants = [req.requester_id, req.addressee_id]
     trade = await create_session(session, *participants)

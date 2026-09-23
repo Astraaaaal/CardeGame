@@ -6,6 +6,8 @@ export interface Friend {
     last_seen: string | null;
     close_friend: boolean;
     group_ids: number[];
+    /** Faux si l'écart de niveau interdit échange et cadeau avec cet ami. */
+    trade_gap_ok: boolean;
     guild: GuildTag | null;
 }
 

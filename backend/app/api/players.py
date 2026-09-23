@@ -13,7 +13,7 @@ from app.database import get_session
 from app.core.dependencies import get_current_user
 from app.core.ratelimit import rate_limit
 from app.models.user import User
-from app.services import account_email, expeditions
+from app.services import account_email, expeditions, level_gap
 from app.models.card import UserCard
 from app.models.social import TradeListing
 from app.schemas.showcase import ShowcaseResponse
@@ -83,6 +83,7 @@ async def buy_trade_listing(
     await expeditions.ensure_not_on_expedition(session, [card.id])
 
     seller = await session.get(User, user_id)
+    await level_gap.require(session, buyer, seller, "Impossible d'acheter la carte de ce joueur.")
     tax = await trade_tax.tax_for_items(
         session, await trade_tax.rate_for(session, buyer, seller), [{"type": "card", "card": card}],
     )

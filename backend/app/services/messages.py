@@ -21,7 +21,7 @@ from app.services.gift_policy import can_send_gift
 from app.services import quest_progress
 from app.services import booster_inventory, expeditions, message_rewards, reroll_inventory
 from app.services.premium import ensure_tradeable
-from app.services import account_email, favorites
+from app.services import account_email, favorites, level_gap
 from app.services import trade_tax
 from app.services.wallet import require_balance
 
@@ -188,6 +188,7 @@ async def send_gift(
         raise HTTPException(400, "Tu ne peux pas t'envoyer un cadeau à toi-même.")
     if not await can_send_gift(session, sender.id, target):
         raise HTTPException(403, "Ce joueur n'accepte pas de cadeaux de ta part pour le moment.")
+    await level_gap.require(session, sender, target, "Impossible de lui offrir un cadeau.")
 
     reward_card_id = None
     reward_resource_id = None

@@ -256,16 +256,23 @@ export default function FriendsPanel({ open, onClose }: FriendsPanelProps) {
                         </button>
                     </div>
                 </div>
+                {/* Écart de niveau trop grand : ni échange ni cadeau avec cet ami. */}
+                {!f.trade_gap_ok && (
+                    <p className="text-amber-300/70 text-[10px] mb-1">
+                        Écart de niveau trop grand : échange et cadeau indisponibles.
+                    </p>
+                )}
                 <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                     <Button
                         variant="secondary" size="sm" className="flex-1"
-                        disabled={!!pendingTrade}
+                        disabled={!!pendingTrade || !f.trade_gap_ok}
                         loading={proposeTrade.isPending && proposeTrade.variables === f.user_id}
                         onClick={() => proposeTrade.mutate(f.user_id)}
                     >
                         {pendingTrade ? "Échange en attente..." : "Proposer un échange"}
                     </Button>
-                    <Button variant="secondary" size="sm" onClick={() => openGift("friend", f.username)}>
+                    <Button variant="secondary" size="sm" disabled={!f.trade_gap_ok}
+                        onClick={() => openGift("friend", f.username)}>
                         🎁
                     </Button>
                 </div>

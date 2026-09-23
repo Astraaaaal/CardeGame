@@ -27,7 +27,7 @@ from app.services.trade_requests import create_trade_request as _create_trade_re
 from app.services.trade_session import build_out as _build_trade_session_out
 from app.services import quest_progress
 from app.services.presence import is_online as _is_online
-from app.services import unlocks
+from app.services import activities_config, level_gap, unlocks
 
 router = APIRouter()
 
@@ -67,6 +67,11 @@ async def list_friends(
     )).all():
         group_ids_by_friend.setdefault(friend_user_id, []).append(group_id)
     guild_tags = await guilds.tags_for(session, [f.id for f in friends])
+    # Écart de niveau : niveau retenu des amis (max_level) contre celui du
+    # joueur, sans recalculer la puissance de chacun. L'affichage peut donc
+    # avoir un niveau de retard sur un ami ; le serveur revérifie à l'action.
+    cfg = await activities_config.get_config(session)
+    my_level = await unlocks.level_of(session, user)
     return [
         FriendOut(
             user_id=f.id, username=f.username, display_name=f.display_name,
@@ -74,6 +79,7 @@ async def list_friends(
             close_friend=f.id in close_ids,
             group_ids=group_ids_by_friend.get(f.id, []),
             guild=guild_tags.get(f.id),
+            trade_gap_ok=level_gap.ok_of(cfg, my_level, f.max_level or 1),
         )
         for f in friends
     ]

@@ -46,6 +46,8 @@ export interface Showcase {
     best_global_rank: number | null;
     /** « Champion de septembre 2026 » : vainqueur du dernier défi mensuel clôturé. */
     monthly_badge: string | null;
+    /** Non nul si l'écart de niveau interdit échange, cadeau et achat d'annonce. */
+    trade_gap_reason: string | null;
     achievements: ShowcaseAchievement[];
     achievement_slots: (string | null)[];
     avatar_frame: Cosmetic | null;

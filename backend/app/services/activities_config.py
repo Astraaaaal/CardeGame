@@ -124,6 +124,10 @@ DEFAULTS: dict = {
     # puissance en plus du précédent et rapporte la récompense du dernier palier
     # majorée de reward_growth par prestige, plus un bonus.
     "prestige": {"power_growth": 0.25, "reward_growth": 0.10, "bonus_resource_id": "frag_legendary", "bonus_amount": 1},
+    # Écart de niveau maximum pour un transfert entre joueurs — échange, achat
+    # d'annonce, cadeau (cf. services/level_gap.py). Proportionnel au plus haut
+    # des deux niveaux, avec un plancher pour le début de jeu.
+    "level_gap": {"ratio": 0.30, "min_gap": 5},
     # Taxe sur les transferts entre joueurs (cf. services/trade_tax.py).
     "trade_tax": {
         "base_rate": 0.05, "per_level": 0.01, "max_rate": 0.25,

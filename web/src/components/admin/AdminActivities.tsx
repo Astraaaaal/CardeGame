@@ -67,6 +67,10 @@ const FIELDS: { section: Section; title: string; fields: [string, string, number
         ["reward_growth", "Récompense en plus par prestige (0,1 = +10 %)", 0.05],
         ["bonus_amount", "Bonus : quantité", 1],
     ] },
+    { section: "level_gap", title: "Écart de niveau (échange, cadeau, annonce)", fields: [
+        ["ratio", "Écart toléré, en part du plus haut niveau (0,3 = 30 %)", 0.05],
+        ["min_gap", "Écart toléré minimum (début de jeu)", 1],
+    ] },
     { section: "converter", title: "Convertisseur", fields: [
         ["daily_uses", "Conversions par jour", 1],
     ] },
