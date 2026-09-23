@@ -28,6 +28,14 @@ export interface Card {
     booster_cover_url: string | null;
 }
 
+/** Un exemplaire précis d'une combinaison possédée. */
+export interface CardCopy {
+    id: string;
+    power: number | null;
+    locked: boolean;
+    favorite_ids: number[];
+}
+
 export interface CardGroup {
     card: Card;
     quantity: number;
@@ -35,4 +43,7 @@ export interface CardGroup {
     favorite_colors?: string[];
     /** Exemplaires verrouillés (protégés du recyclage). */
     locked_count?: number;
+    /** Détail des exemplaires affichés (mode recyclage : `with_copies`),
+     *  du plus puissant au moins puissant. */
+    copies?: CardCopy[];
 }

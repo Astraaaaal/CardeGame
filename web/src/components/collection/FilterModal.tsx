@@ -17,7 +17,9 @@ const OP_LABELS: { value: TierOp; label: string }[] = [
     { value: "lte", label: "Et en dessous" },
 ];
 
-const POWER_MAX = 20000;
+// Plafond le plus haut atteignable par une carte (cf. services/power.py,
+// TIER_CAPS) : le curseur doit pouvoir monter jusque-là.
+const POWER_MAX = 50000;
 const POWER_STEP = 100;
 
 const RANGE_INPUT = `absolute inset-0 w-full appearance-none bg-transparent pointer-events-none

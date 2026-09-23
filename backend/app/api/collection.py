@@ -100,6 +100,7 @@ async def get_collection(
     type_names: list[str] = Query([]),
     min_power: Optional[int] = Query(None, ge=0),
     max_power: Optional[int] = Query(None, ge=0),
+    with_copies: bool = Query(False),
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
@@ -110,6 +111,9 @@ async def get_collection(
     ou "lte" (ce palier et en dessous), basé sur tier_order.rank().
     `type_names` : un ou plusieurs types de personnage (nom, pas id) — vide = tous.
     `min_power` / `max_power` : bornes incluses sur la puissance de chaque exemplaire.
+    `with_copies` : joint à chaque groupe le détail de ses exemplaires affichés
+    (id, puissance, verrou, favoris) — nécessaire au mode recyclage, où l'on
+    sélectionne des exemplaires précis ; omis sinon pour alléger la réponse.
     """
     # Requête de base — seul set_id reste un filtre exact simple côté SQL,
     # les 4 axes à palier + le type sont filtrés en Python.
@@ -210,6 +214,7 @@ async def get_collection(
                 "quantity": 1,
                 "favorite_colors": [],
                 "locked_count": 0,
+                "copies": [],
                 "_fav_ids": set(),
             }
         else:
@@ -233,6 +238,11 @@ async def get_collection(
     for card in all_cards:
         g = groups[(card.character_id, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id)]
         g["locked_count"] += 1 if card.locked else 0
+        if with_copies:
+            g["copies"].append(CardCopyOut(
+                id=card.id, power=card.power, locked=card.locked,
+                favorite_ids=[cat_id for cat_id, _ in card_favs.get(card.id, [])],
+            ))
         for cat_id, color in card_favs.get(card.id, []):
             if cat_id not in g["_fav_ids"]:
                 g["_fav_ids"].add(cat_id)
@@ -291,6 +301,9 @@ async def get_collection(
 
     for g in group_list:
         g.pop("_fav_ids", None)
+        # Du plus puissant au moins puissant : « garder le meilleur exemplaire »
+        # se lit alors directement sur le premier de la liste.
+        g["copies"].sort(key=lambda c: (c.power is None, -(c.power or 0)))
     return CollectionResponse(
         total_cards=len(all_cards),
         unique_cards=len(group_list),

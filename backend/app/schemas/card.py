@@ -45,6 +45,9 @@ class CardGroupResponse(BaseModel):
     # et nombre d'exemplaires verrouillés (protégés du recyclage).
     favorite_colors: list[str] = []
     locked_count: int = 0
+    # Détail des exemplaires affichés (avec `with_copies`, pour le mode
+    # recyclage) : du plus puissant au moins puissant. Vide sinon.
+    copies: list["CardCopyOut"] = []
 
 
 class CardCopyOut(BaseModel):

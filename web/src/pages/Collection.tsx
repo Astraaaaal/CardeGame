@@ -2,16 +2,24 @@ import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCollection } from "@/hooks/useCollection";
 import type { CollectionParams } from "@/api/collection";
-import type { Card } from "@/types/card";
+import type { Card, CardGroup } from "@/types/card";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import CardGrid from "@/components/card/CardGrid";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import FilterModal from "@/components/collection/FilterModal";
+import RecycleTools from "@/components/collection/RecycleTools";
+import RecycleConfirmModal from "@/components/collection/RecycleConfirmModal";
+import CopySelectModal from "@/components/collection/CopySelectModal";
+import { copiesOfGroup, summarize } from "@/utils/recycleSelection";
 import ProbabilityModal from "@/components/collection/ProbabilityModal";
 import FavoritesManager, { FAVORITES_KEY } from "@/components/collection/FavoritesManager";
 import { favoritesApi } from "@/api/favorites";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { collectionApi } from "@/api/collection";
+import { useProbabilities } from "@/hooks/useCollection";
+import { showRewards } from "@/stores/rewardPopupStore";
+import { toast } from "@/stores/toastStore";
 import BottomNav from "@/components/layout/BottomNav";
 
 const TIER_FILTER_KEYS = [
@@ -50,6 +58,12 @@ export default function Collection() {
     const [filterModalOpen, setFilterModalOpen] = useState(false);
     const [probModalOpen, setProbModalOpen] = useState(false);
     const [favManagerOpen, setFavManagerOpen] = useState(false);
+    // Mode recyclage : sélection d'exemplaires précis à travers toute la collection.
+    const [recycleMode, setRecycleMode] = useState(false);
+    const [recycleSelected, setRecycleSelected] = useState<Set<string>>(new Set());
+    const [includeFavorites, setIncludeFavorites] = useState(false);
+    const [copiesGroup, setCopiesGroup] = useState<CardGroup | null>(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
     const { data: favCats } = useQuery({ queryKey: FAVORITES_KEY, queryFn: favoritesApi.list });
     const scrollRef = useRef<HTMLElement>(null);
     // Empêche un double-tap/double-clic sur "Valider" de déclencher deux
@@ -98,6 +112,43 @@ export default function Collection() {
         navigate(to);
     };
 
+    const addToSelection = (ids: string[]) =>
+        setRecycleSelected((prev) => new Set([...prev, ...ids]));
+
+    const toggleCopy = (id: string) =>
+        setRecycleSelected((prev) => {
+            const next = new Set(prev);
+            if (!next.delete(id)) next.add(id);
+            return next;
+        });
+
+    /** Appui sur une carte : prend (ou rend) tous ses exemplaires non verrouillés.
+     *  Un favori se laisse prendre ainsi — c'est un geste volontaire, contrairement
+     *  aux outils de sélection rapide qui l'épargnent. */
+    const toggleGroup = (group: CardGroup) => {
+        const ids = copiesOfGroup(group).map((c) => c.id);
+        if (!ids.length) {
+            toast.error("Exemplaires verrouillés : retire le verrou pour les recycler.");
+            return;
+        }
+        setRecycleSelected((prev) => {
+            const next = new Set(prev);
+            const allPicked = ids.every((id) => next.has(id));
+            for (const id of ids) {
+                if (allPicked) next.delete(id);
+                else next.add(id);
+            }
+            return next;
+        });
+    };
+
+    const leaveRecycleMode = () => {
+        setRecycleMode(false);
+        setRecycleSelected(new Set());
+        setConfirmOpen(false);
+        setCopiesGroup(null);
+    };
+
     // Selon la hauteur du contenu, c'est la fenêtre ou <main> qui défile : on pilote les deux.
     const scrollPage = (to: "top" | "bottom") => {
         const main = scrollRef.current;
@@ -115,7 +166,9 @@ export default function Collection() {
         });
     const activeFilterCount = countActiveFilters(filters);
 
-    const { data, isLoading, isFetching } = useCollection(filters);
+    const { data, isLoading, isFetching } = useCollection(
+        recycleMode ? { ...filters, with_copies: true } : filters,
+    );
 
     // Recherche + sens de tri appliqués côté client sur la liste déjà triée par l'API.
     const groups = useMemo(() => {
@@ -128,32 +181,74 @@ export default function Collection() {
         return g;
     }, [data, search, reversed]);
 
+    const qc = useQueryClient();
+    const { data: probabilities } = useProbabilities(recycleMode);
+    const recycleIds = useMemo(() => Array.from(recycleSelected), [recycleSelected]);
+    // « Rareté élevée » = les deux meilleurs paliers du référentiel (épique et
+    // légendaire aujourd'hui) : ils déclenchent l'avertissement de confirmation.
+    const preciousRarityIds = (probabilities?.rarities ?? []).slice(0, 2).map((r) => r.id);
+    const summary = useMemo(
+        () => summarize(groups, recycleSelected, preciousRarityIds),
+        [groups, recycleSelected, preciousRarityIds],
+    );
+
+    const recycle = useMutation({
+        mutationFn: () => collectionApi.recycle({ card_ids: recycleIds }),
+        onSuccess: (res) => {
+            showRewards({
+                title: `Recyclage ×${res.recycled_count}`,
+                items: res.gains.map((g) => ({
+                    kind: "resource" as const, resourceId: g.resource_id, amount: g.amount, name: g.name,
+                })),
+            });
+            leaveRecycleMode();
+            qc.invalidateQueries({ queryKey: ["collection"] });
+            qc.invalidateQueries({ queryKey: ["player"] });
+            qc.invalidateQueries({ queryKey: ["card-copies"] });
+        },
+        onError: () => {
+            toast.error("Recyclage impossible : recharge la collection et réessaie.");
+            setConfirmOpen(false);
+        },
+    });
+
     return (
         <div className="min-h-screen bg-game-bg flex flex-col relative">
             {/* Header */}
             <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
                 <button
                     className="text-accent text-sm font-semibold"
-                    onClick={() => inSelectionMode ? cancelAndLeave() : navigate("/")}
+                    onClick={() => inSelectionMode ? cancelAndLeave() : recycleMode ? leaveRecycleMode() : navigate("/")}
                 >
-                    {inSelectionMode ? "× Annuler" : "Retour"}
+                    {inSelectionMode || recycleMode ? "× Annuler" : "Retour"}
                 </button>
                 <h1 className="text-white font-bold">
-                    {inSelectionMode ? selectionRequest!.title : "Collection"}
+                    {inSelectionMode ? selectionRequest!.title : recycleMode ? "Recyclage" : "Collection"}
                 </h1>
                 <div className="flex items-center gap-3">
-                    {!inSelectionMode && (
-                        <button
-                            className="text-white/50 hover:text-white text-lg"
-                            title="Table des probabilités"
-                            onClick={() => setProbModalOpen(true)}
-                        >
-                            📊
-                        </button>
+                    {!inSelectionMode && !recycleMode && (
+                        <>
+                            <button
+                                className="text-white/50 hover:text-white text-lg"
+                                title="Recycler plusieurs cartes"
+                                onClick={() => setRecycleMode(true)}
+                            >
+                                ♻️
+                            </button>
+                            <button
+                                className="text-white/50 hover:text-white text-lg"
+                                title="Table des probabilités"
+                                onClick={() => setProbModalOpen(true)}
+                            >
+                                📊
+                            </button>
+                        </>
                     )}
                     <div className="text-white/40 text-xs text-right">
                         {inSelectionMode ? (
                             <p>{picked.size} / {selectionRequest!.max}</p>
+                        ) : recycleMode ? (
+                            <p>{recycleSelected.size} choisi{recycleSelected.size > 1 ? "s" : ""}</p>
                         ) : data ? (
                             <>
                                 <p>{data.unique_cards} uniques</p>
@@ -180,6 +275,23 @@ export default function Collection() {
 
             {inSelectionMode && (
                 <p className="px-4 pt-2 text-white/40 text-[11px]">Toucher pour choisir · appui long pour voir le détail</p>
+            )}
+
+            {recycleMode && (
+                <>
+                    <p className="px-4 pt-2 text-white/40 text-[11px]">
+                        Toucher une carte pour prendre tous ses exemplaires · appui long pour en choisir certains
+                    </p>
+                    <RecycleTools
+                        groups={groups}
+                        rarities={probabilities?.rarities ?? []}
+                        qualities={probabilities?.qualities ?? []}
+                        includeFavorites={includeFavorites}
+                        onIncludeFavorites={setIncludeFavorites}
+                        onSelect={addToSelection}
+                        onClear={() => setRecycleSelected(new Set())}
+                    />
+                </>
             )}
 
             {/* Favoris : filtre par catégorie + gestion */}
@@ -235,7 +347,7 @@ export default function Collection() {
             {/* Cards */}
             <main
                 ref={scrollRef}
-                className={`flex-1 overflow-y-auto py-4 ${inSelectionMode ? "pb-24" : ""}`}
+                className={`flex-1 overflow-y-auto py-4 ${inSelectionMode || recycleMode ? "pb-24" : ""}`}
             >
                 {isLoading ? (
                     <LoadingSpinner text="Chargement de la collection..." />
@@ -247,6 +359,10 @@ export default function Collection() {
                             excludeIds={selectionRequest ? new Set(selectionRequest.excludeIds) : undefined}
                             selectedIds={inSelectionMode ? new Set(picked.keys()) : undefined}
                             onToggle={toggleSelection}
+                            recycleMode={recycleMode}
+                            recycleSelected={recycleSelected}
+                            onRecycleToggleGroup={toggleGroup}
+                            onRecycleOpenCopies={setCopiesGroup}
                         />
                     </div>
                 ) : (
@@ -300,6 +416,19 @@ export default function Collection() {
                 </div>
             )}
 
+            {recycleMode && (
+                <div className="fixed bottom-0 left-0 right-0 z-30 p-4 pointer-events-none [&>*]:pointer-events-auto">
+                    <Button
+                        variant="danger"
+                        className="w-full max-w-sm mx-auto block"
+                        disabled={recycleSelected.size === 0}
+                        onClick={() => setConfirmOpen(true)}
+                    >
+                        Recycler ({recycleSelected.size})
+                    </Button>
+                </div>
+            )}
+
             <FilterModal
                 open={filterModalOpen}
                 onClose={() => setFilterModalOpen(false)}
@@ -307,6 +436,23 @@ export default function Collection() {
                 onChange={patchFilters}
                 onReset={resetTierFilters}
             />
+            {copiesGroup && (
+                <CopySelectModal
+                    group={copiesGroup}
+                    selectedIds={recycleSelected}
+                    onToggle={toggleCopy}
+                    onClose={() => setCopiesGroup(null)}
+                />
+            )}
+            {confirmOpen && (
+                <RecycleConfirmModal
+                    cardIds={recycleIds}
+                    summary={summary}
+                    pending={recycle.isPending}
+                    onConfirm={() => recycle.mutate()}
+                    onClose={() => setConfirmOpen(false)}
+                />
+            )}
             <ProbabilityModal open={probModalOpen} onClose={() => setProbModalOpen(false)} />
             <FavoritesManager open={favManagerOpen} onClose={() => setFavManagerOpen(false)} />
         </div>

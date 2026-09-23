@@ -14,10 +14,18 @@ interface CardGridProps {
     excludeIds?: Set<string>;
     selectedIds?: Set<string>;
     onToggle?: (cardId: string, preview: Card) => void;
+    /** Mode recyclage : tapoter prend TOUS les exemplaires affichés de la carte
+     * (sauf verrouillés), appui long ouvre le réglage exemplaire par exemplaire.
+     * `recycleSelected` = exemplaires cochés, pour l'état visuel de la grille. */
+    recycleMode?: boolean;
+    recycleSelected?: Set<string>;
+    onRecycleToggleGroup?: (group: CardGroup) => void;
+    onRecycleOpenCopies?: (group: CardGroup) => void;
 }
 
 export default function CardGrid({
     groups, selectionMode, excludeIds, selectedIds, onToggle,
+    recycleMode, recycleSelected, onRecycleToggleGroup, onRecycleOpenCopies,
 }: CardGridProps) {
     // Sélection par id de carte (pas par index) : la liste peut se ré-trier.
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -28,9 +36,13 @@ export default function CardGrid({
     const pressTimer = useRef<number | null>(null);
     const longPressed = useRef(false);
     const startPress = (g: CardGroup) => {
-        if (!selectionMode) return;
+        if (!selectionMode && !recycleMode) return;
         longPressed.current = false;
-        pressTimer.current = window.setTimeout(() => { longPressed.current = true; setPeek(g); }, 450);
+        pressTimer.current = window.setTimeout(() => {
+            longPressed.current = true;
+            if (recycleMode) onRecycleOpenCopies?.(g);
+            else setPeek(g);
+        }, 450);
     };
     const endPress = () => {
         if (pressTimer.current) window.clearTimeout(pressTimer.current);
@@ -40,6 +52,10 @@ export default function CardGrid({
     const handleTap = (g: CardGroup) => {
         if (longPressed.current) {  // l'appui long a déjà ouvert le détail
             longPressed.current = false;
+            return;
+        }
+        if (recycleMode) {
+            onRecycleToggleGroup?.(g);
             return;
         }
         if (!selectionMode) {
@@ -59,12 +75,17 @@ export default function CardGrid({
                 {groups.map((g) => {
                     const isSingleSelected = selectionMode && g.quantity === 1 && selectedIds?.has(g.card.id);
                     const isSingleExcluded = selectionMode && g.quantity === 1 && excludeIds?.has(g.card.id);
+                    const pickedCount = recycleMode
+                        ? (g.copies ?? []).filter((c) => recycleSelected?.has(c.id)).length : 0;
+                    const fullyPicked = recycleMode && pickedCount > 0 && pickedCount === g.quantity;
                     return (
                         <div key={g.card.id} className="relative select-none"
                             onPointerDown={() => startPress(g)} onPointerUp={endPress} onPointerLeave={endPress}
                             onPointerCancel={endPress}
                             onContextMenu={(e) => { if (selectionMode) { e.preventDefault(); endPress(); setPeek(g); } }}>
-                            <div className={isSingleSelected ? "ring-2 ring-accent rounded-xl" : undefined}>
+                            <div className={
+                                isSingleSelected || fullyPicked ? "ring-2 ring-accent rounded-xl"
+                                    : pickedCount > 0 ? "ring-2 ring-accent/50 rounded-xl" : undefined}>
                                 <CardImage
                                     card={g.card}
                                     size="sm"
@@ -87,12 +108,19 @@ export default function CardGrid({
                                     {g.quantity}
                                 </span>
                             )}
+                            {/* Mode recyclage : combien d'exemplaires partent au recyclage. */}
+                            {pickedCount > 0 && (
+                                <span className="absolute bottom-1 right-1 bg-accent text-white text-[10px] font-bold
+                                    rounded-full px-1.5 py-0.5 pointer-events-none">
+                                    {pickedCount === g.quantity ? "♻" : `♻ ${pickedCount}/${g.quantity}`}
+                                </span>
+                            )}
                         </div>
                     );
                 })}
             </div>
 
-            {!selectionMode && (
+            {!selectionMode && !recycleMode && (
                 <CardDetail
                     open={!!selected}
                     card={selected?.card ?? null}

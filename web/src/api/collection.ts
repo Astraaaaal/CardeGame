@@ -1,5 +1,5 @@
 import api from "./client";
-import type { CardGroup, Card } from "@/types/card";
+import type { CardGroup, Card, CardCopy } from "@/types/card";
 
 export type TierOp = "eq" | "gte" | "lte";
 
@@ -34,6 +34,8 @@ export interface CollectionParams {
     min_power?: number;
     max_power?: number;
     favorite_id?: number;
+    /** Joint le détail des exemplaires à chaque groupe (mode recyclage). */
+    with_copies?: boolean;
 }
 
 export interface CollectionResponse {
@@ -86,12 +88,7 @@ export interface CardComboParams {
     jewelry_id: string;
 }
 
-export interface CardCopy {
-    id: string;
-    power: number | null;
-    locked: boolean;
-    favorite_ids: number[];
-}
+export type { CardCopy };
 
 export interface CardCopiesResponse {
     copies: CardCopy[];
