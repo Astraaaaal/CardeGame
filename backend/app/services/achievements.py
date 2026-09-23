@@ -9,6 +9,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select, func, or_
 
 from app.models.user import User
@@ -240,17 +241,27 @@ async def sync_unlocked(session: AsyncSession, user: User) -> list[UserAchieveme
     }
 
     newly_unlocked = []
-    for a in defs:
-        if a.id in already:
-            continue
-        value = await evaluate_metric(session, user, a)
-        if value >= await effective_threshold(session, a):
-            row = UserAchievement(user_id=user.id, achievement_id=a.id)
-            session.add(row)
-            newly_unlocked.append(row)
+    # Sans no_autoflush, la première ligne ajoutée part en base dès la requête
+    # suivante de la boucle — et deux requêtes simultanées (la page profil en
+    # lance plusieurs) se marchent dessus sur la même clé primaire.
+    with session.no_autoflush:
+        for a in defs:
+            if a.id in already:
+                continue
+            value = await evaluate_metric(session, user, a)
+            if value >= await effective_threshold(session, a):
+                row = UserAchievement(user_id=user.id, achievement_id=a.id)
+                session.add(row)
+                newly_unlocked.append(row)
 
     if newly_unlocked:
-        await session.commit()
+        try:
+            await session.commit()
+        except IntegrityError:
+            # Une requête concurrente a débloqué les mêmes succès entre-temps :
+            # le résultat voulu est déjà en base, il n'y a rien à rattraper.
+            await session.rollback()
+            return []
     return newly_unlocked
 
 
