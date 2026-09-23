@@ -52,9 +52,10 @@ export default function App() {
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     // Signal de présence (bonus de chance, coffre d'absence) tant que l'appli est affichée.
     usePresencePing();
-    // Téléphone : une colonne ; ordinateur : de la place pour respirer.
+    // Une seule colonne, quelle que soit la taille de l'écran : étalée sur un
+    // grand écran, l'interface paraissait évasée et molle.
     return (
-        <div className="max-w-mobile desktop:max-w-3xl mx-auto min-h-screen">
+        <div className="max-w-mobile mx-auto min-h-screen">
             <TradeWatcher />
             <RewardPopup />
             <Toaster />

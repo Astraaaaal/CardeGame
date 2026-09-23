@@ -18,6 +18,9 @@ import BottomNav from "@/components/layout/BottomNav";
 import { useIsDesktop } from "@/hooks/useViewport";
 import { FramedAvatar } from "@/components/cosmetics/CosmeticVisuals";
 
+/** Étiquette sous le nom du jeu. À changer le jour de la sortie. */
+const VERSION_LABEL = "Bêta 2.0";
+
 export default function MainMenu() {
   const navigate = useNavigate();
   const { user, setUser } = useAuthStore();
@@ -62,8 +65,10 @@ export default function MainMenu() {
       { label: "Ma Collection", path: "/collection", wide: true },
     ]
     : [
-      { label: "Classement", path: "/leaderboard", feature: "leaderboard" },
-      { label: "Inventaire", path: "/inventory" },
+      // Seules entrées de l'accueil sur téléphone (le reste est dans la barre
+      // d'onglets) : elles prennent toute la largeur, la place ne manque pas.
+      { label: "Classement", path: "/leaderboard", feature: "leaderboard", wide: true },
+      { label: "Inventaire", path: "/inventory", wide: true },
     ];
 
   const powerPct = levelStatus?.next_level_power_required
@@ -74,7 +79,7 @@ export default function MainMenu() {
     <div className="min-h-screen bg-game-bg flex flex-col pb-14 desktop:pb-0">
       <DailyRewardPopup />
 
-      <div className="px-4 pt-4 max-w-sm desktop:max-w-2xl mx-auto w-full space-y-2">
+      <div className="px-4 pt-4 max-w-sm mx-auto w-full space-y-2">
         <div className="flex items-center justify-between">
           <WalletMenu />
           <CoinDisplay coins={user?.coins ?? 0} />
@@ -130,14 +135,14 @@ export default function MainMenu() {
         </button>
       </div>
 
-      <div className="px-4 pt-2 max-w-sm desktop:max-w-2xl mx-auto w-full">
+      <div className="px-4 pt-2 max-w-sm mx-auto w-full">
         <PresencePanel />
       </div>
 
       {user && (!user.email || !user.email_verified) && (
         <button
           className="mx-4 mt-3 flex items-center justify-between gap-2 bg-amber-400/10 border border-amber-400/40
-                     rounded-xl px-4 py-2.5 text-left max-w-sm desktop:max-w-2xl self-center w-[calc(100%-2rem)]"
+                     rounded-xl px-4 py-2.5 text-left max-w-sm self-center w-[calc(100%-2rem)]"
           onClick={() => navigate("/settings")}
         >
           <span className="text-white text-sm">
@@ -151,20 +156,20 @@ export default function MainMenu() {
 
       {/* Content */}
       <main className="flex-1 flex flex-col items-center justify-center gap-5 px-4 pb-24">
-        {/* Le nom tenait en gros au milieu de l écran, coincé entre les bandeaux
-            et les entrées : il devient une signature discrète au-dessus du menu,
-            ce qui rend la place que la grille réclamait. */}
-        <motion.p
-          className="w-full max-w-sm desktop:max-w-2xl text-[11px] font-bold uppercase tracking-[0.35em] text-white/25"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+        <motion.h1
+          className="text-3xl font-extrabold text-white text-center leading-none"
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
         >
-          Carde<span className="text-accent/60">Game</span>
-        </motion.p>
+          Carde<span className="text-accent">Game</span>
+          <span className="block mt-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">
+            {VERSION_LABEL}
+          </span>
+        </motion.h1>
 
         {/* Deux colonnes ; les entrées principales (boutique, collection)
             prennent toute la largeur. */}
-        <div className="w-full max-w-sm desktop:max-w-2xl grid grid-cols-2 gap-2.5">
+        <div className="w-full max-w-sm grid grid-cols-2 gap-2.5">
           {menuItems.map((item, idx) => (
             <motion.div
               key={item.path}

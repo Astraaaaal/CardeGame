@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { friendsApi } from "@/api/friends";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import FriendsPanel from "@/components/social/FriendsPanel";
+import { useIsDesktop } from "@/hooks/useViewport";
+import { tabIndexOf } from "./mobileTabs";
 
 /**
  * Navigation (Réglages + Social) en pastilles flottantes, répétée sur la plupart des pages —
@@ -24,6 +26,13 @@ export default function BottomNav() {
         () => useCardSelectionStore.getState().result?.context?.purpose === "gift"
     );
 
+    // Sur téléphone, la barre d'onglets occupe le bas de l'écran : les pastilles
+    // doivent se poser au-dessus, sinon elles passent dessous et deviennent
+    // inatteignables.
+    const isDesktop = useIsDesktop();
+    const { pathname } = useLocation();
+    const aboveTabBar = !isDesktop && tabIndexOf(pathname) >= 0;
+
     const { data: friendRequests } = useQuery({
         queryKey: ["friend-requests"], queryFn: friendsApi.listRequests, staleTime: 30_000,
     });
@@ -43,7 +52,7 @@ export default function BottomNav() {
             {/* Pastilles flottantes, toujours accessibles sans défiler jusqu'en bas.
                 Une barre de validation flottante se place au-dessus d'elles
                 (--nav-h, cf. FloatingActionBar). */}
-            <div className="fixed inset-x-0 bottom-4 z-30 pointer-events-none">
+            <div className={`fixed inset-x-0 z-30 pointer-events-none ${aboveTabBar ? "bottom-[4.5rem]" : "bottom-4"}`}>
                 <div className="max-w-mobile mx-auto px-4 flex items-center justify-between">
                     <button
                         className={BUBBLE}
