@@ -14,7 +14,7 @@ import WalletMenu from "@/components/player/WalletMenu";
 import PresencePanel from "@/components/activities/PresencePanel";
 import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
-import BottomNav from "@/components/layout/BottomNav";
+import SocialButton from "@/components/layout/SocialButton";
 import { useIsDesktop } from "@/hooks/useViewport";
 import { FramedAvatar } from "@/components/cosmetics/CosmeticVisuals";
 
@@ -81,9 +81,22 @@ export default function MainMenu() {
       <DailyRewardPopup />
 
       <div className="px-4 pt-4 max-w-sm mx-auto w-full space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 pr-11">
           <WalletMenu />
-          <CoinDisplay coins={user?.coins ?? 0} />
+          <div className="flex items-center gap-2">
+            <CoinDisplay coins={user?.coins ?? 0} />
+            {/* Les réglages ne vivent que sur l'accueil : on n'a pas besoin d'y
+                accéder en permanence, et ils encombraient tous les écrans. */}
+            <button
+              className="w-9 h-9 shrink-0 rounded-full bg-game-surface border border-white/10 flex items-center
+                         justify-center text-base hover:border-accent transition-colors"
+              onClick={() => navigate("/settings")}
+              title="Réglages"
+              aria-label="Réglages"
+            >
+              ⚙️
+            </button>
+          </div>
         </div>
 
         <button
@@ -204,7 +217,7 @@ export default function MainMenu() {
         </div>
       </main>
 
-      <BottomNav />
+      <SocialButton />
     </div>
   );
 }

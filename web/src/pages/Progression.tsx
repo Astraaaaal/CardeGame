@@ -8,7 +8,7 @@ import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import TrophyRoad from "@/components/progression/TrophyRoad";
-import BottomNav from "@/components/layout/BottomNav";
+import SocialButton from "@/components/layout/SocialButton";
 import { errMsg } from "@/utils/errors";
 import { rewardItems, showRewards } from "@/stores/rewardPopupStore";
 import type { PendingLevelReward } from "@/types/progression";
@@ -255,7 +255,7 @@ export default function Progression() {
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col">
-            <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
+            <header className="flex items-center justify-between pl-4 pr-14 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
                     Retour
                 </button>
@@ -287,7 +287,7 @@ export default function Progression() {
                 {tab === "quests" && <QuestsTab />}
             </main>
 
-            <BottomNav />
+            <SocialButton />
         </div>
     );
 }

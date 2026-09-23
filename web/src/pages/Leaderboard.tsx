@@ -7,7 +7,7 @@ import { useTypes } from "@/hooks/useTypes";
 import { useAuthStore } from "@/stores/authStore";
 import type { LeaderboardEntry } from "@/types/leaderboard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import BottomNav from "@/components/layout/BottomNav";
+import SocialButton from "@/components/layout/SocialButton";
 import GuildRankings from "@/components/guild/GuildRankings";
 import MonthlyChallenge from "@/components/leaderboard/MonthlyChallenge";
 
@@ -82,7 +82,7 @@ export default function Leaderboard() {
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col">
-            <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
+            <header className="flex items-center justify-between pl-4 pr-14 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
                     Retour
                 </button>
@@ -148,7 +148,7 @@ export default function Leaderboard() {
               </LockedFeature>
             </main>
 
-            <BottomNav />
+            <SocialButton />
         </div>
     );
 }

@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { guildsApi } from "@/api/guilds";
-import BottomNav from "@/components/layout/BottomNav";
+import SocialButton from "@/components/layout/SocialButton";
 import NoGuild, { MY_GUILD_KEY } from "@/components/guild/NoGuild";
 import GuildView from "@/components/guild/GuildView";
 
@@ -13,7 +13,7 @@ export default function Guild() {
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col pb-14 desktop:pb-0">
-            <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
+            <header className="flex items-center justify-between pl-4 pr-14 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
                     Retour
                 </button>
@@ -26,7 +26,7 @@ export default function Guild() {
                 {data && (data.guild ? <GuildView guild={data.guild} /> : <NoGuild state={data} />)}
             </main>
 
-            <BottomNav />
+            <SocialButton />
         </div>
     );
 }

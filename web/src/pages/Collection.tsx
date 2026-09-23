@@ -20,7 +20,7 @@ import { collectionApi } from "@/api/collection";
 import { useProbabilities } from "@/hooks/useCollection";
 import { showRewards } from "@/stores/rewardPopupStore";
 import { toast } from "@/stores/toastStore";
-import BottomNav from "@/components/layout/BottomNav";
+import SocialButton from "@/components/layout/SocialButton";
 
 const TIER_FILTER_KEYS = [
     "rarity_id", "rarity_op", "quality_id", "quality_op",
@@ -215,7 +215,7 @@ export default function Collection() {
     return (
         <div className="min-h-screen bg-game-bg flex flex-col relative pb-14 desktop:pb-0">
             {/* Header */}
-            <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
+            <header className="flex items-center justify-between pl-4 pr-14 py-3 bg-game-surface/50 border-b border-white/5">
                 <button
                     className="text-accent text-sm font-semibold"
                     onClick={() => inSelectionMode ? cancelAndLeave() : recycleMode ? leaveRecycleMode() : navigate("/")}
@@ -382,7 +382,7 @@ export default function Collection() {
                 )}
             </main>
 
-            {!inSelectionMode && <BottomNav />}
+            {!inSelectionMode && <SocialButton />}
 
             <div className={`fixed inset-x-0 z-30 pointer-events-none ${inSelectionMode ? "bottom-24" : "bottom-20"}`}>
                 <div className="max-w-mobile mx-auto px-4 flex flex-col items-end gap-2">

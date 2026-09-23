@@ -9,7 +9,7 @@ import OwnedBoosterRow from "@/components/shop/OwnedBoosterRow";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import ResourceIcon from "@/components/ui/ResourceIcon";
-import BottomNav from "@/components/layout/BottomNav";
+import SocialButton from "@/components/layout/SocialButton";
 import { premiumApi } from "@/api/premium";
 import { CosmeticPreview, COSMETIC_KIND_LABEL } from "@/components/cosmetics/CosmeticVisuals";
 import { useRerollTokens, useRerollTokenUse } from "@/hooks/useRerollTokens";
@@ -78,7 +78,7 @@ export default function Inventory() {
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col">
-            <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
+            <header className="flex items-center justify-between pl-4 pr-14 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
                     Retour
                 </button>
@@ -184,7 +184,7 @@ export default function Inventory() {
                 )}
             </main>
 
-            <BottomNav />
+            <SocialButton />
         </div>
     );
 }

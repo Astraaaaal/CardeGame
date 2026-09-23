@@ -24,7 +24,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { useCardSelectionStore } from "@/stores/cardSelectionStore";
 import { useHasPendingTradeProposal } from "@/hooks/useTradePulse";
 import { showRewards } from "@/stores/rewardPopupStore";
-import BottomNav from "@/components/layout/BottomNav";
+import SocialButton from "@/components/layout/SocialButton";
 import PremiumTab, { PREMIUM_RESOURCE_ID } from "@/components/shop/PremiumTab";
 import { premiumApi } from "@/api/premium";
 import { getResourceBalance } from "@/utils/resources";
@@ -496,7 +496,7 @@ export default function Shop() {
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col pb-14 desktop:pb-0">
-            <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
+            <header className="flex items-center justify-between pl-4 pr-14 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
                     Retour
                 </button>
@@ -524,7 +524,7 @@ export default function Shop() {
                 {tab === "premium" && premium?.access && <PremiumTab />}
             </main>
 
-            <BottomNav />
+            <SocialButton />
         </div>
     );
 }

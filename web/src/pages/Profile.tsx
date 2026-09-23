@@ -12,7 +12,7 @@ import TradeListingsEditor from "@/components/profile/TradeListingsEditor";
 import CardImage from "@/components/card/CardImage";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import BottomNav from "@/components/layout/BottomNav";
+import SocialButton from "@/components/layout/SocialButton";
 import FloatingActionBar from "@/components/ui/FloatingActionBar";
 import { errMsg } from "@/utils/errors";
 
@@ -230,7 +230,7 @@ export default function Profile() {
 
     return (
         <div className="min-h-screen bg-game-bg flex flex-col">
-            <header className="flex items-center justify-between px-4 py-3 bg-game-surface/50 border-b border-white/5">
+            <header className="flex items-center justify-between pl-4 pr-14 py-3 bg-game-surface/50 border-b border-white/5">
                 <button className="text-accent text-sm font-semibold" onClick={() => navigate("/")}>
                     Retour
                 </button>
@@ -267,7 +267,7 @@ export default function Profile() {
                 )}
             </main>
 
-            <BottomNav />
+            <SocialButton />
 
             {tab === "showcase" && (
                 <FloatingActionBar betweenNav>

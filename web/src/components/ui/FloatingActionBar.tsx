@@ -3,7 +3,7 @@ interface FloatingActionBarProps {
     /** Hauteur réservée en bas de page pour que le contenu final ne passe pas sous la barre. */
     spacerClassName?: string;
     /** Boutons compacts placés sur la même ligne que les pastilles Réglages /
-     * Social (cf. BottomNav), entre les deux, au lieu d'une barre au-dessus. */
+     * Social (cf. SocialButton), entre les deux, au lieu d'une barre au-dessus. */
     betweenNav?: boolean;
 }
 
@@ -27,7 +27,7 @@ export default function FloatingActionBar({ children, spacerClassName = "h-24", 
         <>
             <div className={`shrink-0 ${spacerClassName}`} aria-hidden />
             {/* Pas de bandeau : seuls les boutons flottent au-dessus du contenu,
-                et au-dessus des pastilles Réglages/Social si la page en a (--nav-h, cf. BottomNav). */}
+                et au-dessus des pastilles Réglages/Social si la page en a (--nav-h, cf. SocialButton). */}
             <div className="fixed inset-x-0 z-30 px-4 py-3 pointer-events-none" style={{ bottom: "var(--nav-h, 0px)" }}>
                 <div className="max-w-sm mx-auto w-full pointer-events-auto">{children}</div>
             </div>

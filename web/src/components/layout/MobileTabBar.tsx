@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "@/stores/toastStore";
 import { useUnlocks } from "@/hooks/useUnlocks";
@@ -15,9 +16,20 @@ export default function MobileTabBar() {
     const { isUnlocked, levelFor } = useUnlocks();
     const isDesktop = useIsDesktop();
 
+    const visible = !isDesktop && tabIndexOf(pathname) >= 0;
+
+    // Hauteur réservée en bas de l'écran : une barre d'action flottante se pose
+    // au-dessus d'elle plutôt que dessous (cf. FloatingActionBar).
+    useEffect(() => {
+        const root = document.documentElement;
+        if (!visible) return;
+        root.style.setProperty("--nav-h", "3.5rem");
+        return () => { root.style.removeProperty("--nav-h"); };
+    }, [visible]);
+
     // Seulement sur téléphone, et seulement sur les écrans qu'elle dessert :
     // ailleurs (ouverture de booster, échange…) le flux reste focalisé.
-    if (isDesktop || tabIndexOf(pathname) < 0) return null;
+    if (!visible) return null;
 
     return (
         <nav className="fixed bottom-0 inset-x-0 z-40 bg-game-surface/95 backdrop-blur border-t border-white/10
