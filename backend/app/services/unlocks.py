@@ -27,6 +27,7 @@ FEATURE_LABELS = {
     "presence_luck": "Chance de présence",
     "higher_lower": "Plus ou moins",
     "rerolls": "Rerolls",
+    "showcase": "Vitrine",
     "listings": "Annonces « à échanger »",
     "converter": "Convertisseur",
     "machine": "Machine d'amélioration",

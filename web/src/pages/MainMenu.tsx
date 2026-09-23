@@ -16,6 +16,8 @@ import StreakBadge from "@/components/player/StreakBadge";
 import DailyRewardPopup from "@/components/player/DailyRewardPopup";
 import SocialButton from "@/components/layout/SocialButton";
 import { useIsDesktop } from "@/hooks/useViewport";
+import { useTutorialStore } from "@/stores/tutorialStore";
+import { WELCOME_STEPS } from "@/components/tutorial/tutorialSteps";
 import { FramedAvatar } from "@/components/cosmetics/CosmeticVisuals";
 
 /** Étiquette sous le nom du jeu. À changer le jour de la sortie. */
@@ -49,6 +51,11 @@ export default function MainMenu() {
   }, [player, setUser]);
 
   const { isUnlocked, levelFor } = useUnlocks();
+  // Première connexion : les cinq bulles d'accueil. Déjà vues, elles ne
+  // reviennent pas (la file écarte ce qui est mémorisé).
+  useEffect(() => {
+    if (user?.id) useTutorialStore.getState().enqueue(user.id, WELCOME_STEPS);
+  }, [user?.id]);
   const isDesktop = useIsDesktop();
 
   // « Progression » n'est plus une entrée : on y accède par la bannière de

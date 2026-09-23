@@ -4,7 +4,7 @@ import api from "@/api/client";
 export type FeatureKey =
     | "workshop" | "absence_chest" | "leaderboard" | "expeditions" | "resource_shop" | "gifts" | "wheel"
     | "trades" | "guild_join" | "presence_luck" | "higher_lower" | "rerolls" | "listings" | "converter"
-    | "machine" | "guild_create";
+    | "machine" | "guild_create" | "showcase";
 
 export interface UnlocksStatus {
     level: number;

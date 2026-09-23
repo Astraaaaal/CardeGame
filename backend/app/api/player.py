@@ -194,6 +194,7 @@ async def update_showcase(
     3 cartes possédées mises en avant. Remplace entièrement la configuration
     précédente (pas de mise à jour partielle).
     """
+    await unlocks.require(session, user, "showcase")
     if body.avatar_character_id:
         owns_character = (await session.execute(
             select(UserCard).where(

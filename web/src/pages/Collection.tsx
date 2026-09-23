@@ -21,6 +21,8 @@ import { useProbabilities } from "@/hooks/useCollection";
 import { showRewards } from "@/stores/rewardPopupStore";
 import { toast } from "@/stores/toastStore";
 import SocialButton from "@/components/layout/SocialButton";
+import { useSituationStep } from "@/components/tutorial/useTutorial";
+import { SITUATION_STEPS } from "@/components/tutorial/tutorialSteps";
 
 const TIER_FILTER_KEYS = [
     "rarity_id", "rarity_op", "quality_id", "quality_op",
@@ -176,6 +178,11 @@ export default function Collection() {
     );
 
     // Recherche + sens de tri appliqués côté client sur la liste déjà triée par l'API.
+    // Le premier doublon est le moment où le recyclage devient une question.
+    useSituationStep(SITUATION_STEPS.premierDoublon, (data?.groups ?? []).some((g) => g.quantity > 1));
+    // Le verrou ne s'explique bien qu'au moment où on s'apprête à recycler.
+    useSituationStep(SITUATION_STEPS.carteRare, recycleMode);
+
     const groups = useMemo(() => {
         let g = data?.groups ?? [];
         const q = search.trim().toLowerCase();

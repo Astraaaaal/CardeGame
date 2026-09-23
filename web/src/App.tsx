@@ -1,3 +1,5 @@
+import TutorialBubble from "@/components/tutorial/TutorialBubble";
+import { useUnlockAnnouncements } from "@/components/tutorial/useTutorial";
 import { useEffect } from "react";
 import LevelWatcher from "@/components/player/LevelWatcher";
 import { Routes, Route, Navigate } from "react-router-dom";
@@ -48,6 +50,13 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
 }
 
+/** Annonce les fonctionnalités qui viennent de s'ouvrir. Monté une seule fois,
+ *  il n'affiche rien par lui-même : il alimente la file de TutorialBubble. */
+function UnlockAnnouncer() {
+    useUnlockAnnouncements();
+    return null;
+}
+
 export default function App() {
     const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
     // Signal de présence (bonus de chance, coffre d'absence) tant que l'appli est affichée.
@@ -60,6 +69,8 @@ export default function App() {
             <RewardPopup />
             <Toaster />
             {isAuthenticated && <LevelWatcher />}
+            {isAuthenticated && <TutorialBubble />}
+            {isAuthenticated && <UnlockAnnouncer />}
             {isAuthenticated && <MobileTabBar />}
             {isAuthenticated && <SwipeNavigator />}
             <Routes>

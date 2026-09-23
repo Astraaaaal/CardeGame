@@ -13,6 +13,9 @@ export default {
                 accent: {
                     DEFAULT: "#50A0FF",
                     hover: "#64B4FF",
+                    // Cœur de la sphère du tutoriel : plus clair que l'accent,
+                    // pour se détacher de la coque qui l'entoure.
+                    light: "#8FC4FF",
                 },
                 gold: "#FFC832",
                 // Alias explicites utilisés dans les composants (bg-game-bg, bg-game-surface…)

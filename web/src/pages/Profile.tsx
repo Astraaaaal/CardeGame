@@ -13,6 +13,8 @@ import CardImage from "@/components/card/CardImage";
 import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import SocialButton from "@/components/layout/SocialButton";
+import { useSituationStep } from "@/components/tutorial/useTutorial";
+import { SITUATION_STEPS } from "@/components/tutorial/tutorialSteps";
 import FloatingActionBar from "@/components/ui/FloatingActionBar";
 import { errMsg } from "@/utils/errors";
 
@@ -76,6 +78,9 @@ function TierCounts({ title, counts }: { title: string; counts: TierCount[] }) {
 
 function StatsTab({ stats, isLoading }: { stats: PlayerStats | undefined; isLoading: boolean }) {
     const { user } = useAuthStore();
+    // La puissance s'explique en regardant le chiffre qu'elle explique : à la
+    // première ouverture des statistiques, pas dans le tutoriel d'accueil.
+    useSituationStep(SITUATION_STEPS.puissance, !!stats);
 
     if (isLoading || !stats) return <LoadingSpinner text="Chargement..." />;
 

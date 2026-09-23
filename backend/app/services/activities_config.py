@@ -83,7 +83,7 @@ DEFAULTS: dict = {
     # Niveau (plus haut atteint) qui débloque chaque fonctionnalité (cf. services/unlocks.py).
     "unlocks": {
         "workshop": 2, "absence_chest": 2, "leaderboard": 2,
-        "expeditions": 3, "resource_shop": 3,
+        "expeditions": 3, "resource_shop": 3, "showcase": 3,
         "gifts": 4, "wheel": 4,
         "trades": 5, "guild_join": 5, "presence_luck": 5,
         "higher_lower": 6, "rerolls": 6,

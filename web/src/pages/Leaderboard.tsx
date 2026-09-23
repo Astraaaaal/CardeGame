@@ -8,6 +8,8 @@ import { useAuthStore } from "@/stores/authStore";
 import type { LeaderboardEntry } from "@/types/leaderboard";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import SocialButton from "@/components/layout/SocialButton";
+import { useSituationStep } from "@/components/tutorial/useTutorial";
+import { SITUATION_STEPS } from "@/components/tutorial/tutorialSteps";
 import GuildRankings from "@/components/guild/GuildRankings";
 import MonthlyChallenge from "@/components/leaderboard/MonthlyChallenge";
 
@@ -58,6 +60,8 @@ function EntryList({ entries, isLoading }: { entries: LeaderboardEntry[]; isLoad
 type Tab = "friends" | "global" | "type" | "guilds" | "monthly";
 
 export default function Leaderboard() {
+    // Le défi mensuel s'explique là où on le voit.
+    useSituationStep(SITUATION_STEPS.defiMensuel, true);
     const navigate = useNavigate();
     const [tab, setTab] = useState<Tab>("friends");
     const { data: types } = useTypes();

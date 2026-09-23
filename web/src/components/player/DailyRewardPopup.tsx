@@ -3,11 +3,18 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { playerApi } from "@/api/player";
 import { useAuthStore } from "@/stores/authStore";
+import { useTutorialStore } from "@/stores/tutorialStore";
 import Button from "@/components/ui/Button";
 import CoinIcon from "@/components/ui/CoinIcon";
 
 export default function DailyRewardPopup() {
     const [show, setShow] = useState(false);
+    // Le tutoriel se tait tant que cette fenêtre est là : sur une première
+    // connexion, les deux arrivaient en même temps et se chevauchaient.
+    useEffect(() => {
+        useTutorialStore.getState().setBlocked(show);
+        return () => useTutorialStore.getState().setBlocked(false);
+    }, [show]);
     const [reward, setReward] = useState<{
         reward: number;
         streak: number;
