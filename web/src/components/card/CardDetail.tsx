@@ -39,7 +39,6 @@ interface CardDetailProps {
  */
 export default function CardDetail({ open, card, quantity, onClose, readOnly, canRecycle }: CardDetailProps) {
     const qc = useQueryClient();
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [result, setResult] = useState<string | null>(null);
     const [confirmingRecycle, setConfirmingRecycle] = useState(false);
 
@@ -49,7 +48,6 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly, ca
         if (card) {
             setLastCard(card);
             setLastQuantity(quantity);
-            setSelectedIds(new Set());
             setResult(null);
             setFocusId(null);
         }
@@ -79,8 +77,11 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly, ca
         enabled: !!baseCard && !readOnly,
     });
 
-    const recycleIds = (owned > 1 ? Array.from(selectedIds) : (displayCard ? [displayCard.id] : []))
-        .filter((id) => !(copiesQ.data?.copies ?? []).some((c) => c.id === id && c.locked));
+    // Recyclage à l'unité : l'exemplaire actuellement affiché. Pour en recycler
+    // plusieurs d'un coup, la collection a son mode recyclage (bouton ♻️).
+    const recycleId = owned > 1 ? focusId : (displayCard?.id ?? null);
+    const recycleLocked = (copiesQ.data?.copies ?? []).some((c) => c.id === recycleId && c.locked);
+    const recycleIds = recycleId && !recycleLocked ? [recycleId] : [];
 
     const recycle = useMutation({
         mutationFn: () => collectionApi.recycle({ card_ids: recycleIds }),
@@ -91,7 +92,7 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly, ca
             });
             setResult(res.gains.map((g) => `+${g.amount.toLocaleString("fr-FR")} ${g.name}`).join(" · "));
             setConfirmingRecycle(false);
-            setSelectedIds(new Set());
+            setFocusId(null);
             qc.invalidateQueries({ queryKey: ["collection"] });
             qc.invalidateQueries({ queryKey: ["player"] });
             qc.invalidateQueries({ queryKey: ["card-copies"] });
@@ -100,7 +101,7 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly, ca
     });
 
     // Exemplaires identiques regroupés (même puissance, mêmes favoris, même verrou :
-    // ⚡13 ×5 plutôt que 5 lignes) ; cocher une ligne sélectionne tous ses exemplaires.
+    // ⚡13 ×5 plutôt que 5 lignes) ; toucher une ligne affiche cet exemplaire.
     const copyGroups = Object.values(
         (copiesQ.data?.copies ?? []).reduce<Record<string, { key: string; power: number | null; locked: boolean; favs: number[]; ids: string[] }>>((acc, c) => {
             const favs = [...c.favorite_ids].sort((a, b) => a - b);
@@ -130,22 +131,11 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly, ca
         onError: (e) => setResult(errMsg(e)),
     });
 
-    const toggleCopies = (ids: string[]) => {
-        setSelectedIds((prev) => {
-            const next = new Set(prev);
-            const allSelected = ids.every((id) => next.has(id));
-            for (const id of ids) {
-                if (allSelected) next.delete(id); else next.add(id);
-            }
-            return next;
-        });
-    };
-
     if (!displayCard) return null;
 
     const rarityColor = rarityColorToCSS(displayCard.rarity_color);
     const recycleCount = recycleIds.length;
-    const losesAllCopies = recycleCount >= owned;
+    const losesAllCopies = owned === 1;
     const cardLabel = [displayCard.character_name, displayCard.rarity_name, displayCard.quality_name,
         displayCard.specialty_id !== "normal" ? displayCard.specialty_name : null,
         displayCard.jewelry_id !== "none" ? displayCard.jewelry_name : null]
@@ -294,7 +284,8 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly, ca
                                     {owned > 1 && (
                                         <div className="mb-2">
                                             <p className="text-white/40 text-[11px] mb-1.5">
-                                                Coche le ou les exemplaires à recycler — touche une ligne pour voir cet exemplaire :
+                                                Touche une ligne pour afficher cet exemplaire ; tu pourras le recycler seul.
+                                                Pour en recycler plusieurs, passe par le mode recyclage (♻️) de la collection.
                                             </p>
                                             {copiesQ.isLoading ? (
                                                 <p className="text-white/40 text-xs">Chargement...</p>
@@ -310,14 +301,6 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly, ca
                                                                 }`}
                                                                 onClick={() => setFocusId(focused ? null : g.ids[0])}
                                                             >
-                                                                <input
-                                                                    type="checkbox"
-                                                                    disabled={g.locked}
-                                                                    title={g.locked ? "Verrouillé : impossible de recycler" : undefined}
-                                                                    checked={!g.locked && g.ids.every((id) => selectedIds.has(id))}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    onChange={() => toggleCopies(g.ids)}
-                                                                />
                                                                 {g.power != null ? `⚡${g.power}` : "—"}
                                                                 {g.ids.length > 1 && (
                                                                     <span className="text-white/40 text-xs">×{g.ids.length}</span>
@@ -344,9 +327,16 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly, ca
                                             disabled={recycleCount === 0}
                                             onClick={() => { setResult(null); setConfirmingRecycle(true); }}
                                         >
-                                            Recycler {recycleCount > 1 ? `×${recycleCount}` : ""}
+                                            {owned > 1 ? "Recycler cet exemplaire" : "Recycler"}
                                         </Button>
                                     </div>
+                                    {recycleCount === 0 && (
+                                        <p className="text-white/40 text-[11px] mt-1.5">
+                                            {recycleLocked
+                                                ? "Cet exemplaire est verrouillé : retire le verrou pour le recycler."
+                                                : "Choisis d'abord l'exemplaire à afficher."}
+                                        </p>
+                                    )}
                                     {result && (
                                         <p className="text-xs mt-2 text-purple-300">{result}</p>
                                     )}
@@ -365,9 +355,9 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly, ca
                     <ConfirmModal
                         open={confirmingRecycle}
                         title="Confirmer le recyclage"
-                        message={`Recycler ${recycleCount} exemplaire${recycleCount > 1 ? "s" : ""} de « ${cardLabel} » ? Cette action est irréversible.`}
+                        message={`Recycler un exemplaire de « ${cardLabel} » ? Cette action est irréversible.`}
                         warning={losesAllCopies
-                            ? `Tu recycles ${owned > 1 ? "tous tes exemplaires" : "ton dernier exemplaire"} de cette carte : tu n'en posséderas plus aucun après cette opération.`
+                            ? "Tu recycles ton dernier exemplaire de cette carte : tu n'en posséderas plus aucun après cette opération."
                             : undefined}
                         confirmLabel="Recycler"
                         confirmVariant="primary"
