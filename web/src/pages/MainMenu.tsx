@@ -57,12 +57,13 @@ export default function MainMenu() {
   type MenuItem = { label: string; path: string; feature?: FeatureKey; wide?: boolean; highlight?: boolean };
   const menuItems: MenuItem[] = isDesktop
     ? [
+      // La collection passe en tête : c'est ce pour quoi on ouvre le jeu.
+      { label: "Ma Collection", path: "/collection", wide: true },
       { label: "Boutique", path: "/shop", wide: true, highlight: true },
       { label: "Guilde", path: "/guild", feature: "guild_join" },
       { label: "Classement", path: "/leaderboard", feature: "leaderboard" },
       { label: "Activités", path: "/activities", feature: "workshop" },
       { label: "Inventaire", path: "/inventory" },
-      { label: "Ma Collection", path: "/collection", wide: true },
     ]
     : [
       // Seules entrées de l'accueil sur téléphone (le reste est dans la barre
