@@ -10,8 +10,8 @@ export default defineConfig({
             registerType: "autoUpdate",
             includeAssets: ["favicon.ico", "icons/*.png"],
             manifest: {
-                name: "CardeGame",
-                short_name: "CardeGame",
+                name: "A Card Game",
+                short_name: "A Card Game",
                 description: "Jeu de collection de cartes en ligne",
                 start_url: "/",
                 display: "standalone",

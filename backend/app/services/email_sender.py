@@ -25,7 +25,7 @@ def _layout(title: str, body_html: str) -> str:
     return (
         "<div style=\"font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#1a1a2e\">"
         f"<h2 style=\"color:#4f46e5\">{html.escape(title)}</h2>{body_html}"
-        "<p style=\"color:#888;font-size:12px;margin-top:32px\">CardeGame — si tu n'es pas à l'origine "
+        "<p style=\"color:#888;font-size:12px;margin-top:32px\">A Card Game — si tu n'es pas à l'origine "
         "de cette demande, ignore simplement cet e-mail.</p></div>"
     )
 

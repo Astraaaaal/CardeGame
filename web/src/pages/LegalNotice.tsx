@@ -28,7 +28,7 @@ export default function LegalNotice() {
 
             <main className="flex-1 px-4 py-6 max-w-sm mx-auto w-full space-y-4">
                 <Section title="Éditeur du site">
-                    <p>CardeGame est édité sous le nom A2N par Swann Patissier, particulier.</p>
+                    <p>A Card Game est édité sous le nom A2N par Swann Patissier, particulier.</p>
                     <p>Adresse : 11 rue de l'Indre, 44100 Nantes, France.</p>
                     <p>Contact : {CONTACT_EMAIL}</p>
                 </Section>
@@ -50,14 +50,14 @@ export default function LegalNotice() {
 
                 <Section title="Propriété intellectuelle">
                     <p>
-                        L'ensemble des contenus de CardeGame (textes, images, éléments graphiques,
+                        L'ensemble des contenus de A Card Game (textes, images, éléments graphiques,
                         logo) est protégé. Toute reproduction sans autorisation est interdite.
                     </p>
                 </Section>
 
                 <Section title="Données personnelles">
                     <p>
-                        CardeGame collecte un pseudo, une adresse e-mail, un mot de passe (chiffré)
+                        A Card Game collecte un pseudo, une adresse e-mail, un mot de passe (chiffré)
                         et les données de jeu nécessaires au fonctionnement du service (collection,
                         échanges, messages). Aucune donnée n'est vendue à des tiers.
                     </p>
@@ -68,7 +68,7 @@ export default function LegalNotice() {
                         sont envoyés via Brevo (Sendinblue SAS, France).
                     </p>
                     <p>
-                        Les paiements sont traités par Stripe : CardeGame ne reçoit ni ne stocke tes
+                        Les paiements sont traités par Stripe : A Card Game ne reçoit ni ne stocke tes
                         coordonnées bancaires. L'historique des commandes est conservé pour les
                         obligations comptables, même après suppression du compte.
                     </p>
@@ -122,7 +122,7 @@ export default function LegalNotice() {
 
                 <Section title="Cookies">
                     <p>
-                        CardeGame utilise uniquement le stockage local nécessaire au
+                        A Card Game utilise uniquement le stockage local nécessaire au
                         fonctionnement du service (session de connexion). Aucun cookie publicitaire
                         ou de tracking tiers n'est utilisé.
                     </p>

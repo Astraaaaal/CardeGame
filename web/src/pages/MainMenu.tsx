@@ -179,7 +179,7 @@ export default function MainMenu() {
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          Carde<span className="text-accent">Game</span>
+          A Card <span className="text-accent">Game</span>
           <span className="block mt-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-white/35">
             {VERSION_LABEL}
           </span>

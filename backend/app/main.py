@@ -1,5 +1,5 @@
 """
-CardeGame API — Point d'entrée FastAPI.
+A Card Game — API, point d'entrée FastAPI.
 """
 
 # Force UTF-8 sur stdout/stderr : sinon un print() contenant un caractère non
@@ -45,8 +45,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="CardeGame API",
-    description="Backend du jeu de collection de cartes CardeGame",
+    title="A Card Game — API",
+    description="Backend du jeu de collection de cartes A Card Game",
     version="1.0.0",
     lifespan=lifespan,
 )

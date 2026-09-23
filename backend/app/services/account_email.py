@@ -80,7 +80,7 @@ async def send_verification(session: AsyncSession, user: User) -> None:
     await session.commit()
     link = f"{settings.PUBLIC_APP_URL.rstrip('/')}/verify-email?token={token}"
     await send_email(
-        user.email, "Confirme ton adresse e-mail — CardeGame", "Confirme ton adresse e-mail",
+        user.email, "Confirme ton adresse e-mail — A Card Game", "Confirme ton adresse e-mail",
         f"<p>Bonjour {html.escape(user.display_name)},</p><p>Clique sur le bouton ci-dessous pour confirmer ton adresse.</p>"
         f"<p><a href=\"{link}\" style=\"background:#4f46e5;color:#fff;padding:10px 18px;border-radius:8px;"
         f"text-decoration:none\">Confirmer mon adresse</a></p>"
@@ -156,7 +156,7 @@ async def request_password_reset(session: AsyncSession, identifier: str) -> None
     ))
     await session.commit()
     await send_email(
-        user.email, f"{code} — ton code de récupération CardeGame", "Récupération de mot de passe",
+        user.email, f"{code} — ton code de récupération A Card Game", "Récupération de mot de passe",
         f"<p>Bonjour {html.escape(user.display_name)},</p><p>Voici ton code pour choisir un nouveau mot de passe :</p>"
         f"<p style=\"font-size:32px;font-weight:bold;letter-spacing:6px\">{code}</p>"
         f"<p style=\"font-size:12px;color:#888\">Code valable 15 minutes.</p>",

@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # Texte (et non entier) : une variable vide sur Render ne doit pas empêcher le démarrage.
     BREVO_NEWSLETTER_LIST_ID: str = ""  # vide = pas de synchronisation newsletter
     EMAIL_SENDER_ADDRESS: str = "no-reply@cardegame.local"
-    EMAIL_SENDER_NAME: str = "CardeGame"
+    EMAIL_SENDER_NAME: str = "A Card Game"
 
     # ── Paiements (Stripe) — vide = achats en euros refusés ──
     STRIPE_SECRET_KEY: str = ""

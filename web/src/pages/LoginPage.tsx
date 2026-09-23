@@ -114,7 +114,7 @@ export default function LoginPage() {
                 {/* Logo / Titre */}
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-extrabold text-white mb-2">
-                        Carde<span className="text-accent">Game</span>
+                        A Card <span className="text-accent">Game</span>
                     </h1>
                     <p className="text-white/50 text-sm">{subtitle}</p>
                 </div>
@@ -201,7 +201,7 @@ export default function LoginPage() {
                                     checked={newsletter}
                                     onChange={(e) => setNewsletter(e.target.checked)}
                                 />
-                                Recevoir la newsletter de CardeGame (nouveautés, événements). Désinscription possible à tout moment.
+                                Recevoir la newsletter d'A Card Game (nouveautés, événements). Désinscription possible à tout moment.
                             </label>
                         </>
                     )}
