@@ -7,14 +7,28 @@ from pydantic import BaseModel, Field
 from app.schemas.card import CardResponse
 
 
+class CosmeticOptionOut(BaseModel):
+    """Une des décorations proposées par une récompense « au choix »."""
+    id: str
+    name: str
+    description: str = ""
+    color_from: str = "#8b5cf6"
+    color_to: str = "#22d3ee"
+    animation: str = "none"
+    image_url: str = ""
+
+
 class MessageRewardItemOut(BaseModel):
-    kind: str  # resource | booster | reroll | card
+    kind: str  # resource | booster | reroll | card | cosmetic_choice
     name: str
     quantity: int = 1
     resource_id: str | None = None
     booster_id: str | None = None
     label: str | None = None  # bonus du booster
     card: CardResponse | None = None
+    # Récompense « au choix » : les options, puis celle retenue une fois prise.
+    options: list[CosmeticOptionOut] | None = None
+    chosen_id: str | None = None
 
 
 class MessageOut(BaseModel):

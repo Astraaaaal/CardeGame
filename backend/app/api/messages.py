@@ -2,6 +2,7 @@
 Routes — messagerie (inbox joueur, cadeaux) et diffusion admin.
 """
 
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,14 +47,20 @@ async def read_message(
     return await svc.build_out(session, msg)
 
 
+class ClaimBody(BaseModel):
+    """Récompenses « au choix » : indice de la récompense -> identifiant retenu."""
+    choices: dict[str, str] | None = None
+
+
 @router.post("/{message_id}/claim", response_model=MessageOut)
 async def claim_message(
     message_id: int,
+    body: ClaimBody | None = None,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
     msg = await svc.get_message_or_404(session, message_id, user.id)
-    msg = await svc.claim(session, msg)
+    msg = await svc.claim(session, msg, body.choices if body else None)
     if (msg.reward_card_id or any(i.get("kind") == "card" for i in msg.reward_items or [])) and msg.claimed_at:
         await refresh_all_best_ranks(session)
         await session.commit()

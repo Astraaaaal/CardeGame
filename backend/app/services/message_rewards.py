@@ -8,6 +8,9 @@ Formes d'un élément :
 - {"kind": "reroll", "label", "quantity", "rules": {reroll_rarity, ..., reroll_mode}}
 - {"kind": "card", "character_id", "rarity_id", "quality_id", "specialty_id", "jewelry_id",
    "power_mode": "rolled" | "fixed", "power"?}  (+ "card_id" une fois récupérée)
+- {"kind": "cosmetic_choice", "ids": [...]}  : le joueur en choisit UN à la
+  récupération (+ "chosen_id" une fois choisi). Un cadeau qu'on choisit vaut
+  mieux qu'un cadeau qu'on subit.
 """
 
 from types import SimpleNamespace
@@ -20,9 +23,10 @@ from app.models.booster import Booster
 from app.models.card import UserCard
 from app.models.character import Character, CharacterSet
 from app.models.economy import Resource
+from app.models.premium import Cosmetic
 from app.models.reference import Rarity, Quality, Specialty, Jewelry
 from app.models.user import User
-from app.services import booster_inventory, reroll_inventory
+from app.services import booster_inventory, premium, reroll_inventory
 from app.services.card_view import build_card_response
 from app.services.reroll import assign_bought_card_power
 from app.services.wallet import COINS_ID, apply_delta
@@ -93,6 +97,15 @@ async def validate(session: AsyncSession, items: list[dict]) -> list[dict]:
             if mode == "fixed":
                 card["power"] = _positive(item.get("power"), "Carte (puissance)")
             clean.append(card)
+        elif kind == "cosmetic_choice":
+            ids = item.get("ids") or []
+            if not isinstance(ids, list) or not 2 <= len(ids) <= 8:
+                raise HTTPException(400, "Choix de cosmétique : entre 2 et 8 options.")
+            for cosmetic_id in ids:
+                cosmetic = await session.get(Cosmetic, cosmetic_id)
+                if not cosmetic or not cosmetic.active:
+                    raise HTTPException(404, f"Cosmétique « {cosmetic_id} » introuvable.")
+            clean.append({"kind": kind, "ids": list(ids)})
         else:
             raise HTTPException(400, "Type de récompense invalide.")
     return clean
@@ -112,7 +125,7 @@ async def describe(session: AsyncSession, items: list[dict]) -> list[dict]:
     for item in items or []:
         kind = item["kind"]
         entry = {"kind": kind, "name": "", "quantity": 1, "resource_id": None, "booster_id": None,
-                 "label": None, "card": None}
+                 "label": None, "card": None, "options": None, "chosen_id": None}
         if kind == "resource":
             resource = await session.get(Resource, item["id"])
             entry.update(name="Pièces" if item["id"] == COINS_ID else (resource.name if resource else item["id"]),
@@ -123,6 +136,18 @@ async def describe(session: AsyncSession, items: list[dict]) -> list[dict]:
                          booster_id=item["id"], label=item.get("label") or None)
         elif kind == "reroll":
             entry.update(name=item["label"], quantity=item["quantity"])
+        elif kind == "cosmetic_choice":
+            options = []
+            for cosmetic_id in item.get("ids") or []:
+                cosmetic = await session.get(Cosmetic, cosmetic_id)
+                if cosmetic:
+                    options.append({
+                        "id": cosmetic.id, "name": cosmetic.name, "description": cosmetic.description,
+                        "color_from": cosmetic.color_from, "color_to": cosmetic.color_to,
+                        "animation": cosmetic.animation, "image_url": cosmetic.image_url,
+                    })
+            entry.update(name="Bordure d'avatar au choix", options=options,
+                         chosen_id=item.get("chosen_id"))
         elif kind == "card":
             real = await session.get(UserCard, item["card_id"]) if item.get("card_id") else None
             card = await build_card_response(session, real or _card_from(item))
@@ -133,10 +158,13 @@ async def describe(session: AsyncSession, items: list[dict]) -> list[dict]:
     return out
 
 
-async def grant(session: AsyncSession, recipient: User, items: list[dict]) -> list[dict]:
-    """Crédite les récompenses ; renvoie la liste mise à jour (cartes créées). Ne commit pas."""
+async def grant(session: AsyncSession, recipient: User, items: list[dict],
+                choices: dict[str, str] | None = None) -> list[dict]:
+    """Crédite les récompenses ; renvoie la liste mise à jour (cartes créées,
+    cosmétique choisi). `choices` associe l'indice de la récompense à
+    l'identifiant retenu, pour les récompenses « au choix ». Ne commit pas."""
     updated = []
-    for item in items or []:
+    for index, item in enumerate(items or []):
         item = dict(item)
         kind = item["kind"]
         if kind == "resource":
@@ -166,6 +194,12 @@ async def grant(session: AsyncSession, recipient: User, items: list[dict]) -> li
             recipient.total_cards += 1
             session.add(recipient)
             item["card_id"] = card.id
+        elif kind == "cosmetic_choice":
+            chosen = (choices or {}).get(str(index))
+            if chosen not in (item.get("ids") or []):
+                raise HTTPException(400, "Choisis ta récompense avant de la récupérer.")
+            await premium.grant_cosmetic(session, recipient.id, chosen)
+            item["chosen_id"] = chosen
         updated.append(item)
     return updated
 

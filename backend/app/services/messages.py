@@ -104,7 +104,8 @@ async def gift_tax(session: AsyncSession, message: Message) -> int:
     return await trade_tax.tax_for_items(session, rate, items)
 
 
-async def claim(session: AsyncSession, message: Message) -> Message:
+async def claim(session: AsyncSession, message: Message,
+                choices: dict[str, str] | None = None) -> Message:
     if message.claimed_at:
         raise HTTPException(409, "Récompense déjà récupérée.")
     if not _has_reward(message):
@@ -158,7 +159,9 @@ async def claim(session: AsyncSession, message: Message) -> Message:
 
     if not error and message.reward_items:
         # Réaffectation (pas de mutation en place) pour que la colonne JSON soit bien enregistrée.
-        message.reward_items = await message_rewards.grant(session, recipient, message.reward_items)
+        message.reward_items = await message_rewards.grant(
+            session, recipient, message.reward_items, choices,
+        )
 
     message.claimed_at = datetime.utcnow()
     message.claim_error = error

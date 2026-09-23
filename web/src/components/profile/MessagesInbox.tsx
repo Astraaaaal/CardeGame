@@ -10,6 +10,8 @@ import CardImage from "@/components/card/CardImage";
 import ResourceIcon from "@/components/ui/ResourceIcon";
 import { errMsg } from "@/utils/errors";
 import { rewardItems, showRewards, type RewardItem } from "@/stores/rewardPopupStore";
+import { FramedAvatar } from "@/components/cosmetics/CosmeticVisuals";
+import type { Cosmetic } from "@/types/premium";
 import EmojiText from "@/components/ui/EmojiText";
 
 
@@ -25,8 +27,14 @@ function MessageRow({ message }: { message: AppMessage }) {
             qc.invalidateQueries({ queryKey: ["messages-unread-count"] });
         },
     });
+    // Récompenses « au choix » : indice de la récompense -> identifiant retenu.
+    const [choices, setChoices] = useState<Record<string, string>>({});
+    const choixManquant = message.reward_items.some(
+        (r, i) => r.kind === "cosmetic_choice" && !r.chosen_id && !choices[String(i)],
+    );
+
     const claim = useMutation({
-        mutationFn: () => messagesApi.claim(message.id),
+        mutationFn: () => messagesApi.claim(message.id, choices),
         onSuccess: (m) => {
             if (m.claimed_at && !m.claim_error) {
                 const items: RewardItem[] = rewardItems(m);
@@ -127,7 +135,44 @@ function MessageRow({ message }: { message: AppMessage }) {
                         </div>
                     )}
 
-                    {message.reward_items.map((r, i) => (
+                    {message.reward_items.map((r, i) => r.kind === "cosmetic_choice" ? (
+                        <div key={i} className="bg-black/20 rounded-lg p-3 space-y-2">
+                            <p className="text-white text-sm">
+                                {r.name}
+                                <span className="block text-white/40 text-xs">
+                                    {r.chosen_id ? "Ton choix est fait." : "Une seule, à toi de voir."}
+                                </span>
+                            </p>
+                            <div className="flex flex-wrap justify-center gap-3">
+                                {(r.options ?? []).map((option) => {
+                                    const retenue = r.chosen_id ? r.chosen_id === option.id : choices[String(i)] === option.id;
+                                    const fige = !!message.claimed_at;
+                                    return (
+                                        <button
+                                            key={option.id}
+                                            type="button"
+                                            disabled={fige}
+                                            className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-colors ${
+                                                retenue ? "bg-accent/15 ring-1 ring-accent" : "hover:bg-white/5"
+                                            } ${fige && !retenue ? "opacity-30" : ""}`}
+                                            onClick={() => setChoices((prev) => ({ ...prev, [String(i)]: option.id }))}
+                                            title={option.description}
+                                        >
+                                            <FramedAvatar frame={option as unknown as Cosmetic} size={52}>
+                                                <svg viewBox="0 0 24 24" className="w-2/3 h-2/3 text-white/25" fill="currentColor" aria-hidden>
+                                                    <circle cx="12" cy="9" r="4" />
+                                                    <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8z" />
+                                                </svg>
+                                            </FramedAvatar>
+                                            <span className={`text-[11px] ${retenue ? "text-accent font-semibold" : "text-white/60"}`}>
+                                                {option.name}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ) : (
                         <div key={i} className="flex items-center gap-3 bg-black/20 rounded-lg p-2">
                             {r.kind === "card" && r.card ? (
                                 <div className="w-12 shrink-0"><CardImage card={r.card} size="sm" /></div>
@@ -152,8 +197,17 @@ function MessageRow({ message }: { message: AppMessage }) {
 
                     <div className="flex items-center gap-2">
                         {unclaimedReward && (
-                            <Button variant="gold" size="sm" className="flex-1" loading={claim.isPending} success={claim.isSuccess} onClick={() => claim.mutate()}>
-                                {message.tax > 0 ? `Récupérer (taxe ${message.tax.toLocaleString("fr-FR")} pièces)` : "Récupérer"}
+                            <Button
+                                variant="gold" size="sm" className="flex-1"
+                                disabled={choixManquant}
+                                loading={claim.isPending} success={claim.isSuccess}
+                                onClick={() => claim.mutate()}
+                            >
+                                {choixManquant
+                                    ? "Choisis ta bordure"
+                                    : message.tax > 0
+                                        ? `Récupérer (taxe ${message.tax.toLocaleString("fr-FR")} pièces)`
+                                        : "Récupérer"}
                             </Button>
                         )}
                         {message.claimed_at && message.has_reward && (

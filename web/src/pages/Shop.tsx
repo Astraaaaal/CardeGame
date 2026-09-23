@@ -16,6 +16,7 @@ import type { Booster } from "@/types/booster";
 import type { ShopOffer } from "@/types/shop";
 import Button from "@/components/ui/Button";
 import CoinDisplay from "@/components/player/CoinDisplay";
+import WalletMenu from "@/components/player/WalletMenu";
 import BoosterCard from "@/components/shop/BoosterCard";
 import OwnedBoosterRow from "@/components/shop/OwnedBoosterRow";
 import PriceTag from "@/components/shop/PriceTag";
@@ -501,8 +502,18 @@ export default function Shop() {
                     Retour
                 </button>
                 <h1 className="absolute left-1/2 -translate-x-1/2 max-w-[55%] truncate text-white font-bold pointer-events-none">Boutique</h1>
-                <CoinDisplay coins={user?.coins ?? 0} />
+                <span className="w-14" />
             </header>
+
+            {/* Le porte-monnaie complet, pas seulement les pièces : on achète
+                aussi avec des Éclats et des ressources, et il fallait pouvoir
+                les consulter sans quitter la boutique. Même panneau que
+                l'accueil. Une rangée à part plutôt que dans l'en-tête : à trois
+                éléments plus le bouton Social, le titre n'avait plus sa place. */}
+            <div className="px-4 py-2 flex items-center gap-2 border-b border-white/5">
+                <WalletMenu />
+                <CoinDisplay coins={user?.coins ?? 0} />
+            </div>
 
             <div className="flex border-b border-white/5">
                 {tabs.map((t) => (

@@ -30,12 +30,26 @@ export interface AppMessage {
     claim_error: string | null;
 }
 
+/** Décoration proposée par une récompense « au choix ». */
+export interface CosmeticOption {
+    id: string;
+    name: string;
+    description: string;
+    color_from: string;
+    color_to: string;
+    animation: string;
+    image_url: string;
+}
+
 export interface MessageRewardItem {
-    kind: "resource" | "booster" | "reroll" | "card";
+    kind: "resource" | "booster" | "reroll" | "card" | "cosmetic_choice";
     name: string;
     quantity: number;
     resource_id: string | null;
     booster_id: string | null;
     label: string | null;
     card: Card | null;
+    /** Récompense « au choix » : les options, puis celle retenue. */
+    options: CosmeticOption[] | null;
+    chosen_id: string | null;
 }
