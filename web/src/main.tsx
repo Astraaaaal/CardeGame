@@ -38,6 +38,20 @@ for (const event of ["pointerdown", "keydown"]) {
     window.addEventListener(event, () => unlockAudio(), { once: true });
 }
 
+// Nouvelle version déployée : le service worker s'installe et prend la main
+// (skipWaiting + clientsClaim), mais la page déjà ouverte continue d'afficher
+// l'ancien code jusqu'à un rechargement. On le fait donc nous-mêmes, une seule
+// fois — sans ça, un joueur reste sur l'interface précédente sans le savoir.
+// Première installation (aucun service worker avant) : rien à recharger.
+if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    let reloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (reloading) return;
+        reloading = true;
+        window.location.reload();
+    });
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
         <QueryClientProvider client={queryClient}>
