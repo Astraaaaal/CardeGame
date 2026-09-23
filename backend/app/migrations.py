@@ -190,6 +190,9 @@ _STATEMENTS = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS best_reroll_card_id VARCHAR(40)",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS best_reroll_combined_rarity BIGINT",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_days_total INTEGER NOT NULL DEFAULT 0",
+    # Distinctions : tag de survie à une remise à zéro (vrai par défaut —
+    # oublier le tag ne doit jamais faire disparaître « Fondateur »).
+    "ALTER TABLE distinctions ADD COLUMN IF NOT EXISTS keeps_on_reset BOOLEAN NOT NULL DEFAULT TRUE",
     # Jours de connexion déjà cumulés avant le compteur : au moins la meilleure série.
     "UPDATE users SET login_days_total = best_login_streak WHERE login_days_total < best_login_streak",
     # Achievements de série : basés sur la meilleure série atteinte (plus perdus si la série casse).

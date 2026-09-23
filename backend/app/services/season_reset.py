@@ -2,6 +2,13 @@
 Remise à zéro de tous les comptes (fin de bêta) : chaque joueur garde son
 compte (pseudo, e-mail, mot de passe), ses réglages, ses amis et ses groupes
 d'amis ; tout le reste repart comme un compte neuf. Tout le monde est déconnecté.
+
+Deux choses traversent la remise à zéro, délibérément :
+- les **cosmétiques** possédés, et celui qui est équipé — ils ont souvent été
+  payés en argent réel, les effacer serait retirer ce qui a été acheté ;
+- les **distinctions permanentes** (« Fondateur », « Bêta testeur »), qui
+  racontent une histoire qu'aucune saison ne peut reconstituer. Celles marquées
+  saisonnières (`keeps_on_reset = False`) repartent, elles, avec la saison.
 """
 
 from sqlalchemy import delete, func, update
@@ -20,7 +27,8 @@ from app.models.guild import (
 )
 from app.models.message import Message
 from app.models.monthly import GuildMonthlyScore, MonthlyResult, MonthlyScore
-from app.models.premium import ORDER_PAID, PremiumOrder, UserCosmetic
+from app.models.distinction import Distinction, UserDistinction
+from app.models.premium import ORDER_PAID, PremiumOrder
 from app.models.quest import QuestProgress, UserQuest
 from app.models.reroll_inventory import UserRerollToken
 from app.models.social import FriendRequest, TradeListing, TradeRequest
@@ -37,7 +45,7 @@ _WIPED = (
     GuildContribution, GuildBuff, GuildMessage, GuildWeek, GuildInvite, GuildMember, Guild,
     UserAchievement, QuestProgress, UserQuest,
     UserActivity, Expedition, HigherLowerGame,
-    UserBoosterInventory, UserBonusBooster, UserRerollToken, UserCosmetic,
+    UserBoosterInventory, UserBonusBooster, UserRerollToken,
     ShopPurchase, UserResource, RefreshToken,
     MonthlyScore, GuildMonthlyScore, MonthlyResult,
 )
@@ -50,6 +58,15 @@ async def reset_all_accounts(session: AsyncSession) -> dict:
 
     for model in _WIPED:
         await session.execute(delete(model))
+
+    # Distinctions saisonnières seulement : les permanentes restent acquises.
+    seasonal = (await session.execute(
+        select(Distinction.id).where(Distinction.keeps_on_reset.is_(False))  # type: ignore[attr-defined]
+    )).scalars().all()
+    if seasonal:
+        await session.execute(
+            delete(UserDistinction).where(UserDistinction.distinction_id.in_(seasonal))  # type: ignore[attr-defined]
+        )
     # Demandes d'ami en attente supprimées ; les amitiés (acceptées) restent.
     await session.execute(delete(FriendRequest).where(FriendRequest.status != "accepted"))
     # Avant de détacher les commandes, on grave la distinction de fondateur :
@@ -75,7 +92,6 @@ async def reset_all_accounts(session: AsyncSession) -> dict:
         avatar_character_id=None,
         showcase_card_1_id=None, showcase_card_2_id=None, showcase_card_3_id=None,
         showcase_achievement_1_id=None, showcase_achievement_2_id=None, showcase_achievement_3_id=None,
-        equipped_avatar_frame_id=None, equipped_showcase_background_id=None,
         cards_recycled=0, dust_from_recycling=0, rerolls_used=0, reroll_rarity_upgrades=0,
         best_reroll_card_id=None, best_reroll_combined_rarity=None, login_days_total=0,
         guild_left_at=None, claimed_level=0, max_level=1,

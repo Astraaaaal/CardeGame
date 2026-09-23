@@ -22,6 +22,7 @@ _BUILT_IN = (
         "description": "A joué à la première bêta, avant la remise à zéro.",
         "color": "#b08d57",
         "sort_order": 10,
+        "keeps_on_reset": True,
     },
     {
         "id": FOUNDER_ID,
@@ -29,6 +30,7 @@ _BUILT_IN = (
         "description": "A soutenu le jeu pendant la bêta.",
         "color": "#f0c27b",
         "sort_order": 0,
+        "keeps_on_reset": True,
     },
 )
 

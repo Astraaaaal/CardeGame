@@ -103,7 +103,7 @@ async def list_distinctions(session: AsyncSession = Depends(get_session)):
     )).all())
     return [
         {"id": d.id, "name": d.name, "description": d.description, "color": d.color,
-         "active": d.active, "holders": counts.get(d.id, 0)}
+         "active": d.active, "keeps_on_reset": d.keeps_on_reset, "holders": counts.get(d.id, 0)}
         for d in rows
     ]
 

@@ -31,6 +31,10 @@ class Distinction(SQLModel, table=True):
     active: bool = Field(default=True)
     # Ordre d'affichage quand un joueur en porte plusieurs (petit = devant).
     sort_order: int = Field(default=0)
+    # Survit-elle à une remise à zéro des comptes ? Vrai par défaut : oublier
+    # le tag sur un badge saisonnier n'est qu'un désagrément, l'oublier sur
+    # « Fondateur » effacerait ce qu'on ne peut pas reconstituer.
+    keeps_on_reset: bool = Field(default=True)
 
 
 class UserDistinction(SQLModel, table=True):
