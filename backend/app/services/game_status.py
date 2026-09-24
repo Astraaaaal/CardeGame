@@ -10,6 +10,7 @@ import time
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.security import is_admin_key
 from app.models.game_config import GameConfig
 
@@ -36,6 +37,10 @@ async def get_status(session: AsyncSession) -> dict:
     value = {
         "closed": bool(config and config.game_closed),
         "message": (config.closed_message if config and config.closed_message else DEFAULT_CLOSED_MESSAGE),
+        # Le formulaire d'inscription n'affiche le champ « code d'invitation »
+        # que si un code est réellement exigé (BETA_INVITE_CODE renseigné) :
+        # sinon il demandait un code que personne ne vérifiait.
+        "invite_required": bool(settings.BETA_INVITE_CODE),
     }
     _cache.update(at=time.monotonic(), value=value)
     return value

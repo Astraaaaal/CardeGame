@@ -184,16 +184,18 @@ export default function LoginPage() {
 
                     {mode === "register" && (
                         <>
-                            <Field label="Code d'invitation">
-                                <input
-                                    type="text"
-                                    className={INPUT}
-                                    placeholder="Reçu de la personne qui t'invite"
-                                    value={inviteCode}
-                                    onChange={(e) => setInviteCode(e.target.value)}
-                                    autoComplete="off"
-                                />
-                            </Field>
+                            {gameStatus?.invite_required && (
+                                <Field label="Code d'invitation">
+                                    <input
+                                        type="text"
+                                        className={INPUT}
+                                        placeholder="Reçu de la personne qui t'invite"
+                                        value={inviteCode}
+                                        onChange={(e) => setInviteCode(e.target.value)}
+                                        autoComplete="off"
+                                    />
+                                </Field>
+                            )}
                             <label className="flex items-start gap-2 text-white/60 text-xs cursor-pointer">
                                 <input
                                     type="checkbox"
