@@ -100,3 +100,13 @@
         max-height: 88dvh;
     }
 }
+
+/* Rangée flottante du bas (outils, flèches de défilement, bouton de
+   validation). Elle doit se poser AU-DESSUS de la barre d'onglets, dont la
+   hauteur réelle est --nav-h plus la barre gestuelle du téléphone : une valeur
+   fixe de 5rem suffisait sur un écran plat et passait dessous sur un iPhone.
+   Le plancher à 5rem garde l'écartement d'origine là où il n'y a pas de barre
+   d'onglets (bureau). */
+.floating-bottom-row {
+    bottom: max(5rem, calc(var(--nav-h, 0px) + env(safe-area-inset-bottom, 0px) + 1rem));
+}

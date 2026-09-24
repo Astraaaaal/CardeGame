@@ -373,8 +373,12 @@ export default function Collection() {
 
             {!inSelectionMode && <SocialButton />}
 
-            <div className={`fixed inset-x-0 z-30 pointer-events-none ${inSelectionMode ? "bottom-24" : "bottom-20"}`}>
-                <div className="max-w-mobile mx-auto px-4 flex items-end justify-between">
+            {/* Une seule rangée flottante : outils à gauche, bouton de validation
+                au centre, flèches de défilement à droite. Le bouton vivait
+                auparavant collé en bas de l'écran, donc SOUS la barre d'onglets,
+                et sur toute la largeur, donc par-dessus les pastilles. */}
+            <div className="floating-bottom-row fixed inset-x-0 z-30 pointer-events-none">
+                <div className="max-w-mobile mx-auto px-4 flex items-end justify-between gap-3">
                     {/* Outils de la collection, en miroir des flèches de défilement. */}
                     <div className="flex flex-col items-start gap-2">
                         {!inSelectionMode && !recycleMode && (
@@ -399,6 +403,30 @@ export default function Collection() {
                         )}
                     </div>
 
+                    {(inSelectionMode || recycleMode) && (
+                        <div className="flex-1 min-w-0 pb-1 [&>*]:pointer-events-auto">
+                            {inSelectionMode ? (
+                                <Button
+                                    variant="gold"
+                                    className="w-full"
+                                    disabled={picked.size === 0}
+                                    onClick={confirmSelection}
+                                >
+                                    Valider ({picked.size})
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="danger"
+                                    className="w-full"
+                                    disabled={recycleSelected.size === 0}
+                                    onClick={() => setConfirmOpen(true)}
+                                >
+                                    Recycler ({recycleSelected.size})
+                                </Button>
+                            )}
+                        </div>
+                    )}
+
                     <div className="flex flex-col items-end gap-2">
                         {([["top", "↑", "Tout en haut"], ["bottom", "↓", "Tout en bas"]] as const).map(([to, icon, label]) => (
                             <button
@@ -414,32 +442,6 @@ export default function Collection() {
                     </div>
                 </div>
             </div>
-
-            {inSelectionMode && (
-                <div className="fixed bottom-0 left-0 right-0 z-30 p-4 pointer-events-none [&>*]:pointer-events-auto">
-                    <Button
-                        variant="gold"
-                        className="w-full max-w-sm mx-auto block"
-                        disabled={picked.size === 0}
-                        onClick={confirmSelection}
-                    >
-                        Valider ({picked.size})
-                    </Button>
-                </div>
-            )}
-
-            {recycleMode && (
-                <div className="fixed bottom-0 left-0 right-0 z-30 p-4 pointer-events-none [&>*]:pointer-events-auto">
-                    <Button
-                        variant="danger"
-                        className="w-full max-w-sm mx-auto block"
-                        disabled={recycleSelected.size === 0}
-                        onClick={() => setConfirmOpen(true)}
-                    >
-                        Recycler ({recycleSelected.size})
-                    </Button>
-                </div>
-            )}
 
             <FilterModal
                 open={filterModalOpen}
