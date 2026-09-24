@@ -110,3 +110,10 @@
 .floating-bottom-row {
     bottom: max(5rem, calc(var(--nav-h, 0px) + env(safe-area-inset-bottom, 0px) + 1rem));
 }
+
+/* Élément flottant qui doit rester AU-DESSUS de la barre d'onglets, collé au
+   plus près. --nav-h n'existe que quand la barre est là : sans elle (bureau,
+   écrans hors onglets) il ne reste que l'écart, soit le comportement d'avant. */
+.above-tab-bar {
+    bottom: calc(var(--nav-h, 0px) + env(safe-area-inset-bottom, 0px) + 1rem);
+}

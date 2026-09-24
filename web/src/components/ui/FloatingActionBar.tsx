@@ -15,7 +15,7 @@ interface FloatingActionBarProps {
 export default function FloatingActionBar({ children, spacerClassName = "h-24", betweenNav = false }: FloatingActionBarProps) {
     if (betweenNav) {
         return (
-            <div className="fixed inset-x-0 bottom-4 z-30 pointer-events-none">
+            <div className="above-tab-bar fixed inset-x-0 z-30 pointer-events-none">
                 {/* Même gabarit que la ligne des pastilles (48 px chacune), contenu centré entre elles. */}
                 <div className="max-w-mobile mx-auto px-4">
                     <div className="h-12 mx-14 flex items-center justify-center [&>*]:pointer-events-auto">{children}</div>
@@ -28,7 +28,8 @@ export default function FloatingActionBar({ children, spacerClassName = "h-24", 
             <div className={`shrink-0 ${spacerClassName}`} aria-hidden />
             {/* Pas de bandeau : seuls les boutons flottent au-dessus du contenu,
                 et au-dessus des pastilles Réglages/Social si la page en a (--nav-h, cf. SocialButton). */}
-            <div className="fixed inset-x-0 z-30 px-4 py-3 pointer-events-none" style={{ bottom: "var(--nav-h, 0px)" }}>
+            <div className="fixed inset-x-0 z-30 px-4 py-3 pointer-events-none"
+                style={{ bottom: "calc(var(--nav-h, 0px) + env(safe-area-inset-bottom, 0px))" }}>
                 <div className="max-w-sm mx-auto w-full pointer-events-auto">{children}</div>
             </div>
         </>

@@ -19,7 +19,7 @@ export default function TutorialBubble() {
             {step && (
                 <motion.div
                     key="tuto"
-                    className="fixed inset-x-0 bottom-16 desktop:bottom-4 z-[60] px-3 pointer-events-none"
+                    className="above-tab-bar fixed inset-x-0 z-[60] px-3 pointer-events-none"
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 16 }}
