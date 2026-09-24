@@ -14,4 +14,6 @@ class LeaderboardEntry(BaseModel):
 
 
 class LeaderboardResponse(BaseModel):
+    # Type réellement affiché, quand le serveur l'a choisi lui-même.
+    type_name: str | None = None
     entries: list[LeaderboardEntry] = []

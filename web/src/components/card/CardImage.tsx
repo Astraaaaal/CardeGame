@@ -55,6 +55,8 @@ export default function CardImage({
     const frame = hasJewelry ? rgb(card.jewelry_color) : typeCol;
     const fx = QUALITY_FX[card.quality_id] ?? { filter: "none" };
     const isSpecial = !["normal", "full_art"].includes(card.specialty_id);
+    // Full art : illustration pleine carte. Sinon : fenêtre 4:3 et panneau de texte.
+    const isFullArt = card.specialty_id === "full_art";
     const shiny = card.specialty_id === "shiny";
     const ex = card.specialty_id === "ex";
     const showDesc =
@@ -91,31 +93,39 @@ export default function CardImage({
                     : undefined
             }
         >
-            {/* Art du personnage */}
-            {imgOk ? (
-                <img
-                    src={`/characters/${card.image_url}`}
-                    alt=""
-                    loading="lazy"
-                    onError={() => setImgOk(false)}
-                    style={{
-                        position: "absolute",
-                        inset: 0,
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                        filter: fx.filter,
+            {/* Fond des cartes encadrées : la fenêtre d'illustration s'y détache. */}
+            {!isFullArt && <div style={{ position: "absolute", inset: 0, background: "#1B1B2E" }} />}
+
+            {/* Art du personnage — pleine carte en full art, en fenêtre 4:3 sinon. */}
+            <div
+                style={isFullArt
+                    ? { position: "absolute", inset: 0 }
+                    : {
+                        position: "absolute", left: "5.5cqi", right: "5.5cqi", top: "17cqi",
+                        aspectRatio: "4 / 3", borderRadius: "3cqi", overflow: "hidden",
+                        boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,.18)",
                     }}
-                />
-            ) : (
-                <div
-                    style={{
-                        position: "absolute",
-                        inset: 0,
-                        background: `linear-gradient(150deg, ${frame}, #14141F)`,
-                    }}
-                />
-            )}
+            >
+                {imgOk ? (
+                    <img
+                        src={`/characters/${card.image_url}`}
+                        alt=""
+                        loading="lazy"
+                        onError={() => setImgOk(false)}
+                        style={{
+                            position: "absolute", inset: 0, width: "100%", height: "100%",
+                            objectFit: "cover", filter: fx.filter,
+                        }}
+                    />
+                ) : (
+                    <div
+                        style={{
+                            position: "absolute", inset: 0,
+                            background: `linear-gradient(150deg, ${frame}, #14141F)`,
+                        }}
+                    />
+                )}
+            </div>
 
             {/* Stries d'usure (scratched / torn) */}
             {fx.streak && (
@@ -144,15 +154,17 @@ export default function CardImage({
                 />
             )}
 
-            {/* Dégradés haut/bas pour la lisibilité du texte */}
-            <div
-                style={{
-                    position: "absolute",
-                    inset: 0,
-                    background:
-                        "linear-gradient(to bottom, rgba(0,0,0,.62) 0%, transparent 24%, transparent 52%, rgba(0,0,0,.85) 100%)",
-                }}
-            />
+            {/* Dégradés haut/bas : seulement quand le texte se pose sur l'illustration. */}
+            {isFullArt && (
+                <div
+                    style={{
+                        position: "absolute",
+                        inset: 0,
+                        background:
+                            "linear-gradient(to bottom, rgba(0,0,0,.62) 0%, transparent 24%, transparent 52%, rgba(0,0,0,.85) 100%)",
+                    }}
+                />
+            )}
 
             {/* Bandeau jewelry */}
             {hasJewelry && (
@@ -213,25 +225,61 @@ export default function CardImage({
                             </span>
                         )}
                     </span>
+                    {/* Rareté ancrée en haut à droite : elle ne dérive plus quand le
+                        texte du bas s'allonge (effets de combat, description longue). */}
                     <span
                         style={{
                             flexShrink: 0,
                             fontSize: "4.6cqi",
-                            fontWeight: 700,
+                            fontWeight: 800,
                             padding: "1.2cqi 2.6cqi",
                             borderRadius: "3cqi",
-                            background: typeColorAlpha(types, card.character_type, 0.9),
-                            textShadow: "0 1px 2px rgba(0,0,0,.6)",
+                            background: rarity,
+                            color: "#0D0D14",
                             whiteSpace: "nowrap",
                         }}
                     >
-                        {card.character_type}
+                        {card.rarity_name}
                     </span>
                 </div>
 
-                {/* Bas : description + rareté + gen/set */}
+                {/* Panneau de texte des cartes encadrées : description aujourd'hui,
+                    effets de combat demain. Absent quand il n'a rien à dire — un
+                    cadre vide vaut moins qu'un peu d'air. */}
+                {!isFullArt && showDesc && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            left: "5.5cqi", right: "5.5cqi",
+                            top: "calc(17cqi + 66.75cqi + 5cqi)",
+                            bottom: "20cqi",
+                            borderRadius: "3cqi",
+                            background: "rgba(255,255,255,.04)",
+                            boxShadow: "inset 0 0 0 1.5px rgba(255,255,255,.08)",
+                            padding: "3.5cqi 4cqi",
+                            overflow: "hidden",
+                        }}
+                    >
+                        <p
+                            style={{
+                                fontSize: "4.2cqi",
+                                lineHeight: 1.3,
+                                color: "rgba(255,255,255,.82)",
+                                display: "-webkit-box",
+                                WebkitLineClamp: 5,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                                margin: 0,
+                            }}
+                        >
+                            {card.character_description}
+                        </p>
+                    </div>
+                )}
+
+                {/* Bas : description (full art) + type + gen/set */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "2cqi" }}>
-                    {showDesc && (
+                    {showDesc && isFullArt && (
                         <p
                             style={{
                                 fontSize: "4.4cqi",
@@ -259,16 +307,16 @@ export default function CardImage({
                         <div style={{ display: "flex", alignItems: "center", gap: "1.5cqi", minWidth: 0 }}>
                             <span
                                 style={{
-                                    fontSize: "4.8cqi",
-                                    fontWeight: 800,
+                                    fontSize: "4.4cqi",
+                                    fontWeight: 700,
                                     padding: "1cqi 3cqi",
                                     borderRadius: "3cqi",
-                                    background: rarity,
-                                    color: "#0D0D14",
+                                    background: typeColorAlpha(types, card.character_type, 0.9),
+                                    textShadow: "0 1px 2px rgba(0,0,0,.6)",
                                     whiteSpace: "nowrap",
                                 }}
                             >
-                                {card.rarity_name}
+                                {card.character_type}
                             </span>
                             {card.power != null && (
                                 <span

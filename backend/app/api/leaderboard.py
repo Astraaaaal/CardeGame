@@ -99,19 +99,32 @@ async def leaderboard_global(
 
 @router.get("/by-type", response_model=LeaderboardResponse)
 async def leaderboard_by_type(
-    type_name: str,
+    type_name: str = "",
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ):
-    """Top 10 des joueurs par puissance totale, restreinte aux cartes d'un type de personnage."""
+    """Top 10 des joueurs par puissance totale, restreinte aux cartes d'un type.
+
+    Sans type demandé, on en choisit un qui a réellement des joueurs : ouvrir
+    sur une catégorie vide donne l'impression d'une page cassée."""
     await unlocks.require(session, user, "leaderboard")
-    exists = (await session.execute(
-        select(CharacterType).where(CharacterType.name == type_name)
-    )).scalar_one_or_none()
-    if not exists:
-        raise HTTPException(404, f"Type '{type_name}' introuvable.")
-    entries = await _leaderboard(session, None, type_name, 10)
-    return LeaderboardResponse(entries=entries)
+    if type_name:
+        exists = (await session.execute(
+            select(CharacterType).where(CharacterType.name == type_name)
+        )).scalar_one_or_none()
+        if not exists:
+            raise HTTPException(404, f"Type '{type_name}' introuvable.")
+        entries = await _leaderboard(session, None, type_name, 10)
+        return LeaderboardResponse(entries=entries, type_name=type_name)
+
+    types = (await session.execute(select(CharacterType).order_by(CharacterType.name))).scalars().all()
+    for candidate in types:
+        entries = await _leaderboard(session, None, candidate.name, 10)
+        if entries:
+            return LeaderboardResponse(entries=entries, type_name=candidate.name)
+    # Aucun type n'a de joueur : on renvoie le premier, vide mais nommé.
+    first = types[0].name if types else ""
+    return LeaderboardResponse(entries=[], type_name=first)
 
 
 @router.get("/monthly")

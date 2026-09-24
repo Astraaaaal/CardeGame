@@ -169,9 +169,16 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly, ca
 
                             <div className="flex flex-wrap gap-1.5 mb-3">
                                 <Badge label={displayCard.rarity_name} color={rarityColor} />
-                                {displayCard.quality_id !== "authentic" && (
-                                    <Badge label={displayCard.quality_name} className="bg-white/20 text-white" />
-                                )}
+                                {/* « Authentic » était le seul état masqué, au motif qu'une carte
+                                    parfaite n'a pas de défaut à signaler — mais c'était la meilleure
+                                    qualité du jeu qui restait sans nom. On l'affiche, en or : une
+                                    distinction plutôt qu'un badge d'usure. */}
+                                <Badge
+                                    label={displayCard.quality_name}
+                                    className={displayCard.quality_id === "authentic"
+                                        ? "bg-gold/25 text-gold border border-gold/50"
+                                        : "bg-white/20 text-white"}
+                                />
                                 {displayCard.specialty_id !== "normal" && (
                                     <Badge label={displayCard.specialty_name} className="bg-purple-600/80 text-white" />
                                 )}

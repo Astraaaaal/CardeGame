@@ -7,5 +7,7 @@ export interface LeaderboardEntry {
 }
 
 export interface LeaderboardResponse {
+    /** Type réellement affiché quand le serveur l'a choisi. */
+    type_name?: string | null;
     entries: LeaderboardEntry[];
 }

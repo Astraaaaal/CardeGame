@@ -77,11 +77,13 @@ export default function Leaderboard() {
         queryFn: leaderboardApi.global,
         enabled: tab === "global",
     });
-    const typeName = selectedType || types?.[0]?.name || "";
+    // Vide au départ : le serveur choisit un type qui a des joueurs, plutôt que
+    // d'ouvrir sur une catégorie déserte.
+    const typeName = selectedType;
     const byTypeQ = useQuery({
         queryKey: ["leaderboard", "by-type", typeName],
         queryFn: () => leaderboardApi.byType(typeName),
-        enabled: tab === "type" && !!typeName,
+        enabled: tab === "type",
     });
 
     return (
@@ -136,7 +138,7 @@ export default function Leaderboard() {
                     <>
                         <select
                             className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white mb-4"
-                            value={typeName}
+                            value={typeName || byTypeQ.data?.type_name || ""}
                             onChange={(e) => setSelectedType(e.target.value)}
                         >
                             {(types ?? []).map((t) => (
