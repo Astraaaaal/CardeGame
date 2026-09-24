@@ -21,13 +21,16 @@ async def test_multiplier_grows_with_presence_and_resets_after_absence(session):
     session.add(row)
     await session.commit()
     half = await presence_bonus.ping(session, user)
-    assert 1.7 < half["multiplier"] < 1.8  # 1 + 1,5 × 0,5
+    # À mi-parcours, le bonus vaut la moitié du chemin entre 1 et son plafond
+    # (1,5 depuis la refonte) : 1 + 0,5 × 0,5 = 1,25.
+    assert half["multiplier"] == 1.25
     assert await presence_bonus.luck_multiplier(session, user.id) == half["multiplier"]
 
     row.presence_since = datetime.utcnow() - timedelta(hours=9)
     session.add(row)
     await session.commit()
-    assert (await presence_bonus.ping(session, user))["multiplier"] == 2.5  # plafond
+    # Au-delà du temps nécessaire, on reste au plafond (1,5 depuis la refonte).
+    assert (await presence_bonus.ping(session, user))["multiplier"] == 1.5
 
     # Absence de 10 minutes : le bonus repart de zéro.
     row.presence_ping_at = datetime.utcnow() - timedelta(minutes=10)

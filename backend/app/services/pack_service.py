@@ -64,10 +64,16 @@ class PackService:
         set_ids = await self._booster_set_ids(session, booster)
 
         # Bonus de présence (appli restée affichée) : se cumule avec celui de l'offre.
+        # Il porte sur les QUATRE axes — il ne touchait que la rareté, ce qui le
+        # rendait presque invisible : la plupart des belles cartes doivent leur
+        # rareté à leur qualité, leur spécialité ou leur bijou.
         luck = await presence_bonus.luck_multiplier(session, user_id)
         luck *= await guilds.buff_value(session, user_id, "luck") or 1.0
         if luck > 1.0:
             rarity_weight_multiplier = (rarity_weight_multiplier or 1.0) * luck
+            quality_weight_multiplier = (quality_weight_multiplier or 1.0) * luck
+            specialty_weight_multiplier = (specialty_weight_multiplier or 1.0) * luck
+            jewelry_weight_multiplier = (jewelry_weight_multiplier or 1.0) * luck
 
         # Seul le nom du set n'est pas déjà porté par card_data (rareté/qualité/
         # spécialité/jewelry viennent enrichis du générateur, cf. `_character` etc.)

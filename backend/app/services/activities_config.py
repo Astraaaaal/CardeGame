@@ -16,7 +16,7 @@ DEFAULTS: dict = {
     # Booster utilisé pour les récompenses (atelier, expéditions, roue).
     "reward_booster_id": "booster_A1",
     "presence": {
-        "max_multiplier": 2.5,     # chance de rareté au maximum
+        "max_multiplier": 1.5,     # bonus de chance au maximum (tous axes)
         "full_after_hours": 5,     # temps de présence continue pour l'atteindre
         "reset_after_minutes": 5,  # absence qui remet le bonus à zéro
     },
@@ -94,7 +94,7 @@ DEFAULTS: dict = {
     "progression": {
         "expedition_slots": {"3": 1, "9": 2, "14": 3},
         "workshop_gauges": {"base": 10, "per_level": 2, "max": 40},
-        "presence_max": {"base": 1.5, "per_level": 0.1, "max": 2.5},
+        "presence_max": {"base": 1.2, "per_level": 0.03, "max": 1.5},
         "higher_lower_max_stake": {"base": 500, "per_level": 500, "max": 5000},
         "converter_uses": {"7": 1, "12": 2, "17": 3},
     },

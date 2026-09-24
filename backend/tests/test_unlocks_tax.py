@@ -47,8 +47,10 @@ async def test_features_unlock_by_highest_level_ever_reached(session):
 async def test_progressions_follow_level(session):
     cfg = await activities_config.get_config(session)
     assert [unlocks.expedition_slots(cfg, lvl) for lvl in (2, 3, 9, 14)] == [0, 1, 2, 3]
-    assert unlocks.presence_max_multiplier(cfg, 4) == 1.0 and unlocks.presence_max_multiplier(cfg, 5) == 1.5
-    assert unlocks.presence_max_multiplier(cfg, 20) == 2.5
+    # Verrouillé avant son niveau, puis croissant jusqu'à son plafond (1,5).
+    assert unlocks.presence_max_multiplier(cfg, 4) == 1.0
+    assert unlocks.presence_max_multiplier(cfg, 5) == 1.2
+    assert unlocks.presence_max_multiplier(cfg, 20) == 1.5
     assert unlocks.higher_lower_max_stake(cfg, 6) == 500 and unlocks.higher_lower_max_stake(cfg, 30) == 5000
     assert unlocks.workshop_gauges(cfg, 2) == 10 and unlocks.workshop_gauges(cfg, 3) == 12
     assert [unlocks.converter_uses(cfg, lvl) for lvl in (6, 7, 12, 17)] == [0, 1, 2, 3]
