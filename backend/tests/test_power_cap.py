@@ -48,6 +48,25 @@ def test_wider_draw_range_is_capped_at_base_max():
     assert powers.count(100) > 200  # ~99 % des tirages atteignent le maximum
 
 
+async def test_a_wide_booster_does_not_inflate_power(session):
+    """Un booster couvrant beaucoup de personnages ne doit pas, à lui seul,
+    élargir la plage de tirage : sans chance, la plage « avec chance » est
+    exactement la plage de base, sinon la moitié des cartes sortiraient au
+    maximum juste parce que le roster a grossi."""
+    session.add_all([Character(id=f"c{i}", name=f"C{i}", type="feu", image_url="c.png") for i in range(30)])
+    session.add_all([CharacterSet(character_id=f"c{i}", set_id="s1", weight=1) for i in range(30)])
+    session.add_all([
+        Rarity(id="common", name="Commune", weight=90), Rarity(id="rare", name="Rare", weight=10),
+        Quality(id="fair", name="Correcte", weight=1), Specialty(id="normal", name="Normale", weight=1),
+        Jewelry(id="none", name="Aucun", weight=1),
+    ])
+    await session.commit()
+    generator = CardGeneratorService()
+    for _ in range(20):
+        [data] = await generator.generate_pack(session, ["s1"], cards_count=1, guaranteed_rare=False)
+        assert data["power_draw_probability"] == data["power_probability"]
+
+
 async def test_guarantee_raises_to_the_floor_without_boosting_higher_tiers(session):
     session.add(Character(id="c", name="C", type="feu", image_url="c.png"))
     session.add_all([

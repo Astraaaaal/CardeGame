@@ -152,8 +152,15 @@ class CardGeneratorService:
         # ça, agrandir un set rendrait toutes ses cartes plus puissantes, pour
         # une rareté que le joueur ne perçoit pas.
         power_prob = 1.0 / REFERENCE_SET_SIZE
+        # Sa jumelle « chance comprise » : même base de référence, axes boostés.
+        # Les deux ne diffèrent donc QUE par la chance du moment — sans ça, un
+        # booster couvrant plus de dix personnages élargissait la plage de
+        # tirage à lui seul et sortait la moitié des cartes au maximum.
+        power_draw_prob = 1.0 / REFERENCE_SET_SIZE
         for axis, items, min_id, weights in axes:
-            draw_prob *= self._axis_factor(items, weights, axis, picked[axis], min_id)
+            facteur_chance = self._axis_factor(items, weights, axis, picked[axis], min_id)
+            draw_prob *= facteur_chance
+            power_draw_prob *= facteur_chance
             base = specialty_base if axis == "specialty" else base_weights(items)
             facteur_base = self._axis_factor(items, base, axis, picked[axis], min_id)
             drop_prob *= facteur_base
@@ -171,6 +178,7 @@ class CardGeneratorService:
             "drop_probability": drop_prob,
             "draw_probability": draw_prob,
             "power_probability": power_prob,
+            "power_draw_probability": power_draw_prob,
             # Données enrichies pour la réponse
             "_character": character,
             "_rarity": rarity,

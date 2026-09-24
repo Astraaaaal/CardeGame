@@ -73,11 +73,13 @@ def roll_power(
 def roll_drawn_power(card_data: dict, rolls: int = 1) -> Optional[int]:
     """
     Puissance d'une carte sortie du générateur. La chance du moment (présence,
-    bonus de guilde, rareté minimum garantie, booster à plusieurs sets) change
-    la probabilité réelle du tirage (`draw_probability`) et peut donc élargir
-    la plage de tirage — mais le résultat est ramené au maximum de BASE de la
-    carte (`drop_probability`, cf. CardGeneratorService) : la chance donne
-    plus de chances d'atteindre ce maximum, jamais de le dépasser.
+    bonus de guilde, rareté minimum garantie) élargit la plage de tirage
+    (`power_draw_probability`) — mais le résultat est ramené au maximum de BASE
+    de la carte (`power_probability`) : la chance donne plus de chances
+    d'atteindre ce maximum, jamais de le dépasser.
+
+    Les deux probabilités partagent la même taille de set de référence : seule
+    la chance les sépare, jamais le nombre de personnages du booster.
     """
     axes = (card_data["rarity_id"], card_data["quality_id"], card_data["specialty_id"], card_data["jewelry_id"])
     # `power_probability` ignore la taille du set (cf. REFERENCE_SET_SIZE) ;
@@ -86,7 +88,8 @@ def roll_drawn_power(card_data: dict, rolls: int = 1) -> Optional[int]:
     base_max = power_range(base_prob, *axes)
     if base_max is None:
         return None
-    draw_max = power_range(card_data.get("draw_probability") or base_prob, *axes) or base_max
+    draw_prob = card_data.get("power_draw_probability") or card_data.get("draw_probability") or base_prob
+    draw_max = power_range(draw_prob, *axes) or base_max
     # Bonus « chances de puissance » : plusieurs tirages, le meilleur est gardé.
     best = max(random.randint(1, max(base_max, draw_max)) for _ in range(max(1, rolls)))
     return min(best, base_max)
