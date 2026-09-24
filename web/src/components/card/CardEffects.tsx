@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, useMotionTemplate, useMotionValue, useTransform } from "framer-motion";
 import type { Card } from "@/types/card";
 import { TIER_STEPS, isPolishedCard, tierLevel, type TierAxis } from "@/utils/cardTiers";
 import { useTypes, typeColor } from "@/hooks/useTypes";
@@ -78,20 +78,24 @@ export function JewelrySparkles({ tier }: { tier: Tier }) {
  * lumière sur une vraie carte brillante) — discret à plat, net quand on
  * l'incline. Cartes pas tout à fait ordinaires (cf. isPolishedCard). */
 export function DiagonalSheen() {
-    const { x, y } = useTilt();
-    const amount = Math.min(1, Math.hypot(x, y) / MAX_DEG);
+    const tilt = useTilt();
+    const zero = useMotionValue(0);
+    const x = tilt?.x ?? zero;
+    const y = tilt?.y ?? zero;
     // Inclinaison vers la droite / le bas => le reflet glisse vers la gauche / le haut.
-    const posX = 50 - (y / MAX_DEG) * 45;
-    const posY = 50 + (x / MAX_DEG) * 45;
+    const posX = useTransform(y, (v) => 50 - (v / MAX_DEG) * 45);
+    const posY = useTransform(x, (v) => 50 + (v / MAX_DEG) * 45);
+    const position = useMotionTemplate`${posX}% ${posY}%`;
+    const opacity = useTransform([x, y], ([a, b]: number[]) =>
+        0.15 + 0.7 * Math.min(1, Math.hypot(a, b) / MAX_DEG));
     return (
-        <div
+        <motion.div
             className="absolute inset-0 pointer-events-none mix-blend-screen"
             style={{
                 background: "linear-gradient(118deg, transparent 38%, rgba(255,255,255,.5) 50%, transparent 62%)",
                 backgroundSize: "250% 250%",
-                backgroundPosition: `${posX}% ${posY}%`,
-                opacity: 0.15 + 0.7 * amount,
-                transition: "background-position 0.15s ease-out, opacity 0.3s",
+                backgroundPosition: position,
+                opacity,
             }}
         />
     );
@@ -223,25 +227,30 @@ const HINT_COLORS: Record<string, string> = {
 const RAINBOW = "#f87171, #facc15, #4ade80, #60a5fa, #c084fc";
 
 export function BackEdgeHint({ hint }: { hint: { id: string; strength: number } | null }) {
-    const { x, y } = useTilt();
-    if (!hint) return null;
-    const amount = Math.min(1, Math.hypot(x, y) / MAX_DEG);
-    // Côté vers lequel pointe le doigt (0deg = haut, 90deg = droite).
-    const angle = (Math.atan2(y, x) * 180) / Math.PI;
-    const color = HINT_COLORS[hint.id] ?? "#ffffff";
+    const tilt = useTilt();
+    const zero = useMotionValue(0);
+    const x = tilt?.x ?? zero;
+    const y = tilt?.y ?? zero;
+    const color = HINT_COLORS[hint?.id ?? ""] ?? "#ffffff";
     const stops = color === "rainbow" ? RAINBOW : `${color}, ${color}`;
+    // Côté vers lequel pointe le doigt (0deg = haut, 90deg = droite).
+    const angle = useTransform([x, y], ([a, b]: number[]) => (Math.atan2(b, a) * 180) / Math.PI);
+    const background = useMotionTemplate`linear-gradient(${angle}deg, transparent 35%, ${stops})`;
+    const opacity = useTransform([x, y], ([a, b]: number[]) =>
+        Math.min(1, Math.hypot(a, b) / MAX_DEG) * Math.min(1, 0.35 + 0.15 * (hint?.strength ?? 0)));
+    // Après les hooks : leur ordre ne doit pas dépendre de `hint`.
+    if (!hint) return null;
     return (
-        <div
+        <motion.div
             className="absolute -inset-[3px] rounded-[18px] pointer-events-none"
             style={{
-                background: `linear-gradient(${angle}deg, transparent 35%, ${stops})`,
+                background,
                 WebkitMask: "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
                 WebkitMaskComposite: "xor",
                 maskComposite: "exclude",
                 padding: 3,
-                opacity: amount * Math.min(1, 0.35 + 0.15 * hint.strength),
+                opacity,
                 filter: `drop-shadow(0 0 ${4 + hint.strength * 2}px ${color === "rainbow" ? "#ffffff" : color})`,
-                transition: "opacity 0.2s",
             }}
         />
     );

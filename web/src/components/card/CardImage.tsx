@@ -32,6 +32,11 @@ const HIDE_DESC = new Set(["unplayable", "unreadable", "destroyed"]);
 const MAX_W: Record<string, number> = { sm: 150, md: 220, lg: 300 };
 
 const rgb = (c: number[]) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+// Même couleur avec une transparence. Coller « 55 » derrière un rgb() donnait
+// une couleur invalide, et une seule valeur invalide fait jeter TOUTE la
+// déclaration box-shadow par le navigateur : la lueur de rareté et la
+// bordure ne s'affichaient pas du tout.
+const rgba = (c: number[], alpha: number) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${alpha})`;
 
 interface CardImageProps {
     card: Card;
@@ -54,7 +59,6 @@ export default function CardImage({
     const hasJewelry = card.jewelry_id !== "none";
     const frame = hasJewelry ? rgb(card.jewelry_color) : typeCol;
     const fx = QUALITY_FX[card.quality_id] ?? { filter: "none" };
-    const isSpecial = !["normal", "full_art"].includes(card.specialty_id);
     // Full art : illustration pleine carte. Sinon : fenêtre 4:3 et panneau de texte.
     const isFullArt = card.specialty_id === "full_art";
     const shiny = card.specialty_id === "shiny";
@@ -78,7 +82,16 @@ export default function CardImage({
                 // parent (ou à la fenêtre), d'où des coins quasi ovales sur écran large.
                 borderRadius: "5% / 3.57%",
                 overflow: "hidden",
-                boxShadow: `inset 0 0 0 3px ${frame}, inset 0 0 0 4.5px rgba(0,0,0,.55), 0 0 ${ex ? 26 : 14}px ${rarity}${ex ? "88" : "55"}, 0 4px 14px rgba(0,0,0,.45)`,
+                // Une full art n'a aucune bordure : l'illustration va jusqu'au bord,
+                // c'est tout son intérêt. Sur les autres, la bordure porte la
+                // couleur du bijou — elle dit « argent », « or », « prismatique »
+                // sans qu'on ait besoin de l'écrire.
+                boxShadow: [
+                    isFullArt ? null : `inset 0 0 0 3px ${frame}`,
+                    isFullArt ? null : "inset 0 0 0 4.5px rgba(0,0,0,.55)",
+                    `0 0 ${ex ? 26 : 14}px ${rgba(card.rarity_color, ex ? 0.53 : 0.33)}`,
+                    "0 4px 14px rgba(0,0,0,.45)",
+                ].filter(Boolean).join(", "),
                 transition: "transform .18s ease",
             }}
             onClick={onClick}
@@ -166,27 +179,6 @@ export default function CardImage({
                 />
             )}
 
-            {/* Bandeau jewelry */}
-            {hasJewelry && (
-                <span
-                    style={{
-                        position: "absolute",
-                        top: "6cqi",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        fontSize: "3.8cqi",
-                        fontWeight: 700,
-                        padding: "0.8cqi 2.8cqi",
-                        borderRadius: "3cqi",
-                        background: `${rgb(card.jewelry_color)}e6`,
-                        color: "#0D0D14",
-                        whiteSpace: "nowrap",
-                    }}
-                >
-                    {card.jewelry_name}
-                </span>
-            )}
-
             {/* Contenu texte */}
             <div
                 style={{
@@ -217,29 +209,23 @@ export default function CardImage({
                             textShadow: "0 1px 3px rgba(0,0,0,.9)",
                         }}
                     >
+                        {/* Pas de mention de spécialité : un shiny, un EX ou une full
+                            art se reconnaissent à leurs effets, pas à une étiquette. */}
                         {card.character_name}
-                        {isSpecial && (
-                            <span style={{ fontWeight: 700, fontSize: "5cqi", color: rarity }}>
-                                {" "}
-                                {card.specialty_name}
-                            </span>
-                        )}
                     </span>
-                    {/* Rareté ancrée en haut à droite : elle ne dérive plus quand le
-                        texte du bas s'allonge (effets de combat, description longue). */}
                     <span
                         style={{
                             flexShrink: 0,
                             fontSize: "4.6cqi",
-                            fontWeight: 800,
+                            fontWeight: 700,
                             padding: "1.2cqi 2.6cqi",
                             borderRadius: "3cqi",
-                            background: rarity,
-                            color: "#0D0D14",
+                            background: typeColorAlpha(types, card.character_type, 0.9),
+                            textShadow: "0 1px 2px rgba(0,0,0,.6)",
                             whiteSpace: "nowrap",
                         }}
                     >
-                        {card.rarity_name}
+                        {card.character_type}
                     </span>
                 </div>
 
@@ -307,16 +293,16 @@ export default function CardImage({
                         <div style={{ display: "flex", alignItems: "center", gap: "1.5cqi", minWidth: 0 }}>
                             <span
                                 style={{
-                                    fontSize: "4.4cqi",
-                                    fontWeight: 700,
+                                    fontSize: "4.8cqi",
+                                    fontWeight: 800,
                                     padding: "1cqi 3cqi",
                                     borderRadius: "3cqi",
-                                    background: typeColorAlpha(types, card.character_type, 0.9),
-                                    textShadow: "0 1px 2px rgba(0,0,0,.6)",
+                                    background: rarity,
+                                    color: "#0D0D14",
                                     whiteSpace: "nowrap",
                                 }}
                             >
-                                {card.character_type}
+                                {card.rarity_name}
                             </span>
                             {card.power != null && (
                                 <span

@@ -28,7 +28,7 @@ export default function RecycleTools({
         <div className="px-4 py-2 space-y-2 border-b border-white/10 bg-game-surface/60">
             <div className="flex flex-wrap gap-1.5">
                 <button className={CHIP} onClick={() => onSelect(selectAll(groups, options))}>
-                    Tout l'affichage
+                    Tout sélectionner
                 </button>
                 <button className={CHIP} onClick={() => onSelect(selectDuplicates(groups, options))}>
                     Doublons (garder le meilleur)
