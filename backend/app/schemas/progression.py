@@ -23,6 +23,7 @@ class LevelStatus(BaseModel):
     prestige: int = 0  # 0 tant que la route n'est pas terminée
     total_power: int
     claimed_level: int
+    current_level_power_required: int = 0
     next_level_power_required: int | None = None
     pending_rewards: list[PendingLevelReward] = []
     has_unclaimed: bool = False

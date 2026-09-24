@@ -15,6 +15,9 @@ export interface LevelStatus {
     prestige: number;
     total_power: number;
     claimed_level: number;
+    /** Seuil du niveau atteint : la barre se remplit ENTRE les deux seuils,
+     * sinon elle mesure le chemin depuis zéro et reste presque pleine. */
+    current_level_power_required: number;
     next_level_power_required: number | null;
     pending_rewards: PendingLevelReward[];
     has_unclaimed: boolean;

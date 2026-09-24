@@ -116,6 +116,10 @@ async def get_status(session: AsyncSession, user: User) -> dict:
         "prestige": prestige_of(current_tier) if current_tier else 0,
         "total_power": total_power,
         "claimed_level": user.claimed_level,
+        # Seuil du niveau ATTEINT : sans lui, une barre de progression ne peut
+        # que mesurer le chemin depuis zéro, et se retrouve presque pleine en
+        # permanence au lieu de repartir à chaque palier.
+        "current_level_power_required": current_tier.power_required if current_tier else 0,
         "next_level_power_required": next_tier.power_required if next_tier else None,
         "pending_rewards": [
             {

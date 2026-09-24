@@ -79,9 +79,16 @@ export default function MainMenu() {
       { label: "Inventaire", path: "/inventory", wide: true },
     ];
 
-  const powerPct = levelStatus?.next_level_power_required
-    ? Math.min(100, Math.round((levelStatus.total_power / levelStatus.next_level_power_required) * 100))
-    : 100;
+  // Progression DANS le niveau courant : du seuil atteint au seuil suivant.
+  // Mesurée depuis zéro, la barre restait presque pleine en permanence et ne
+  // repartait jamais vraiment d'un palier à l'autre.
+  const powerPct = (() => {
+    if (!levelStatus?.next_level_power_required) return 100;
+    const depart = levelStatus.current_level_power_required;
+    const restant = levelStatus.next_level_power_required - depart;
+    if (restant <= 0) return 100;
+    return Math.max(0, Math.min(100, Math.round(((levelStatus.total_power - depart) / restant) * 100)));
+  })();
 
   return (
     <div className="min-h-screen bg-game-bg flex flex-col pb-14 desktop:pb-0">
@@ -151,7 +158,9 @@ export default function MainMenu() {
                 </span>
                 {levelStatus.next_level_power_required != null && (
                   <span className="text-white/30 text-[11px]">
-                    {levelStatus.total_power.toLocaleString("fr-FR")} / {levelStatus.next_level_power_required.toLocaleString("fr-FR")}
+                    {(levelStatus.total_power - levelStatus.current_level_power_required).toLocaleString("fr-FR")}
+                    {" / "}
+                    {(levelStatus.next_level_power_required - levelStatus.current_level_power_required).toLocaleString("fr-FR")}
                   </span>
                 )}
               </div>
