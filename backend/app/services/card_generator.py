@@ -158,13 +158,11 @@ class CardGeneratorService:
         # tirage à lui seul et sortait la moitié des cartes au maximum.
         power_draw_prob = 1.0 / REFERENCE_SET_SIZE
         for axis, items, min_id, weights in axes:
-            facteur_chance = self._axis_factor(items, weights, axis, picked[axis], min_id)
-            draw_prob *= facteur_chance
-            power_draw_prob *= facteur_chance
+            draw_prob *= self._axis_factor(items, weights, axis, picked[axis], min_id)
+            power_draw_prob *= self._axis_factor(items, weights, axis, picked[axis], min_id, True)
             base = specialty_base if axis == "specialty" else base_weights(items)
-            facteur_base = self._axis_factor(items, base, axis, picked[axis], min_id)
-            drop_prob *= facteur_base
-            power_prob *= facteur_base
+            drop_prob *= self._axis_factor(items, base, axis, picked[axis], min_id)
+            power_prob *= self._axis_factor(items, base, axis, picked[axis], min_id, True)
 
         return {
             "character_id": character["id"],
@@ -230,13 +228,29 @@ class CardGeneratorService:
         return item
 
     @staticmethod
-    def _axis_factor(items, weights, axis: str, item, min_id: Optional[str]) -> float:
+    def _axis_factor(items, weights, axis: str, item, min_id: Optional[str],
+                     garantie_neutre: bool = False) -> float:
         """Chance de ce résultat sur l'axe : au minimum garanti, somme des paliers
-        qui y sont remontés (lui compris) ; sinon sa propre chance."""
+        qui y sont remontés (lui compris) ; sinon sa propre chance.
+
+        `garantie_neutre` : réservé au calcul de la PUISSANCE. Un palier garanti
+        absorbe tout ce qui est en dessous de lui, ce qui rend la carte presque
+        certaine — et donc très faible. L'ampleur du coup dépendait alors de la
+        forme de l'échelle : la rareté et le bijou ont un palier du bas qui pèse
+        déjà 95 % et plus, donc la garantie n'y changeait presque rien, tandis
+        que la qualité étale son poids sur cinq paliers bas et s'effondrait
+        (médiane 7 contre 39). Plafonner l'absorption à ce que vaut un tirage
+        MOYEN sur l'axe rend la garantie neutre sur la puissance, de la même
+        façon sur les trois axes : elle change ce qu'on obtient, pas ce que ça
+        vaut. La rareté AFFICHÉE, elle, garde l'absorption complète : une carte
+        garantie est bel et bien facile à obtenir, et doit le dire."""
         total = sum(weights)
         if not total:
             return 0.0
         if min_id and item.id == min_id:
             floor = rank(axis, min_id)
-            return sum(w for i, w in zip(items, weights, strict=True) if rank(axis, i.id) <= floor) / total
+            absorbe = sum(w for i, w in zip(items, weights, strict=True) if rank(axis, i.id) <= floor)
+            if garantie_neutre:
+                absorbe = min(absorbe, sum(w * w for w in weights) / total)
+            return absorbe / total
         return next((w for i, w in zip(items, weights, strict=True) if i.id == item.id), 0) / total

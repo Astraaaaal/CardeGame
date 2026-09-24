@@ -4,6 +4,8 @@ d'atteindre le maximum), mais la puissance ne dépasse jamais le maximum de
 base de la carte, et la probabilité enregistrée reste celle de base.
 """
 
+import pytest
+
 from app.models.character import Character, CharacterSet
 from app.models.reference import Jewelry, Quality, Rarity, Specialty
 from app.services.card_generator import CardGeneratorService
@@ -65,6 +67,43 @@ async def test_a_wide_booster_does_not_inflate_power(session):
     for _ in range(20):
         [data] = await generator.generate_pack(session, ["s1"], cards_count=1, guaranteed_rare=False)
         assert data["power_draw_probability"] == data["power_probability"]
+
+
+async def test_a_guarantee_costs_the_same_power_on_every_axis(session):
+    """Une garantie ne doit plus coûter de puissance, sur aucun axe.
+
+    Un palier garanti absorbe tout ce qui est en dessous de lui : la carte
+    devient presque certaine, donc très faible. L'ampleur du coup dépendait de
+    la forme de l'échelle — la rareté concentre 95 % sur « commune » et ne
+    perdait rien, la qualité étale son poids sur cinq paliers bas et
+    s'effondrait. La plage de puissance ignore désormais cette absorption ; la
+    rareté AFFICHÉE, elle, la garde, parce qu'une carte garantie est vraiment
+    facile à obtenir.
+    """
+    session.add(Character(id="c", name="C", type="feu", image_url="c.png"))
+    session.add_all([
+        CharacterSet(character_id="c", set_id="s1", weight=1),
+        Rarity(id="common", name="Commune", weight=1),
+        # Quatre paliers de qualité à poids égal : « usée » en garantit trois.
+        Quality(id="damaged", name="Abîmée", weight=25), Quality(id="torn", name="Déchirée", weight=25),
+        Quality(id="worn", name="Usée", weight=25), Quality(id="fair", name="Correcte", weight=25),
+        Specialty(id="normal", name="Normale", weight=1), Jewelry(id="none", name="Aucun", weight=1),
+    ])
+    await session.commit()
+    generator = CardGeneratorService()
+
+    [sans] = await generator.generate_pack(session, ["s1"], cards_count=1, guaranteed_rare=False)
+    for _ in range(60):
+        [avec] = await generator.generate_pack(session, ["s1"], cards_count=1,
+                                               guaranteed_rare=False, force_min_quality_id="worn")
+        if avec["quality_id"] == "worn":
+            break
+    assert avec["quality_id"] == "worn"
+
+    # Même plage de puissance qu'une carte ordinaire : la garantie est neutre.
+    assert avec["power_probability"] == pytest.approx(sans["power_probability"])
+    # La rareté affichée, elle, dit la vérité : trois paliers sur quatre.
+    assert avec["drop_probability"] == pytest.approx(0.75)
 
 
 async def test_guarantee_raises_to_the_floor_without_boosting_higher_tiers(session):
