@@ -101,12 +101,13 @@ async def _max_power(session: AsyncSession, user_id: int) -> int:
 async def _max_combined_rarity(session: AsyncSession, user_id: int) -> int:
     rows = (await session.execute(
         select(UserCard.power, UserCard.drop_probability, UserCard.rarity_id,
-               UserCard.quality_id, UserCard.specialty_id, UserCard.jewelry_id)
+               UserCard.quality_id, UserCard.specialty_id, UserCard.jewelry_id,
+               UserCard.power_probability)
         .where(UserCard.user_id == user_id, UserCard.power != None)  # noqa: E711
     )).all()
     best = 0
-    for power, prob, rarity_id, quality_id, specialty_id, jewelry_id in rows:
-        cr = _combined_rarity(power, prob, rarity_id, quality_id, specialty_id, jewelry_id)
+    for power, prob, rarity_id, quality_id, specialty_id, jewelry_id, power_prob in rows:
+        cr = _combined_rarity(power, prob, rarity_id, quality_id, specialty_id, jewelry_id, power_prob)
         if cr and cr > best:
             best = cr
     return best

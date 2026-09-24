@@ -37,6 +37,7 @@ async def track_reroll(session: AsyncSession, user: User, previous_rarity_id: st
 
     luck = combined_rarity(
         card.power, card.drop_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id,
+        card.power_probability,
     )
     if luck and luck > (user.best_reroll_combined_rarity or 0):
         user.best_reroll_combined_rarity = luck

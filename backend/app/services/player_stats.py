@@ -85,7 +85,8 @@ async def build_player_stats(session: AsyncSession, user: User) -> dict:
     luckiest_card = None
     best_cr = 0
     for c in powered:
-        cr = _combined_rarity(c.power, c.drop_probability, c.rarity_id, c.quality_id, c.specialty_id, c.jewelry_id)
+        cr = _combined_rarity(c.power, c.drop_probability, c.rarity_id, c.quality_id,
+                              c.specialty_id, c.jewelry_id, c.power_probability)
         if cr and cr > best_cr:
             best_cr = cr
             luckiest_card = c

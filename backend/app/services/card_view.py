@@ -58,6 +58,7 @@ async def build_card_response(session: AsyncSession, card: UserCard) -> CardResp
         combined_rarity=combined_rarity(
             card.power, card.drop_probability, card.rarity_id,
             card.quality_id, card.specialty_id, card.jewelry_id,
+            card.power_probability,
         ),
         rendered_url=card.rendered_url,
         obtained_at=card.obtained_at,

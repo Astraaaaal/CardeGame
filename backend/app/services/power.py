@@ -10,6 +10,7 @@ bijou / déchirée plafonne à 5 000, une shiny ou authentique jusqu'à 50 000.
 Sans plafond, les combinaisons ultra-rares donneraient des milliards.
 """
 
+import math
 import random
 from typing import Optional
 
@@ -95,6 +96,15 @@ def roll_drawn_power(card_data: dict, rolls: int = 1) -> Optional[int]:
     return min(best, base_max)
 
 
+# Amortissement de la part « puissance » dans la rareté globale. Sans lui, la
+# puissance pèse autant que la rareté de la combinaison, et le produit des deux
+# s'emballe : une commune banale tirée à son maximum affichait « 1 sur 10
+# millions » et passait devant une légendaire. La racine carrée garde l'ordre —
+# une belle puissance compte toujours — sans qu'elle écrase ce qui distingue
+# vraiment la carte.
+POWER_WEIGHT = 0.5
+
+
 def combined_rarity(
     power: Optional[int],
     drop_probability: float,
@@ -102,6 +112,7 @@ def combined_rarity(
     quality_id: str,
     specialty_id: str,
     jewelry_id: str,
+    power_probability: Optional[float] = None,
 ) -> Optional[int]:
     """
     Rareté globale d'UN exemplaire précis, exprimée en "1 sur X" (comme
@@ -124,11 +135,17 @@ def combined_rarity(
     """
     if power is None or not drop_probability or drop_probability <= 0:
         return None
-    n = power_range(drop_probability, rarity_id, quality_id, specialty_id, jewelry_id)
+    # La plage se lit sur la probabilité qui a SERVI au tirage de la puissance
+    # (set de référence), et non sur la rareté affichée : dès que la taille
+    # réelle d'un set s'écarte de la référence, les deux divergent, et la survie
+    # calculée sur la mauvaise plage devient fausse — voire négative, ce qui
+    # faisait disparaître purement et simplement la rareté de la carte.
+    n = power_range(power_probability or drop_probability,
+                    rarity_id, quality_id, specialty_id, jewelry_id)
     if not n:
         return None
-    power_survival = (n - power + 1) / n  # proba d'obtenir CETTE puissance ou mieux
-    combined = drop_probability * power_survival
+    power_survival = (n - min(power, n) + 1) / n  # proba d'obtenir CETTE puissance ou mieux
+    combined = drop_probability * math.pow(power_survival, POWER_WEIGHT)
     if combined <= 0:
         return None
     return round(1 / combined)

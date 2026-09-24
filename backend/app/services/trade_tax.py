@@ -33,7 +33,7 @@ async def rate_for(session: AsyncSession, a: User, b: User | None = None) -> flo
 def card_value(cfg: dict, card: UserCard) -> float:
     tax = cfg["trade_tax"]
     rarity = combined_rarity(card.power, card.drop_probability, card.rarity_id, card.quality_id,
-                             card.specialty_id, card.jewelry_id)
+                             card.specialty_id, card.jewelry_id, card.power_probability)
     if not rarity:
         rarity = round(1 / card.drop_probability) if card.drop_probability else tax["card_anchor"]
     return min(tax["card_cap"], (max(rarity, 1) / tax["card_anchor"]) ** tax["card_exponent"])

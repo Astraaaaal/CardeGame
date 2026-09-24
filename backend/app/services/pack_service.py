@@ -153,6 +153,7 @@ class PackService:
                     combined_rarity=combined_rarity(
                         power, card_data["drop_probability"], card_data["rarity_id"],
                         card_data["quality_id"], card_data["specialty_id"], card_data["jewelry_id"],
+                        card_data.get("power_probability"),
                     ),
                     rendered_url=rendered_url,
                     obtained_at=user_card.obtained_at,
