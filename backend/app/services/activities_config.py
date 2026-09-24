@@ -134,7 +134,11 @@ DEFAULTS: dict = {
     # Taxe sur les transferts entre joueurs (cf. services/trade_tax.py).
     "trade_tax": {
         "base_rate": 0.05, "per_level": 0.01, "max_rate": 0.25,
-        "card_anchor": 4, "card_exponent": 1.15, "card_cap": 3000,
+        # Ancrage abaissé avec l'amortissement de la part « puissance » dans la
+        # rareté globale (cf. power.POWER_WEIGHT) : la carte ordinaire retrouve
+        # sa valeur, les cartes extrêmes gardent le prix raisonnable qu'on vient
+        # de leur donner.
+        "card_anchor": 2.5, "card_exponent": 1.15, "card_cap": 3000,
         "resource_values": {"dust": 5, **resource_catalog.coin_values()},
         "booster_value": 100, "reroll_value": 300,
     },

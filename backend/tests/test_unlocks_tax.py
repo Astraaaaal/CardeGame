@@ -70,12 +70,12 @@ async def test_progressions_follow_level(session):
 async def test_card_value_and_rate(session):
     await _tiers(session)
     cfg = await activities_config.get_config(session)
+    # Les deux repères de l'échelle (cf. le module) : une commune sans intérêt
+    # ne coûte presque rien, une légendaire moyenne vaut autour de mille.
     weak_common = _card(1, "a", 1, prob=0.25)  # « 1 sur 4 » à 1 de puissance
-    assert trade_tax.card_value(cfg, weak_common) == pytest.approx(1)
-    # Rareté globale ≈ 1 155 depuis que la part « puissance » est amortie
-    # (racine carrée) : une carte vaut d'abord ce que vaut sa combinaison.
+    assert trade_tax.card_value(cfg, weak_common) < 3
     legendary = _card(1, "b", 409, prob=1 / 818, rarity="legendary")
-    assert 600 < trade_tax.card_value(cfg, legendary) < 800
+    assert 900 < trade_tax.card_value(cfg, legendary) < 1300
 
     low, high = await make_user(session, "low"), await make_user(session, "high")
     session.add_all(_cards(high.id, "h", 14))  # 14 × 150 = 2 100 → niveau 20

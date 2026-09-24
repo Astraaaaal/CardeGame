@@ -4,8 +4,9 @@ Taxe sur les transferts entre joueurs (échanges, cadeaux, achats d'annonce).
 Chacun paie, en pièces, sur ce qu'il REÇOIT. Le taux dépend du plus haut des
 deux niveaux (plus haut niveau atteint) : il augmente avec le niveau, pour que
 les meilleurs joueurs ne se renforcent pas entre eux sans frein. Valeur d'une
-carte selon sa rareté globale (combinaison + puissance) : ~1 pièce pour une
-commune faible, ~1 000 pour une légendaire moyenne, plafonnée.
+carte selon sa rareté globale (combinaison + puissance amortie, cf.
+power.POWER_WEIGHT) : ~2 pièces pour une commune faible, ~1 000 pour une
+légendaire moyenne, plafonnée.
 """
 
 import math
