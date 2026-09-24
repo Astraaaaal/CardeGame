@@ -250,21 +250,23 @@ _NON_TRADEABLE_RESOURCES = {"shards"}
 # jouant bien, trois en jouant mollement — et le niveau 20 reste à des
 # semaines. À retoucher depuis l'admin si l'économie bouge.
 _DEFAULT_LEVEL_TIERS = [
-    (1, 0, None), (2, 900, 100), (3, 2_000, 150), (4, 3_700, 200),
-    (5, 6_000, 300), (6, 8_800, 400), (7, 12_300, 500), (8, 16_200, 650),
-    (9, 20_500, 800), (10, 25_000, 1_000), (11, 30_000, 1_200), (12, 35_900, 1_500),
-    (13, 42_000, 1_800), (14, 49_000, 2_200), (15, 56_700, 2_700), (16, 64_500, 3_300),
-    (17, 73_500, 4_000), (18, 84_000, 4_800), (19, 95_500, 5_800), (20, 110_000, 7_000),
+    (1, 0, None), (2, 1_800, 100), (3, 4_000, 150), (4, 7_400, 200),
+    (5, 12_000, 300), (6, 17_600, 400), (7, 24_600, 500), (8, 32_400, 650),
+    (9, 41_000, 800), (10, 50_000, 1_000), (11, 60_000, 1_200), (12, 71_800, 1_500),
+    (13, 84_000, 1_800), (14, 98_000, 2_200), (15, 113_400, 2_700), (16, 129_000, 3_300),
+    (17, 147_000, 4_000), (18, 168_000, 4_800), (19, 191_000, 5_800), (20, 220_000, 7_000),
 ]
 
-# Ancien barème, d'avant la division des plafonds de puissance. Une base
-# existante garde ses lignes : on ne les remet à jour que si elles portent
-# encore EXACTEMENT l'ancienne valeur — un palier retouché en admin reste
-# intact (même précaution que pour les autres valeurs seedées).
+# Barèmes précédents, par palier : celui d'avant la division des plafonds de
+# puissance, puis celui d'avant le doublement. Une base existante n'est remise
+# à jour que si elle porte encore EXACTEMENT l'une de ces valeurs — un palier
+# retouché en admin reste intact (même précaution que le reste du seed).
 _PREVIOUS_LEVEL_TIERS = {
-    2: 1_000, 3: 2_500, 4: 5_000, 5: 8_500, 6: 13_000, 7: 19_000, 8: 27_000,
-    9: 37_000, 10: 50_000, 11: 65_000, 12: 85_000, 13: 110_000, 14: 140_000,
-    15: 175_000, 16: 220_000, 17: 275_000, 18: 340_000, 19: 420_000, 20: 520_000,
+    2: (1_000, 900), 3: (2_500, 2_000), 4: (5_000, 3_700), 5: (8_500, 6_000),
+    6: (13_000, 8_800), 7: (19_000, 12_300), 8: (27_000, 16_200), 9: (37_000, 20_500),
+    10: (50_000, 25_000), 11: (65_000, 30_000), 12: (85_000, 35_900), 13: (110_000, 42_000),
+    14: (140_000, 49_000), 15: (175_000, 56_700), 16: (220_000, 64_500), 17: (275_000, 73_500),
+    18: (340_000, 84_000), 19: (420_000, 95_500), 20: (520_000, 110_000),
 }
 
 # id, name, description, category, metric, threshold, metric_param,
@@ -445,13 +447,13 @@ async def apply_patches(conn: AsyncConnection) -> None:
         "UPDATE level_tiers SET power_required = :new WHERE level = :level AND power_required = :old"
     )
     for level, power_required, _ in _DEFAULT_LEVEL_TIERS:
-        ancienne = _PREVIOUS_LEVEL_TIERS.get(level)
-        if ancienne is None or ancienne == power_required:
-            continue
-        try:
-            await conn.execute(rebalance_tier, {"level": level, "new": power_required, "old": ancienne})
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("rebalance level tier %r: %s", level, exc)
+        for ancienne in _PREVIOUS_LEVEL_TIERS.get(level, ()):
+            if ancienne == power_required:
+                continue
+            try:
+                await conn.execute(rebalance_tier, {"level": level, "new": power_required, "old": ancienne})
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("rebalance level tier %r: %s", level, exc)
 
     # Ne renseigne le booster-bonus que si la colonne est encore vide (ne
     # stomp pas un réglage déjà fait par un admin).
@@ -529,6 +531,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
 
     await _add_resource_converter_pairs(conn)
     await _replay_rebalance_settings(conn)
+    await _seed_character_descriptions(conn)
 
     # Backfill de la puissance (colonne ajoutée après coup) pour les cartes
     # déjà en base — chacune reçoit un tirage rétroactif, une seule fois.
@@ -582,6 +585,45 @@ async def _add_resource_converter_pairs(conn: AsyncConnection) -> None:
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("paires du convertisseur : %s", exc)
+
+
+# Descriptions des personnages du premier set, posées UNE fois (marqueur) :
+# après ça, ce qui est écrit depuis l'admin fait foi. Appariées par nom, les
+# identifiants n'étant pas les mêmes d'une base à l'autre.
+_CHARACTER_DESCRIPTIONS = {
+    "Fool": "He walks the edge like it's solid ground. The stone dog barks a warning he has never once heard.",
+    "Magician": "Wand, cup, sword and coin answer to him. Above his head, infinity burns and never burns out.",
+    "High-Priestess": "She goes down to where the light gives up. What she knows, she keeps — answers surface on their own, or not at all.",
+    "Empress": "The forest grows where she sits. Her spear has never been used: nothing under these branches has ever argued.",
+    "Emperor": "He drove the blade through his own crown so he would never have to take it off. A bleeding throne ends the discussion.",
+    "Heirophant": "A thousand hands to bless, one key to open. The crowd below never asked what the door was hiding.",
+    "Lover": "His arrow never misses, and never asks permission. Two skeletons are still holding each other at his feet.",
+    "Chariot": "He took the reins, not the direction. The beasts know where they are going; he has never dared to ask.",
+    "Strength": "Armour, wings, sword — none of it worked. The beast lay down the day someone rested a forehead against hers.",
+    "Hermit": "He lights a road no one walks. The lantern is not for us: he raises it to see where he has already been.",
+}
+
+
+async def _seed_character_descriptions(conn: AsyncConnection) -> None:
+    marker = "character_descriptions_v1"
+    try:
+        row = (await conn.execute(text("SELECT activities FROM game_config WHERE id = 1"))).first()
+        stored = row[0] if row else None
+        if isinstance(stored, str):
+            stored = json.loads(stored)
+        if stored is None:
+            stored = {}
+        if marker in stored.get("_applied", []):
+            return
+        update = text("UPDATE characters SET description = :d WHERE name = :n")
+        for name, description in _CHARACTER_DESCRIPTIONS.items():
+            await conn.execute(update, {"n": name, "d": description})
+        stored["_applied"] = [*stored.get("_applied", []), marker]
+        await conn.execute(
+            text("UPDATE game_config SET activities = CAST(:v AS JSON) WHERE id = 1"), {"v": json.dumps(stored)},
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("descriptions des personnages : %s", exc)
 
 
 # Réglages que la refonte de l'équilibrage a changés dans le code, et qu'une
