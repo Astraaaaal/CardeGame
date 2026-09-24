@@ -206,7 +206,13 @@ function Converter() {
     const label = (id: string) => (id === "coins" ? "Pièces" : names[id] ?? id);
 
     const pairs = data?.pairs ?? [];
-    const sources = [...new Set(pairs.map((p) => p.from))];
+    // Ne proposer que ce qu'on peut réellement convertir : une ressource qu'on
+    // n'a pas, ou pas en assez grande quantité pour un seul lot, n'est qu'une
+    // ligne morte dans la liste.
+    const sources = [...new Set(pairs.map((p) => p.from))].filter((id) => {
+        const lotMin = Math.min(...pairs.filter((p) => p.from === id).map((p) => p.give));
+        return getResourceBalance(user, id) >= lotMin;
+    });
     const from = sources.includes(fromId) ? fromId : sources[0];
     const targets = pairs.filter((p) => p.from === from);
     const pair = targets.find((p) => p.to === toId) ?? targets[0];
@@ -222,7 +228,20 @@ function Converter() {
         onError: (e) => setMsg({ text: errMsg(e), ok: false }),
     });
 
-    if (!data || !pair) return null;
+    if (!data) return null;
+    if (!pair) {
+        return (
+            <section className="bg-game-surface border border-white/10 rounded-2xl p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-white font-bold">Convertisseur</h2>
+                    <span className="text-white/50 text-xs">{data.uses_left} / {data.daily_uses} aujourd'hui</span>
+                </div>
+                <p className="text-white/40 text-[11px]">
+                    Rien à convertir pour l'instant : il faut assez d'une ressource pour former un lot complet.
+                </p>
+            </section>
+        );
+    }
     const value = Math.floor(Number(amount) || 0);
     const owned = getResourceBalance(user, pair.from);
     const valid = value >= pair.give && value % pair.give === 0 && value <= pair.max_in && value <= owned;
