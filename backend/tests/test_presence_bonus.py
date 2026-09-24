@@ -17,7 +17,7 @@ async def test_multiplier_grows_with_presence_and_resets_after_absence(session):
     assert first["multiplier"] == 1.0
 
     row = await session.get(UserActivity, user.id)
-    row.presence_since = datetime.utcnow() - timedelta(hours=2, minutes=30)  # moitié du parcours
+    row.presence_since = datetime.utcnow() - timedelta(hours=4)  # moitié des 8 h du parcours
     session.add(row)
     await session.commit()
     half = await presence_bonus.ping(session, user)

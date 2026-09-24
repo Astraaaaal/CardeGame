@@ -17,7 +17,7 @@ DEFAULTS: dict = {
     "reward_booster_id": "booster_A1",
     "presence": {
         "max_multiplier": 1.5,     # bonus de chance au maximum (tous axes)
-        "full_after_hours": 5,     # temps de présence continue pour l'atteindre
+        "full_after_hours": 8,     # temps de présence continue pour l'atteindre
         "reset_after_minutes": 5,  # absence qui remet le bonus à zéro
     },
     "chest": {"coins_per_hour": 100, "dust_per_hour": 20, "cap_hours": 12},
