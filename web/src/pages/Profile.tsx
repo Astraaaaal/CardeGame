@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
 import { playerApi } from "@/api/player";
 import type { PlayerStats, TierCount } from "@/types/player";
+import { useResourceNames } from "@/hooks/useResourceNames";
+import ResourceIcon from "@/components/ui/ResourceIcon";
 import type { Card } from "@/types/card";
 import ShowcaseEditor, { type EditorSaveHandle } from "@/components/profile/ShowcaseEditor";
 import TradeListingsEditor from "@/components/profile/TradeListingsEditor";
@@ -39,6 +41,30 @@ function StatRow({ label, value }: { label: string; value: string }) {
         <div className="flex items-center justify-between px-4 py-3">
             <span className="text-white/50 text-sm">{label}</span>
             <span className="text-white text-sm font-semibold">{value}</span>
+        </div>
+    );
+}
+
+/** Une ligne de bilan du « plus ou moins » : misé, récupéré, et le solde —
+ * vert s'il est positif, ce qui reste rare puisque la maison prend sa part. */
+function HigherLowerRow({ record }: { record: PlayerStats["higher_lower"]["by_resource"][number] }) {
+    const names = useResourceNames();
+    const nom = record.resource_id === "coins" ? "Pièces" : names[record.resource_id] ?? record.resource_id;
+    const fmt = (n: number) => n.toLocaleString("fr-FR");
+    return (
+        <div className="px-4 py-3 space-y-1">
+            <div className="flex items-center justify-between">
+                <span className="text-white/50 text-sm inline-flex items-center gap-1">
+                    <ResourceIcon resourceId={record.resource_id} /> {nom}
+                </span>
+                <span className={`text-sm font-semibold ${record.net > 0 ? "text-green-400"
+                    : record.net < 0 ? "text-red-400" : "text-white"}`}>
+                    {record.net > 0 ? "+" : ""}{fmt(record.net)}
+                </span>
+            </div>
+            <p className="text-white/30 text-[11px]">
+                {fmt(record.wagered)} misé · {fmt(record.returned)} récupéré · {record.games} partie(s)
+            </p>
         </div>
     );
 }
@@ -165,6 +191,20 @@ function StatsTab({ stats, isLoading }: { stats: PlayerStats | undefined; isLoad
                     />
                 )}
             </StatSection>
+
+            {stats.higher_lower.games > 0 && (
+                <StatSection title="Plus ou moins">
+                    <StatRow label="Parties jouées" value={stats.higher_lower.games.toLocaleString("fr-FR")} />
+                    <StatRow
+                        label="Encaissées"
+                        value={`${stats.higher_lower.won_games} (${Math.round(
+                            (stats.higher_lower.won_games * 100) / stats.higher_lower.games)} %)`}
+                    />
+                    {stats.higher_lower.by_resource.map((r) => (
+                        <HigherLowerRow key={r.resource_id} record={r} />
+                    ))}
+                </StatSection>
+            )}
 
             <StatSection title="Social">
                 <StatRow label="Amis" value={String(stats.friends_count)} />

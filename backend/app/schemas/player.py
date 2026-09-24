@@ -46,6 +46,21 @@ class TierCount(BaseModel):
     count: int
 
 
+class HigherLowerResourceRecord(BaseModel):
+    resource_id: str
+    games: int = 0
+    won_games: int = 0
+    wagered: int = 0
+    returned: int = 0
+    net: int = 0
+
+
+class HigherLowerRecord(BaseModel):
+    games: int = 0
+    won_games: int = 0
+    by_resource: list[HigherLowerResourceRecord] = []
+
+
 class PlayerStatsResponse(BaseModel):
     total_cards: int
     unique_cards: int
@@ -86,6 +101,8 @@ class PlayerStatsResponse(BaseModel):
     best_global_rank: Optional[int] = None
     best_login_streak: int = 0
     login_days_total: int = 0
+    # « Plus ou moins » : bilan par ressource (mélanger les unités n'aurait pas de sens).
+    higher_lower: HigherLowerRecord = HigherLowerRecord()
     # Quêtes
     daily_quests_completed: int = 0
     weekly_quests_completed: int = 0

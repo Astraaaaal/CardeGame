@@ -79,6 +79,22 @@ export interface PlayerStats {
     login_days_total: number;
     daily_quests_completed: number;
     weekly_quests_completed: number;
+    higher_lower: HigherLowerRecord;
+}
+
+/** Bilan du « plus ou moins ». Le solde est par ressource : additionner des
+ * pièces et de la poussière n'aurait pas de sens. */
+export interface HigherLowerRecord {
+    games: number;
+    won_games: number;
+    by_resource: {
+        resource_id: string;
+        games: number;
+        won_games: number;
+        wagered: number;
+        returned: number;
+        net: number;
+    }[];
 }
 
 export interface TierCount {

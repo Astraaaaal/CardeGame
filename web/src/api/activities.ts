@@ -81,10 +81,15 @@ export interface HigherLowerGameState {
 
 export interface HigherLowerState {
     game: HigherLowerGameState | null;
+    /** Plancher de mise en pièces ; les autres ressources, bien plus rares,
+     * descendent à `min_stake_other`. */
     min_stake: number;
+    min_stake_other: number;
     max_stake: number;
     max_steps: number;
     min_cashout_step: number;
+    /** Ressources misables : tout ce qui s'échange (les Éclats en sont exclus). */
+    resources: { id: string; name: string }[];
 }
 
 export interface WheelState {

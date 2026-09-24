@@ -26,11 +26,26 @@ from app.services.card_generator import CardGeneratorService
 from app.services.card_view import build_card_response
 from app.services.power import roll_drawn_power
 from app.services.presence_bonus import get_activity
-from app.services.wallet import apply_delta
+from app.models.economy import Resource
+from app.services.wallet import COINS_ID, apply_delta
 from app.services import unlocks
 from app.services.wallet import require_balance
 
-STAKE_RESOURCES = ("coins", "dust")
+# Mise : tout ce qui s'échange entre joueurs. Les Éclats en sont exclus parce
+# qu'ils ne s'échangent pas — ils s'achètent en euros, et une monnaie payée ne
+# se joue pas à pile ou face.
+async def stake_resources(session: AsyncSession) -> list[Resource]:
+    rows = (await session.execute(select(Resource).where(Resource.tradeable.is_(True)))).scalars().all()
+    autres = sorted((r for r in rows if r.id != COINS_ID), key=lambda r: r.name)
+    # Les pièces d'abord, et toujours : elles vivent sur le compte lui-même, la
+    # ligne de la table des ressources n'est qu'un libellé qui peut manquer.
+    pieces = next((r for r in rows if r.id == COINS_ID), None) or Resource(id=COINS_ID, name="Pièces")
+    return [pieces, *autres]
+
+
+# Mise minimale hors pièces : les autres ressources sont bien plus rares, un
+# plancher de cinquante les rendrait injouables.
+MIN_STAKE_OTHER = 1
 WHEEL_REROLL_RULES = {
     "reroll_rarity": True, "reroll_quality": False, "reroll_specialty": False,
     "reroll_jewelry": False, "reroll_power": False, "reroll_mode": "guaranteed_min",
@@ -145,19 +160,24 @@ async def higher_lower_state(session: AsyncSession, user: User) -> dict:
     hl = cfg["higher_lower"]
     return {
         "game": await _game_out(session, game, cfg) if game else None,
-        "min_stake": hl["min_stake"], "max_stake": unlocks.higher_lower_max_stake(cfg, await unlocks.level_of(session, user)),
+        "min_stake": hl["min_stake"],
+        "min_stake_other": MIN_STAKE_OTHER,
+        "max_stake": unlocks.higher_lower_max_stake(cfg, await unlocks.level_of(session, user)),
         "max_steps": hl["max_steps"], "min_cashout_step": hl["min_cashout_step"],
+        "resources": [{"id": r.id, "name": r.name} for r in await stake_resources(session)],
     }
 
 
 async def higher_lower_start(session: AsyncSession, user: User, resource_id: str, stake: int) -> dict:
     cfg = await activities_config.get_config(session)
     hl = cfg["higher_lower"]
-    if resource_id not in STAKE_RESOURCES:
-        raise HTTPException(400, "Mise possible en pièces ou en poussière uniquement.")
+    autorisees = {r.id for r in await stake_resources(session)}
+    if resource_id not in autorisees:
+        raise HTTPException(400, "On ne peut pas miser cette ressource.")
     max_stake = unlocks.higher_lower_max_stake(cfg, await unlocks.level_of(session, user))
-    if not hl["min_stake"] <= stake <= max_stake:
-        raise HTTPException(400, f"Mise entre {hl['min_stake']} et {max_stake} à ton niveau.")
+    min_stake = hl["min_stake"] if resource_id == COINS_ID else MIN_STAKE_OTHER
+    if not min_stake <= stake <= max_stake:
+        raise HTTPException(400, f"Mise entre {min_stake} et {max_stake} à ton niveau.")
     active = (await session.execute(
         select(HigherLowerGame.id).where(HigherLowerGame.user_id == user.id, HigherLowerGame.status == "active")
     )).first()

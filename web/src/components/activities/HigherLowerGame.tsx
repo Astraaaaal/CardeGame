@@ -9,7 +9,6 @@ import CardImage from "@/components/card/CardImage";
 import { errMsg } from "@/utils/errors";
 
 const HL_KEY = ["higher-lower"];
-const RESOURCES = [{ id: "coins", name: "Pièces" }, { id: "dust", name: "Poussière" }];
 const OUTCOME_LABEL = { win: "Bien vu !", tie: "Égalité : on continue.", lose: "Perdu…" } as const;
 
 /** « Plus ou moins » : la carte suivante est-elle plus ou moins puissante ? */
@@ -29,7 +28,9 @@ export default function HigherLowerGame() {
     const onError = (e: unknown) => setErr(errMsg(e));
 
     const start = useMutation({
-        mutationFn: () => activitiesApi.startHigherLower(resourceId, stake),
+        // La ressource vient de l'appelant : celle affichée peut différer de
+        // l'état si le joueur n'a plus de quoi miser celle qu'il avait choisie.
+        mutationFn: (id: string) => activitiesApi.startHigherLower(id, stake),
         onSuccess: (g) => { setErr(""); setLast(null); refresh(g); },
         onError,
     });
@@ -46,10 +47,15 @@ export default function HigherLowerGame() {
 
     if (!data) return null;
     const game = data.game;
-    const unit = (id: string) => (id === "coins" ? "pièces" : "poussière");
+    // Ne proposer que ce qu'on possède : miser suppose d'avoir de quoi.
+    const minStake = (id: string) => (id === "coins" ? data.min_stake : data.min_stake_other);
+    const stakeable = data.resources.filter((r) => getResourceBalance(user, r.id) >= minStake(r.id));
+    const unit = (id: string) => data.resources.find((r) => r.id === id)?.name.toLowerCase() ?? id;
 
     if (!game) {
-        const balance = getResourceBalance(user, resourceId);
+        const chosen = stakeable.some((r) => r.id === resourceId) ? resourceId : stakeable[0]?.id;
+        const balance = chosen ? getResourceBalance(user, chosen) : 0;
+        const floor = chosen ? minStake(chosen) : data.min_stake;
         return (
             <div className="space-y-3">
                 {last && last.status !== "active" && (
@@ -61,35 +67,41 @@ export default function HigherLowerGame() {
                               + `la mise de ${last.stake.toLocaleString("fr-FR")} est perdue.`}
                     </p>
                 )}
-                <div className="flex gap-2">
-                    {RESOURCES.map((r) => (
-                        <button
-                            key={r.id}
-                            className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${resourceId === r.id ? "bg-accent text-white" : "bg-white/10 text-white/60"}`}
-                            onClick={() => setResourceId(r.id)}
-                        >
-                            {r.name}
-                        </button>
-                    ))}
-                </div>
+                {stakeable.length === 0 ? (
+                    <p className="text-white/40 text-[11px]">
+                        Rien à miser pour l'instant : il faut au moins {data.min_stake} pièces.
+                    </p>
+                ) : (
+                    <div className="flex gap-2 flex-wrap">
+                        {stakeable.map((r) => (
+                            <button
+                                key={r.id}
+                                className={`py-1.5 px-3 rounded-lg text-xs font-bold ${chosen === r.id ? "bg-accent text-white" : "bg-white/10 text-white/60"}`}
+                                onClick={() => { setResourceId(r.id); setStake(minStake(r.id)); }}
+                            >
+                                {r.name}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 <div className="flex items-center gap-2">
                     <input
-                        type="number" min={data.min_stake} max={data.max_stake} value={stake}
+                        type="number" min={floor} max={data.max_stake} value={stake}
                         onChange={(e) => setStake(Math.max(0, Number(e.target.value) || 0))}
                         className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
                     />
                     <span className="text-white/40 text-xs shrink-0">solde {balance.toLocaleString("fr-FR")}</span>
                 </div>
                 <p className="text-white/40 text-[11px]">
-                    Mise {data.min_stake} à {data.max_stake.toLocaleString("fr-FR")}. Pari risqué = gros gain. Encaisse dès la
+                    Mise {floor} à {data.max_stake.toLocaleString("fr-FR")}. Pari risqué = gros gain. Encaisse dès la
                     manche {data.min_cashout_step} ; une erreur fait tout perdre.
                 </p>
                 <Button
                     variant="primary" className="w-full" loading={start.isPending} success={start.isSuccess}
-                    disabled={stake < data.min_stake || stake > data.max_stake || stake > balance}
-                    onClick={() => start.mutate()}
+                    disabled={!chosen || stake < floor || stake > data.max_stake || stake > balance}
+                    onClick={() => chosen && start.mutate(chosen)}
                 >
-                    Miser {stake.toLocaleString("fr-FR")} {unit(resourceId)}
+                    Miser {stake.toLocaleString("fr-FR")} {chosen ? unit(chosen) : ""}
                 </Button>
             </div>
         );

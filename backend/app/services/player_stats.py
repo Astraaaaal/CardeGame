@@ -5,12 +5,14 @@ fétiche, plus gros doublon, type favori...), calculées à la demande.
 """
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import case
 from sqlmodel import select, func, or_
 
 from app.models.user import User
 from app.models.card import UserCard
 from app.models.character import Character
 from app.models.achievement import AchievementDef, UserAchievement
+from app.models.activity import HigherLowerGame
 from app.models.message import Message
 from app.models.social import FriendRequest
 from app.models.trade_session import TradeSession, STATUS_COMPLETED
@@ -25,6 +27,43 @@ from app.services.ranking import current_global_rank
 from app.models.reference import Rarity, Specialty, Jewelry
 
 DUST_ID = "dust"  # seule ressource secondaire pour l'instant (cf. app/api/collection.py::RECYCLE_RESOURCE_ID)
+
+
+async def higher_lower_record(session: AsyncSession, user_id: int) -> dict:
+    """Bilan du « plus ou moins », lu sur les parties elles-mêmes : rien n'est
+    compté à part, donc rien ne peut diverger. Une remise à zéro vide la table
+    et le bilan repart avec la saison.
+
+    Le solde est donné PAR RESSOURCE : additionner des pièces et de la poussière
+    ne voudrait rien dire. Les pièces passent devant, c'est la mise courante."""
+    rows = (await session.execute(
+        select(
+            HigherLowerGame.resource_id,
+            func.count().label("parties"),
+            func.sum(HigherLowerGame.stake).label("mise"),
+            func.sum(HigherLowerGame.payout).label("gain"),
+            func.sum(case((HigherLowerGame.status == "cashed", 1), else_=0)).label("encaissees"),
+        )
+        .where(HigherLowerGame.user_id == user_id, HigherLowerGame.status != "active")
+        .group_by(HigherLowerGame.resource_id)
+    )).all()
+    par_ressource = [
+        {
+            "resource_id": r.resource_id,
+            "games": int(r.parties or 0),
+            "won_games": int(r.encaissees or 0),
+            "wagered": int(r.mise or 0),
+            "returned": int(r.gain or 0),
+            "net": int(r.gain or 0) - int(r.mise or 0),
+        }
+        for r in rows
+    ]
+    par_ressource.sort(key=lambda d: (d["resource_id"] != "coins", -d["games"]))
+    return {
+        "games": sum(d["games"] for d in par_ressource),
+        "won_games": sum(d["won_games"] for d in par_ressource),
+        "by_resource": par_ressource,
+    }
 
 
 async def build_player_stats(session: AsyncSession, user: User) -> dict:
@@ -183,6 +222,7 @@ async def build_player_stats(session: AsyncSession, user: User) -> dict:
         "best_global_rank": user.best_global_rank,
         "best_login_streak": max(user.best_login_streak, user.login_streak),
         "login_days_total": user.login_days_total,
+        "higher_lower": await higher_lower_record(session, user.id),
         "daily_quests_completed": await count_quests_completed(session, user.id, "daily"),
         "weekly_quests_completed": await count_quests_completed(session, user.id, "weekly"),
     }
