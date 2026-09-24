@@ -154,7 +154,7 @@ export default function CardDetail({ open, card, quantity, onClose, readOnly, ca
                     <div className="absolute inset-0 bg-black/80" onClick={onClose} />
 
                     <motion.div
-                        className="relative flex flex-col items-center gap-3 max-w-sm w-full max-h-[88vh]"
+                        className="modal-viewport relative flex flex-col items-center gap-3 max-w-sm w-full"
                         initial={{ y: 30, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 30, opacity: 0 }}

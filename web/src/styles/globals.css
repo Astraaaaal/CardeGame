@@ -75,3 +75,28 @@
 @media (prefers-reduced-motion: reduce) {
     .animate-tuto-halo, .animate-tuto-core { animation: none; }
 }
+
+/* Fenêtres modales. `vh` mesure l'écran barre d'adresse RÉTRACTÉE : sur
+   téléphone, un panneau à 88vh dépasse donc le bas de la zone réellement
+   visible, et le bouton de validation qu'il porte en bas se retrouve coupé,
+   parfois hors d'atteinte. `dvh` suit la zone visible du moment ; on garde
+   `vh` en repli pour les navigateurs qui ne connaissent pas l'unité.
+   Le bas réserve en plus l'encoche ou la barre gestuelle. */
+.modal-viewport {
+    max-height: 88vh;
+    margin-bottom: env(safe-area-inset-bottom);
+}
+
+/* Un panneau qui porte lui-même son contenu : la marge du bas devient une
+   réserve intérieure, sous le dernier bouton. */
+.modal-panel {
+    max-height: 88vh;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+}
+
+@supports (height: 100dvh) {
+    .modal-viewport,
+    .modal-panel {
+        max-height: 88dvh;
+    }
+}

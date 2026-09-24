@@ -35,8 +35,8 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
 
                     {/* Panel */}
                     <motion.div
-                        className="relative bg-game-surface rounded-2xl p-6 max-w-md w-full max-h-[88vh] overflow-y-auto overscroll-contain
-                       border border-white/10 shadow-2xl"
+                        className="modal-panel relative bg-game-surface rounded-2xl p-6 max-w-md w-full
+                       overflow-y-auto overscroll-contain border border-white/10 shadow-2xl"
                         initial={{ scale: 0.9, y: 20 }}
                         animate={{ scale: 1, y: 0 }}
                         exit={{ scale: 0.9, y: 20 }}
