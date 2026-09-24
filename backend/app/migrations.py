@@ -6,6 +6,7 @@ manquantes — pas les colonnes ajoutées sur une table déjà existante).
 Chaque étape doit pouvoir être rejouée sans risque à chaque démarrage.
 """
 
+import copy
 import logging
 
 import json
@@ -13,6 +14,7 @@ import json
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
+from app.services.activities_config import DEFAULTS as ACTIVITIES_DEFAULTS
 from app.services.power import power_range, roll_power
 from app.services.resource_catalog import NEW_RESOURCES, converter_pairs
 
@@ -526,6 +528,7 @@ async def apply_patches(conn: AsyncConnection) -> None:
         logger.warning("seed game_config: %s", exc)
 
     await _add_resource_converter_pairs(conn)
+    await _replay_rebalance_settings(conn)
 
     # Backfill de la puissance (colonne ajoutée après coup) pour les cartes
     # déjà en base — chacune reçoit un tirage rétroactif, une seule fois.
@@ -579,6 +582,40 @@ async def _add_resource_converter_pairs(conn: AsyncConnection) -> None:
         )
     except Exception as exc:  # noqa: BLE001
         logger.warning("paires du convertisseur : %s", exc)
+
+
+# Réglages que la refonte de l'équilibrage a changés dans le code, et qu'une
+# base existante ne reprendrait jamais : `save_config` y fige une copie
+# COMPLÈTE des réglages, si bien qu'une nouvelle valeur par défaut n'atteint
+# pas le jeu. Rejoués une seule fois (marqueur), pour qu'un réglage refait
+# ensuite depuis l'admin reste maître.
+_REBALANCE_SETTINGS = (
+    "presence", "progression.presence_max", "unlocks.higher_lower", "unlocks.showcase",
+)
+
+
+async def _replay_rebalance_settings(conn: AsyncConnection) -> None:
+    marker = "rebalance_power_v2"
+    try:
+        row = (await conn.execute(text("SELECT activities FROM game_config WHERE id = 1"))).first()
+        stored = row[0] if row else None
+        if isinstance(stored, str):
+            stored = json.loads(stored)
+        if not stored or marker in stored.get("_applied", []):
+            return
+        for chemin in _REBALANCE_SETTINGS:
+            parties = chemin.split(".")
+            source, cible = ACTIVITIES_DEFAULTS, stored
+            for partie in parties[:-1]:
+                source = source[partie]
+                cible = cible.setdefault(partie, {})
+            cible[parties[-1]] = copy.deepcopy(source[parties[-1]])
+        stored["_applied"] = [*stored.get("_applied", []), marker]
+        await conn.execute(
+            text("UPDATE game_config SET activities = CAST(:v AS JSON) WHERE id = 1"), {"v": json.dumps(stored)},
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("rejeu des réglages d'équilibrage : %s", exc)
 
 
 async def _normalize_card_powers(conn: AsyncConnection) -> None:
