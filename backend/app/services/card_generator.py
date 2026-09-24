@@ -146,17 +146,21 @@ class CardGeneratorService:
 
         same_set = [c for c in characters if c["set_id"] == character["set_id"]]
         draw_prob = char_prob(characters)
-        drop_prob = char_prob(same_set)
-        # Probabilité qui fixe la PLAGE DE PUISSANCE : même calcul, mais le
-        # facteur « quel personnage » est ramené à un set de référence. Sans
-        # ça, agrandir un set rendrait toutes ses cartes plus puissantes, pour
-        # une rareté que le joueur ne perçoit pas.
-        power_prob = 1.0 / REFERENCE_SET_SIZE
+        # Facteur « quel personnage », ramené au set de référence : on garde le
+        # POIDS RELATIF du personnage dans son set (un personnage deux fois plus
+        # lourd reste deux fois plus courant) mais on efface la TAILLE du set.
+        # Sans ça, agrandir un set rendrait toutes ses cartes plus rares et plus
+        # puissantes, pour une rareté que le joueur ne perçoit pas ; et en
+        # écrasant tout à 1/10, on perdait au contraire le poids que l'admin
+        # donne à chaque personnage. Pour des poids égaux, le facteur vaut bien
+        # 1 / REFERENCE_SET_SIZE.
+        drop_prob = char_prob(same_set) * len(same_set) / REFERENCE_SET_SIZE
+        power_prob = drop_prob
         # Sa jumelle « chance comprise » : même base de référence, axes boostés.
         # Les deux ne diffèrent donc QUE par la chance du moment — sans ça, un
         # booster couvrant plus de dix personnages élargissait la plage de
         # tirage à lui seul et sortait la moitié des cartes au maximum.
-        power_draw_prob = 1.0 / REFERENCE_SET_SIZE
+        power_draw_prob = char_prob(same_set) * len(same_set) / REFERENCE_SET_SIZE
         for axis, items, min_id, weights in axes:
             draw_prob *= self._axis_factor(items, weights, axis, picked[axis], min_id)
             power_draw_prob *= self._axis_factor(items, weights, axis, picked[axis], min_id, True)

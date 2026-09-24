@@ -8,7 +8,7 @@ from app.models.level import LevelTier
 from app.models.reference import Jewelry, Quality, Rarity, Specialty
 from app.services import levels
 from app.services.card_generator import CardGeneratorService
-from app.services.power import power_cap
+from app.services.power import REFERENCE_SET_SIZE, power_cap
 from app.services.wallet import get_balance
 from tests.conftest import make_user
 
@@ -29,7 +29,10 @@ async def test_character_without_full_art_never_draws_it(session):
     await _reference(session, full_art=False)
     cards = await CardGeneratorService().generate_pack(session, ["s1"], cards_count=30, guaranteed_rare=False)
     assert {c["specialty_id"] for c in cards} == {"normal"}
-    assert all(abs(c["drop_probability"] - 1.0) < 1e-9 for c in cards)  # « normale » récupère la part du full art
+    # « Normale » récupère la part du full art. La rareté affichée ramène en plus
+    # le facteur personnage au set de référence (un seul personnage ici).
+    attendu = 1.0 / REFERENCE_SET_SIZE
+    assert all(abs(c["drop_probability"] - attendu) < 1e-9 for c in cards)
 
 
 async def test_character_with_full_art_can_draw_it(session):

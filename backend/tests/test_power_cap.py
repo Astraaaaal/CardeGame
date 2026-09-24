@@ -9,7 +9,12 @@ import pytest
 from app.models.character import Character, CharacterSet
 from app.models.reference import Jewelry, Quality, Rarity, Specialty
 from app.services.card_generator import CardGeneratorService
-from app.services.power import power_range, roll_drawn_power
+from app.services.power import REFERENCE_SET_SIZE, power_range, roll_drawn_power
+
+# Ces sets de test ne comptent qu'UN personnage. La rareté affichée ramène le
+# facteur « quel personnage » au set de référence : un set d'un seul personnage
+# compte donc pour 1 / REFERENCE_SET_SIZE, comme n'importe quel autre.
+UN_PERSONNAGE = 1 / REFERENCE_SET_SIZE
 
 
 async def _reference(session):
@@ -33,7 +38,7 @@ async def test_lucky_draw_never_exceeds_base_max(session):
             session, ["s1", "s2"], cards_count=1, guaranteed_rare=False, rarity_weight_multiplier=5.0,
         )
         # Probabilité de base : le set de la carte seul, raretés non modifiées.
-        expected = 0.9 if data["rarity_id"] == "common" else 0.1
+        expected = (0.9 if data["rarity_id"] == "common" else 0.1) * UN_PERSONNAGE
         assert abs(data["drop_probability"] - expected) < 1e-9
         assert data["draw_probability"] != data["drop_probability"]
         # La plage de puissance se calcule sur `power_probability` (taille de set
@@ -103,7 +108,7 @@ async def test_a_guarantee_costs_the_same_power_on_every_axis(session):
     # Même plage de puissance qu'une carte ordinaire : la garantie est neutre.
     assert avec["power_probability"] == pytest.approx(sans["power_probability"])
     # La rareté affichée, elle, dit la vérité : trois paliers sur quatre.
-    assert avec["drop_probability"] == pytest.approx(0.75)
+    assert avec["drop_probability"] == pytest.approx(0.75 * UN_PERSONNAGE)
 
 
 async def test_guarantee_raises_to_the_floor_without_boosting_higher_tiers(session):
@@ -124,8 +129,8 @@ async def test_guarantee_raises_to_the_floor_without_boosting_higher_tiers(sessi
         rarities.append(card["rarity_id"])
         if card["rarity_id"] == "epic":
             # Épique « garantie » : compte comme presque certaine (commune + épique remontées).
-            assert abs(card["drop_probability"] - 0.995) < 1e-9
+            assert abs(card["drop_probability"] - 0.995 * UN_PERSONNAGE) < 1e-9
         else:
-            assert abs(card["drop_probability"] - 0.005) < 1e-9  # légendaire : sa vraie rareté
+            assert abs(card["drop_probability"] - 0.005 * UN_PERSONNAGE) < 1e-9  # légendaire : sa vraie rareté
     assert "common" not in rarities
     assert rarities.count("legendary") / len(rarities) < 0.02  # ~0,5 %, pas ~5 %

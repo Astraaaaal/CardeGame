@@ -15,7 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection
 
 from app.services.activities_config import DEFAULTS as ACTIVITIES_DEFAULTS
-from app.services.power import power_range, roll_power
+from app.services.power import REFERENCE_SET_SIZE, power_range, roll_power
 from app.services.resource_catalog import NEW_RESOURCES, converter_pairs
 
 logger = logging.getLogger(__name__)
@@ -631,13 +631,25 @@ async def _seed_character_descriptions(conn: AsyncConnection) -> None:
 # COMPLÈTE des réglages, si bien qu'une nouvelle valeur par défaut n'atteint
 # pas le jeu. Rejoués une seule fois (marqueur), pour qu'un réglage refait
 # ensuite depuis l'admin reste maître.
-_REBALANCE_SETTINGS = (
-    "presence", "progression.presence_max", "unlocks.higher_lower", "unlocks.showcase",
+# Chaque lot porte son propre marqueur : ajouter une clé à un lot déjà joué
+# rejouerait tout le lot et écraserait des réglages faits en admin depuis.
+_REPLAYED_SETTINGS = (
+    ("rebalance_power_v2",
+     ("presence", "progression.presence_max", "unlocks.higher_lower", "unlocks.showcase")),
+    # L'amortissement de la part « puissance » a fait baisser la rareté globale,
+    # dont dépend la valeur d'échange d'une carte. L'ancrage descend de 4 à 2,5
+    # pour que la carte ordinaire retrouve la valeur qu'elle avait, sans rendre
+    # aux cartes extrêmes le prix démesuré qu'on vient justement de leur retirer.
+    ("trade_tax_anchor_v3", ("trade_tax.card_anchor",)),
 )
 
 
 async def _replay_rebalance_settings(conn: AsyncConnection) -> None:
-    marker = "rebalance_power_v2"
+    for marker, chemins in _REPLAYED_SETTINGS:
+        await _replay_one(conn, marker, chemins)
+
+
+async def _replay_one(conn: AsyncConnection, marker: str, chemins: tuple) -> None:
     try:
         row = (await conn.execute(text("SELECT activities FROM game_config WHERE id = 1"))).first()
         stored = row[0] if row else None
@@ -645,7 +657,7 @@ async def _replay_rebalance_settings(conn: AsyncConnection) -> None:
             stored = json.loads(stored)
         if not stored or marker in stored.get("_applied", []):
             return
-        for chemin in _REBALANCE_SETTINGS:
+        for chemin in chemins:
             parties = chemin.split(".")
             source, cible = ACTIVITIES_DEFAULTS, stored
             for partie in parties[:-1]:
@@ -673,8 +685,10 @@ async def _normalize_card_powers(conn: AsyncConnection) -> None:
     full_art_chars = {r.id for r in (await conn.execute(text("SELECT id FROM characters WHERE full_art"))).all()}
     link_weight = {(l.set_id, l.character_id): l.weight for l in links}
     set_totals: dict[str, float] = {}
+    set_counts: dict[str, int] = {}
     for l in links:
         set_totals[l.set_id] = set_totals.get(l.set_id, 0) + l.weight
+        set_counts[l.set_id] = set_counts.get(l.set_id, 0) + 1
 
     def frac(table: str, id_: str) -> float:
         total = totals[table]
@@ -682,13 +696,19 @@ async def _normalize_card_powers(conn: AsyncConnection) -> None:
 
     cards = (await conn.execute(text(
         "SELECT id, character_id, set_id, rarity_id, quality_id, specialty_id, jewelry_id, "
-        "drop_probability, power FROM user_cards"
+        "drop_probability, power_probability, power FROM user_cards"
     ))).all()
-    update = text("UPDATE user_cards SET drop_probability = :p, power = :power WHERE id = :id")
+    update = text(
+        "UPDATE user_cards SET drop_probability = :p, power_probability = :p, power = :power WHERE id = :id"
+    )
     changed = capped = 0
     for c in cards:
         total = set_totals.get(c.set_id, 0)
-        char = (link_weight.get((c.set_id, c.character_id), 0) / total) if total else 0.0
+        # Facteur personnage ramené au set de référence : le poids relatif du
+        # personnage est conservé, la taille du set est effacée (même calcul que
+        # card_generator._generate_single).
+        char = ((link_weight.get((c.set_id, c.character_id), 0) / total)
+                * set_counts.get(c.set_id, 0) / REFERENCE_SET_SIZE) if total else 0.0
         specialty = frac("specialties", c.specialty_id)
         if c.specialty_id == "normal" and c.character_id not in full_art_chars:
             specialty += frac("specialties", "full_art")
@@ -702,7 +722,9 @@ async def _normalize_card_powers(conn: AsyncConnection) -> None:
             power = n
             capped += 1
         old = c.drop_probability or 0.0
-        if power != c.power or abs(old - base) > base * 1e-9:
+        ancienne_puissance = c.power_probability or 0.0
+        if (power != c.power or abs(old - base) > base * 1e-9
+                or abs(ancienne_puissance - base) > base * 1e-9):
             await conn.execute(update, {"p": base, "power": power, "id": c.id})
             changed += 1
     if changed:

@@ -34,14 +34,19 @@ def reroll_axes(rules) -> list[str]:
 
 
 async def _recompute_probability(session: AsyncSession, card: UserCard) -> tuple[float, float]:
-    """Recalcule la probabilité AFFICHÉE et celle qui fixe la plage de puissance
-    (facteur personnage ramené au set de référence, cf. REFERENCE_SET_SIZE)."""
+    """Recalcule la probabilité affichée et celle qui fixe la plage de puissance.
+    Identiques depuis que les deux se lisent sur le set de référence, mais
+    gardées séparées : les cartes d'avant ce changement ont encore deux valeurs
+    différentes en base."""
     links = (await session.execute(
         select(CharacterSet).where(CharacterSet.set_id == card.set_id)
     )).scalars().all()
     char_total = sum(l.weight for l in links) or 0
     mine = next((l for l in links if l.character_id == card.character_id), None)
-    char_prob = (mine.weight / char_total) if (mine and char_total) else 0.0
+    # Même normalisation que le générateur : le poids RELATIF du personnage dans
+    # son set est conservé, la TAILLE du set est effacée (cf.
+    # card_generator._generate_single et REFERENCE_SET_SIZE).
+    char_prob = ((mine.weight / char_total) * len(links) / REFERENCE_SET_SIZE) if (mine and char_total) else 0.0
 
     async def frac(model, id_):
         rows = (await session.execute(select(model))).scalars().all()
@@ -61,7 +66,8 @@ async def _recompute_probability(session: AsyncSession, card: UserCard) -> tuple
     )
     # Pas d'arrondi : les combinaisons ultra-rares descendent sous 1e-12 et
     # tomberaient à 0 (plus aucune puissance possible).
-    return char_prob * axes, axes / REFERENCE_SET_SIZE
+    combinee = char_prob * axes
+    return combinee, combinee
 
 
 async def apply_reroll(session: AsyncSession, card: UserCard, rules) -> None:
