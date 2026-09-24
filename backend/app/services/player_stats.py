@@ -18,7 +18,7 @@ from app.models.social import FriendRequest
 from app.models.trade_session import TradeSession, STATUS_COMPLETED
 from app.services.card_view import build_card_response
 from app.services.power import combined_rarity as _combined_rarity
-from app.services.levels import get_all_tiers, current_level_for_power
+from app.services.levels import get_all_tiers, current_level_for_power, get_total_power
 from app.services.wallet import get_balance
 from app.services.achievements import (
     sync_unlocked, count_shop_purchases, count_quests_completed, collection_completion,
@@ -127,7 +127,12 @@ async def build_player_stats(session: AsyncSession, user: User) -> dict:
         oldest_card = await build_card_response(session, oldest)
 
     tiers = await get_all_tiers(session)
-    current_level = current_level_for_power(tiers, total_power)
+    # Le niveau se calcule sur les contributions PLAFONNÉES, pas sur la
+    # puissance brute affichée juste au-dessus (cf. LEVEL_CONTRIBUTION_CAP).
+    # Les deux sommes diffèrent dès qu'on possède des cartes puissantes : cette
+    # fiche annonçait donc un niveau plus élevé que celui dont dépendent les
+    # déblocages, le classement et la vitrine.
+    current_level = current_level_for_power(tiers, await get_total_power(session, user.id))
 
     # Débloque tout ce qui vient d'être atteint avant de compter — sinon un
     # joueur qui n'a jamais ouvert l'onglet Achievements verrait un compte
