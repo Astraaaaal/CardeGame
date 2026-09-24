@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { progressionApi } from "@/api/progression";
@@ -13,7 +13,16 @@ import ResourceIcon from "@/components/ui/ResourceIcon";
  */
 export default function TrophyRoad() {
     const { data, isLoading } = useQuery({ queryKey: ["level-tiers"], queryFn: progressionApi.getLevelTiers });
+    const { data: statut } = useQuery({ queryKey: ["level-status"], queryFn: progressionApi.getLevel });
     const { data: unlocks } = useUnlocks();
+
+    // La ligne se remplissait en fraction d'INDEX (7e palier sur 22 = 32 % de
+    // la hauteur). Les lignes n'ayant pas toutes la même hauteur — déblocages,
+    // bonus, boosters —, elle s'arrêtait à côté de la pastille visée, souvent
+    // un cran trop tôt. On mesure donc la position réelle des pastilles.
+    const conteneur = useRef<HTMLDivElement>(null);
+    const pastilles = useRef(new Map<number, HTMLDivElement | null>());
+    const [hauteur, setHauteur] = useState(0);
 
     // Paliers qui viennent de passer à « récupéré » : petite animation d'envol.
     const previous = useRef<Set<number> | null>(null);
@@ -33,21 +42,59 @@ export default function TrophyRoad() {
         previous.current = claimed;
     }, [data]);
 
+    // Dernier palier atteint, et progression DANS le palier en cours.
+    const atteints = (data ?? []).filter((t) => t.reached || t.claimed);
+    const dernierAtteint = atteints.length ? atteints[atteints.length - 1].level : null;
+    const suivant = (data ?? []).find((t) => dernierAtteint != null && t.level > dernierAtteint) ?? null;
+    const depart = statut?.current_level_power_required ?? 0;
+    const restant = (suivant?.power_required ?? depart) - depart;
+    const fraction = restant > 0 && statut
+        ? Math.max(0, Math.min(1, (statut.total_power - depart) / restant))
+        : 0;
+
+    const mesurer = useCallback(() => {
+        const boite = conteneur.current;
+        if (!boite || dernierAtteint == null) return setHauteur(0);
+        const hautBoite = boite.getBoundingClientRect().top;
+        const centre = (niveau: number) => {
+            const el = pastilles.current.get(niveau);
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            return r.top - hautBoite + r.height / 2;
+        };
+        const ici = centre(dernierAtteint);
+        if (ici == null) return setHauteur(0);
+        const la = suivant ? centre(suivant.level) : null;
+        // Jusqu'à la pastille atteinte, puis une part du chemin vers la suivante.
+        setHauteur(la != null ? ici + fraction * (la - ici) : ici);
+    }, [dernierAtteint, suivant, fraction]);
+
+    useLayoutEffect(() => {
+        mesurer();
+        const boite = conteneur.current;
+        if (!boite) return;
+        // Les lignes changent de hauteur (chargement des déblocages, rotation
+        // de l'écran) : la mesure doit suivre.
+        const observateur = new ResizeObserver(mesurer);
+        observateur.observe(boite);
+        return () => observateur.disconnect();
+    }, [mesurer, data, unlocks]);
+
     if (isLoading || !data) return <LoadingSpinner text="Chargement..." />;
 
     const featuresAt = (level: number) =>
         unlocks ? Object.values(unlocks.features).filter((f) => f.level === level && level > 1) : [];
-    const lastReached = data.reduce((acc, t, i) => (t.reached || t.claimed ? i : acc), 0);
-    const fill = data.length > 1 ? (lastReached / (data.length - 1)) * 100 : 0;
 
     return (
-        <div className="relative pl-8">
+        <div className="relative pl-8" ref={conteneur}>
             <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-white/10" />
-            {/* Progression jusqu'au dernier palier atteint, remplie en s'animant. */}
+            {/* Remplie jusqu'à la pastille du palier atteint, puis prolongée de
+                la part déjà parcourue vers la suivante. La ligne démarre à
+                top-2, d'où les 8 px retirés. */}
             <motion.div
                 className="absolute left-[15px] top-2 w-0.5 bg-gradient-to-b from-accent to-gold origin-top"
                 initial={{ height: 0 }}
-                animate={{ height: `calc(${fill}% - ${fill ? 8 : 0}px)` }}
+                animate={{ height: Math.max(0, hauteur - 8) }}
                 transition={{ duration: 1.2, ease: "easeOut", delay: 0.2 }}
             />
             {data.map((t, i) => {
@@ -58,6 +105,7 @@ export default function TrophyRoad() {
                     <motion.div key={t.level} className="relative mb-4 last:mb-0"
                         initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i, 12) * 0.04 }}>
                         <motion.div
+                            ref={(el) => { pastilles.current.set(t.level, el); }}
                             className={`absolute -left-8 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 z-10
                                 ${state === "claimed" ? "bg-accent border-accent text-white"
                                     : state === "reached" ? "bg-gold border-gold text-game-bg animate-pulse"
