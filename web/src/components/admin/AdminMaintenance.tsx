@@ -14,6 +14,9 @@ export default function AdminMaintenance() {
     const [message, setMessage] = useState("");
     const [confirm, setConfirm] = useState("");
     const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+    const [distinctionId, setDistinctionId] = useState("");
+    const [reason, setReason] = useState("");
+    const distinctionsQ = useQuery({ queryKey: ["admin", "distinctions"], queryFn: adminMaintenanceApi.listDistinctions });
 
     useEffect(() => { if (statusQ.data) setMessage(statusQ.data.message); }, [statusQ.data]);
 
@@ -29,7 +32,22 @@ export default function AdminMaintenance() {
         mutationFn: () => adminMaintenanceApi.resetAccounts(confirm),
         onSuccess: (r) => {
             setConfirm("");
-            setMsg({ text: `${r.users} comptes remis à zéro (${r.cards_removed.toLocaleString("fr-FR")} cartes supprimées). Tout le monde est déconnecté.`, ok: true });
+            qc.invalidateQueries({ queryKey: ["admin", "distinctions"] });
+            setMsg({
+                text: `${r.users} comptes remis à zéro (${r.cards_removed.toLocaleString("fr-FR")} cartes supprimées), `
+                    + `${r.founders_granted} distinction(s) de fondateur gravée(s). Tout le monde est déconnecté.`,
+                ok: true,
+            });
+        },
+        onError: (e) => setMsg({ text: errMsg(e), ok: false }),
+    });
+    const grant = useMutation({
+        mutationFn: () => adminMaintenanceApi.grantDistinctionToAll({
+            distinction_id: distinctionId, reason: reason.trim() || undefined,
+        }),
+        onSuccess: (r) => {
+            qc.invalidateQueries({ queryKey: ["admin", "distinctions"] });
+            setMsg({ text: `${r.granted} attribution(s) sur ${r.accounts} compte(s).`, ok: true });
         },
         onError: (e) => setMsg({ text: errMsg(e), ok: false }),
     });
@@ -71,9 +89,12 @@ export default function AdminMaintenance() {
                 <h3 className="text-white font-bold">Remettre tous les comptes à zéro</h3>
                 <p className="text-white/60 text-xs leading-relaxed">
                     Gardé : comptes (pseudo, e-mail, mot de passe), réglages, amis et groupes d'amis.<br />
+                    Gardé aussi, délibérément : les cosmétiques possédés et celui qui est porté, les distinctions
+                    permanentes, et l'historique des achats en euros — ce qui a été payé ne s'efface pas. Seules les
+                    limites « une fois par compte » se rouvrent.<br />
                     Effacé : cartes, ressources (retour aux montants de départ), boosters et rerolls stockés, niveaux, quêtes,
-                    achievements, statistiques, séries, activités, vitrine, cosmétiques et éclats, guildes, messages et cadeaux,
-                    échanges et annonces, demandes d'ami en attente, historique des achats (limites). Tout le monde est déconnecté.
+                    achievements, statistiques, séries, activités, vitrine, guildes, messages et cadeaux,
+                    échanges et annonces, demandes d'ami en attente. Tout le monde est déconnecté.
                     <br /><span className="text-red-300 font-semibold">Irréversible.</span>
                 </p>
                 <input className={inputCls} placeholder={`Tape ${CONFIRM_WORD} pour confirmer`}
@@ -81,6 +102,26 @@ export default function AdminMaintenance() {
                 <Button variant="danger" size="sm" disabled={confirm.trim() !== CONFIRM_WORD} loading={reset.isPending}
                     onClick={() => { setMsg(null); reset.mutate(); }}>
                     Remettre tous les comptes à zéro
+                </Button>
+            </section>
+
+            <section className="bg-game-surface border border-white/10 rounded-xl p-4 space-y-3">
+                <h3 className="text-white font-bold">Offrir une distinction à tous les comptes</h3>
+                <p className="text-white/50 text-xs leading-relaxed">
+                    À lancer <span className="font-semibold">après</span> la remise à zéro, et avant le message qui
+                    l'annonce. Relancer ne crée pas de doublon et ne retire rien.
+                </p>
+                <select className={inputCls} value={distinctionId} onChange={(e) => setDistinctionId(e.target.value)}>
+                    <option value="">Choisir une distinction…</option>
+                    {(distinctionsQ.data ?? []).map((d) => (
+                        <option key={d.id} value={d.id}>{d.name} — {d.holders} porteur(s)</option>
+                    ))}
+                </select>
+                <input className={inputCls} maxLength={100} placeholder="Raison (facultatif, ex. « première bêta »)"
+                    value={reason} onChange={(e) => setReason(e.target.value)} />
+                <Button variant="secondary" size="sm" disabled={!distinctionId} loading={grant.isPending}
+                    onClick={() => { setMsg(null); grant.mutate(); }}>
+                    Attribuer à tous les comptes
                 </Button>
             </section>
         </div>

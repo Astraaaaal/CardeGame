@@ -1,7 +1,7 @@
 import { inputCls, labelCls } from "@/components/ui/formStyles";
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { adminMessagesApi, type AdminMessageReward } from "@/api/admin";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { adminMessagesApi, adminPremiumApi, type AdminMessageReward } from "@/api/admin";
 import type { AdminBooster, AdminCharacter, AdminResource, Tuning } from "@/types/content";
 import Button from "@/components/ui/Button";
 import { errMsg } from "@/utils/errors";
@@ -44,6 +44,11 @@ function RewardForm({ kind, resources, boosters, characters, tuning, onAdd, onCa
     });
     const [powerMode, setPowerMode] = useState<"rolled" | "fixed">("rolled");
     const [power, setPower] = useState<number | "">("");
+    const [chosenIds, setChosenIds] = useState<string[]>([]);
+    const { data: cosmetics = [] } = useQuery({
+        queryKey: ["admin-cosmetics"], queryFn: adminPremiumApi.listCosmetics,
+        enabled: kind === "cosmetic_choice", staleTime: 60_000,
+    });
 
     const build = (): AdminMessageReward | null => {
         if (kind === "resource") return amount > 0 ? { kind, id: resourceId, amount } : null;
@@ -56,6 +61,11 @@ function RewardForm({ kind, resources, boosters, characters, tuning, onAdd, onCa
         if (kind === "reroll") {
             const anyAxis = AXES.some(([key]) => rules[key]);
             return anyAxis && label.trim() && amount > 0 ? { kind, label: label.trim(), quantity: amount, rules } : null;
+        }
+        // Entre deux et huit options : un « choix » à une seule option n'en est
+        // pas un, et au-delà de huit la liste devient un catalogue.
+        if (kind === "cosmetic_choice") {
+            return chosenIds.length >= 2 && chosenIds.length <= 8 ? { kind, ids: chosenIds } : null;
         }
         if (Object.values(card).some((v) => !v) || (powerMode === "fixed" && !power)) return null;
         return { kind, ...card, power_mode: powerMode, power: powerMode === "fixed" ? Number(power) : null };
@@ -160,6 +170,31 @@ function RewardForm({ kind, resources, boosters, characters, tuning, onAdd, onCa
                 </>
             )}
 
+            {kind === "cosmetic_choice" && (
+                <div className="space-y-1">
+                    <label className={labelCls}>Bordures proposées ({chosenIds.length} cochée(s), 2 à 8)</label>
+                    <div className="max-h-48 overflow-y-auto space-y-1">
+                        {cosmetics.map((c) => (
+                            <label key={c.id} className="flex items-center gap-2 text-white/80 text-xs cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={chosenIds.includes(c.id)}
+                                    onChange={(e) => setChosenIds(e.target.checked
+                                        ? [...chosenIds, c.id]
+                                        : chosenIds.filter((id) => id !== c.id))}
+                                />
+                                <span
+                                    className="w-4 h-4 rounded-full border border-white/20 shrink-0"
+                                    style={{ background: `linear-gradient(135deg, ${c.color_from}, ${c.color_to})` }}
+                                />
+                                {c.name}
+                            </label>
+                        ))}
+                        {cosmetics.length === 0 && <p className="text-white/40 text-xs">Aucun cosmétique.</p>}
+                    </div>
+                </div>
+            )}
+
             {kind === "card" && (
                 <>
                     {refSelect("character_id", "Personnage", characters)}
@@ -237,6 +272,7 @@ export default function AdminMessagesComposer(props: AdminMessagesComposerProps)
             const axes = AXES.filter(([key]) => r.rules[key]).map(([, name]) => name.toLowerCase()).join(" + ");
             return `🎲 ${r.label} ×${r.quantity} — ${axes}, ${r.rules.reroll_mode === "guaranteed_min" ? "garanti" : "aléatoire"}`;
         }
+        if (r.kind === "cosmetic_choice") return `🎨 Bordure au choix — ${r.ids.length} options`;
         return `🃏 ${[nameOf(characters, r.character_id), nameOf(tuning?.rarities ?? [], r.rarity_id),
             nameOf(tuning?.qualities ?? [], r.quality_id), nameOf(tuning?.specialties ?? [], r.specialty_id),
             nameOf(tuning?.jewelries ?? [], r.jewelry_id)].join(" · ")} — ${r.power_mode === "fixed" ? `⚡${r.power}` : "puissance tirée"}`;
@@ -303,7 +339,8 @@ export default function AdminMessagesComposer(props: AdminMessagesComposerProps)
                     />
                 ) : (
                     <div className="grid grid-cols-2 gap-2">
-                        {([["resource", "+ Ressource"], ["booster", "+ Booster"], ["reroll", "+ Reroll"], ["card", "+ Carte"]] as const).map(([kind, text]) => (
+                        {([["resource", "+ Ressource"], ["booster", "+ Booster"], ["reroll", "+ Reroll"],
+                           ["card", "+ Carte"], ["cosmetic_choice", "+ Bordure au choix"]] as const).map(([kind, text]) => (
                             <Button key={kind} variant="secondary" size="sm" disabled={rewards.length >= 20} onClick={() => setAdding(kind)}>
                                 {text}
                             </Button>

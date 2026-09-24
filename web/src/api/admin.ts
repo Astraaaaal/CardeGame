@@ -254,7 +254,9 @@ export type AdminMessageReward =
     | {
         kind: "card"; character_id: string; rarity_id: string; quality_id: string;
         specialty_id: string; jewelry_id: string; power_mode: "rolled" | "fixed"; power?: number | null;
-    };
+    }
+    // Le joueur n'en reçoit qu'un, celui qu'il désigne à la récupération.
+    | { kind: "cosmetic_choice"; ids: string[] };
 
 export const adminMessagesApi = {
     send: (b: SendAdminMessageBody) =>
@@ -338,9 +340,22 @@ export interface GameStatusAdmin {
     default_message: string;
 }
 
+export interface AdminDistinction {
+    id: string;
+    name: string;
+    description: string;
+    color: string;
+    active: boolean;
+    keeps_on_reset: boolean;
+    holders: number;
+}
+
 export const adminMaintenanceApi = {
     getStatus: () => httpRoot.get<GameStatusAdmin>("/game-status").then((r) => r.data),
     setStatus: (b: { closed: boolean; message: string }) => httpRoot.put<GameStatusAdmin>("/game-status", b).then((r) => r.data),
     resetAccounts: (confirm: string) =>
-        httpRoot.post<{ users: number; cards_removed: number }>("/reset-accounts", { confirm }).then((r) => r.data),
+        httpRoot.post<{ users: number; cards_removed: number; founders_granted: number }>("/reset-accounts", { confirm }).then((r) => r.data),
+    listDistinctions: () => httpRoot.get<AdminDistinction[]>("/distinctions").then((r) => r.data),
+    grantDistinctionToAll: (b: { distinction_id: string; reason?: string }) =>
+        httpRoot.post<{ accounts: number; granted: number }>("/distinctions/grant-all", b).then((r) => r.data),
 };
