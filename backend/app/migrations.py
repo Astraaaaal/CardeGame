@@ -196,6 +196,8 @@ _STATEMENTS = [
     # Borne des limites « une fois par compte » : les achats d'avant la
     # dernière remise à zéro ne bloquent plus les offres à usage unique.
     "ALTER TABLE game_config ADD COLUMN IF NOT EXISTS last_reset_at TIMESTAMP",
+    # Plage de puissance indépendante de la taille du set.
+    "ALTER TABLE user_cards ADD COLUMN IF NOT EXISTS power_probability DOUBLE PRECISION NOT NULL DEFAULT 0",
     # Jours de connexion déjà cumulés avant le compteur : au moins la meilleure série.
     "UPDATE users SET login_days_total = best_login_streak WHERE login_days_total < best_login_streak",
     # Achievements de série : basés sur la meilleure série atteinte (plus perdus si la série casse).
@@ -240,16 +242,28 @@ _PROTECTED_RESOURCES = {"coins", "shards"}
 _NON_TRADEABLE_RESOURCES = {"shards"}
 
 # Paliers de niveau par défaut (level, power_required, reward_amount en
-# pièces) — calibré sur le roster actuel (1 personnage) : à retoucher depuis
-# l'admin quand le roster grossit (la puissance moyenne par carte augmente
-# avec le nombre de personnages, cf. conversation de conception).
+# pièces). Calé sur la refonte de l'équilibrage : une carte apporte au plus
+# LEVEL_CONTRIBUTION_CAP au niveau, ce qui donne ~290 de progression par
+# booster. Le niveau 10 demande donc environ 90 boosters — deux journées en
+# jouant bien, trois en jouant mollement — et le niveau 20 reste à des
+# semaines. À retoucher depuis l'admin si l'économie bouge.
 _DEFAULT_LEVEL_TIERS = [
-    (1, 0, None), (2, 1_000, 100), (3, 2_500, 150), (4, 5_000, 200),
-    (5, 8_500, 300), (6, 13_000, 400), (7, 19_000, 500), (8, 27_000, 650),
-    (9, 37_000, 800), (10, 50_000, 1_000), (11, 65_000, 1_200), (12, 85_000, 1_500),
-    (13, 110_000, 1_800), (14, 140_000, 2_200), (15, 175_000, 2_700), (16, 220_000, 3_300),
-    (17, 275_000, 4_000), (18, 340_000, 4_800), (19, 420_000, 5_800), (20, 520_000, 7_000),
+    (1, 0, None), (2, 900, 100), (3, 2_000, 150), (4, 3_700, 200),
+    (5, 6_000, 300), (6, 8_800, 400), (7, 12_300, 500), (8, 16_200, 650),
+    (9, 20_500, 800), (10, 25_000, 1_000), (11, 30_000, 1_200), (12, 35_900, 1_500),
+    (13, 42_000, 1_800), (14, 49_000, 2_200), (15, 56_700, 2_700), (16, 64_500, 3_300),
+    (17, 73_500, 4_000), (18, 84_000, 4_800), (19, 95_500, 5_800), (20, 110_000, 7_000),
 ]
+
+# Ancien barème, d'avant la division des plafonds de puissance. Une base
+# existante garde ses lignes : on ne les remet à jour que si elles portent
+# encore EXACTEMENT l'ancienne valeur — un palier retouché en admin reste
+# intact (même précaution que pour les autres valeurs seedées).
+_PREVIOUS_LEVEL_TIERS = {
+    2: 1_000, 3: 2_500, 4: 5_000, 5: 8_500, 6: 13_000, 7: 19_000, 8: 27_000,
+    9: 37_000, 10: 50_000, 11: 65_000, 12: 85_000, 13: 110_000, 14: 140_000,
+    15: 175_000, 16: 220_000, 17: 275_000, 18: 340_000, 19: 420_000, 20: 520_000,
+}
 
 # id, name, description, category, metric, threshold, metric_param,
 # reward_resource_id, reward_amount, reward_booster_id
@@ -424,6 +438,18 @@ async def apply_patches(conn: AsyncConnection) -> None:
             })
         except Exception as exc:  # noqa: BLE001
             logger.warning("seed level tier %r: %s", level, exc)
+
+    rebalance_tier = text(
+        "UPDATE level_tiers SET power_required = :new WHERE level = :level AND power_required = :old"
+    )
+    for level, power_required, _ in _DEFAULT_LEVEL_TIERS:
+        ancienne = _PREVIOUS_LEVEL_TIERS.get(level)
+        if ancienne is None or ancienne == power_required:
+            continue
+        try:
+            await conn.execute(rebalance_tier, {"level": level, "new": power_required, "old": ancienne})
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("rebalance level tier %r: %s", level, exc)
 
     # Ne renseigne le booster-bonus que si la colonne est encore vide (ne
     # stomp pas un réglage déjà fait par un admin).

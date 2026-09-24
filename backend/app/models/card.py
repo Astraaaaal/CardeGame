@@ -34,6 +34,11 @@ class UserCard(SQLModel, table=True):
 
     # Probabilité calculée au moment de la génération
     drop_probability: float = Field(default=0.0)
+    # Probabilité utilisée pour la PLAGE DE PUISSANCE : le facteur personnage y
+    # est ramené à un set de référence, pour que la taille d'un set ne change
+    # pas la puissance de ses cartes. Nulle sur les cartes d'avant ce
+    # changement : on retombe alors sur `drop_probability`.
+    power_probability: float = Field(default=0.0)
 
     # Puissance tirée au hasard à l'obtention (cf. app/services/power.py) —
     # None si la carte n'a pas été obtenue par un tirage aléatoire.

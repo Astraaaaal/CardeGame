@@ -12,6 +12,7 @@ du précédent et rapporte la récompense du dernier palier, majorée, plus un b
 import math
 from types import SimpleNamespace
 
+from sqlalchemy import case
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, func
 
@@ -30,9 +31,23 @@ PRESTIGE_LEVELS = 100
 PRESTIGE_PREVIEW = 3
 
 
+# Ce qu'une carte apporte AU NIVEAU, au maximum. Sa puissance reste entière
+# partout ailleurs (fiche, classement, palmarès) : c'est seulement l'échelle
+# des niveaux qui cesse de voir une carte chanceuse comme trois cents cartes.
+# Sans ce plafond, un seul tirage heureux sautait dix niveaux d'un coup et la
+# progression suivait la chance au lieu de suivre l'effort.
+LEVEL_CONTRIBUTION_CAP = 150
+
+
 async def get_total_power(session: AsyncSession, user_id: int) -> int:
+    """Somme des contributions au niveau (puissances écrêtées), pas la
+    puissance brute — cf. LEVEL_CONTRIBUTION_CAP."""
+    contribution = case(
+        (UserCard.power > LEVEL_CONTRIBUTION_CAP, LEVEL_CONTRIBUTION_CAP),
+        else_=UserCard.power,
+    )
     total = (await session.execute(
-        select(func.sum(UserCard.power)).where(UserCard.user_id == user_id, UserCard.power != None)  # noqa: E711
+        select(func.sum(contribution)).where(UserCard.user_id == user_id, UserCard.power != None)  # noqa: E711
     )).scalar()
     return int(total or 0)
 

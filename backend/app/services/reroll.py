@@ -13,7 +13,7 @@ from sqlmodel import select
 from app.models.card import UserCard
 from app.models.character import Character, CharacterSet
 from app.models.reference import Rarity, Quality, Specialty, Jewelry
-from app.services.power import power_range, roll_power
+from app.services.power import REFERENCE_SET_SIZE, power_range, roll_power
 from app.services.card_generator import merge_full_art
 from app.services.tier_order import rank
 
@@ -33,8 +33,9 @@ def reroll_axes(rules) -> list[str]:
     ]
 
 
-async def _recompute_probability(session: AsyncSession, card: UserCard) -> float:
-    """Recalcule drop_probability après un reroll (une ou plusieurs valeurs ont changé)."""
+async def _recompute_probability(session: AsyncSession, card: UserCard) -> tuple[float, float]:
+    """Recalcule la probabilité AFFICHÉE et celle qui fixe la plage de puissance
+    (facteur personnage ramené au set de référence, cf. REFERENCE_SET_SIZE)."""
     links = (await session.execute(
         select(CharacterSet).where(CharacterSet.set_id == card.set_id)
     )).scalars().all()
@@ -52,16 +53,15 @@ async def _recompute_probability(session: AsyncSession, card: UserCard) -> float
     character = await session.get(Character, card.character_id)
     if card.specialty_id == "normal" and not (character and character.full_art):
         specialty += await frac(Specialty, "full_art")  # sans full art, sa part revient à « normale »
-    combined = (
-        char_prob
-        * await frac(Rarity, card.rarity_id)
+    axes = (
+        await frac(Rarity, card.rarity_id)
         * await frac(Quality, card.quality_id)
         * specialty
         * await frac(Jewelry, card.jewelry_id)
     )
     # Pas d'arrondi : les combinaisons ultra-rares descendent sous 1e-12 et
     # tomberaient à 0 (plus aucune puissance possible).
-    return combined
+    return char_prob * axes, axes / REFERENCE_SET_SIZE
 
 
 async def apply_reroll(session: AsyncSession, card: UserCard, rules) -> None:
@@ -87,14 +87,14 @@ async def apply_reroll(session: AsyncSession, card: UserCard, rules) -> None:
             continue
         setattr(card, _FIELD_MAP[axis], picked.id)
 
-    card.drop_probability = await _recompute_probability(session, card)
+    card.drop_probability, card.power_probability = await _recompute_probability(session, card)
     max_power = power_range(
-        card.drop_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id,
+        card.power_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id,
     )
     if rules.reroll_power or card.power is None:
         # Nouveau tirage dans la plage de la combinaison (éventuellement nouvelle).
         card.power = roll_power(
-            card.drop_probability, card.rarity_id, card.quality_id,
+            card.power_probability, card.rarity_id, card.quality_id,
             card.specialty_id, card.jewelry_id,
         )
     elif max_power is not None and card.power > max_power:
@@ -108,15 +108,15 @@ async def assign_bought_card_power(session: AsyncSession, card: UserCard, offer=
     """Carte obtenue sans tirage (achat d'une carte précise) : vraie probabilité
     de la combinaison, puis puissance fixée par l'offre (plafonnée au maximum
     possible) ou tirée dans la plage. Ne commit pas."""
-    card.drop_probability = await _recompute_probability(session, card)
+    card.drop_probability, card.power_probability = await _recompute_probability(session, card)
     max_power = power_range(
-        card.drop_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id,
+        card.power_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id,
     )
     if offer is not None and offer.card_power_mode == "fixed" and offer.card_power:
         card.power = min(offer.card_power, max_power) if max_power else offer.card_power
     else:
         card.power = roll_power(
-            card.drop_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id,
+            card.power_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id,
         )
 
 

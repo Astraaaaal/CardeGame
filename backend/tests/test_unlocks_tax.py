@@ -9,6 +9,7 @@ from fastapi import HTTPException
 from app.models.card import UserCard
 from app.models.level import LevelTier
 from app.services import activities_config, trade_tax, unlocks
+from app.services.levels import LEVEL_CONTRIBUTION_CAP
 from tests.conftest import make_user
 
 pytestmark = pytest.mark.real_levels
@@ -25,6 +26,13 @@ def _card(user_id, cid, power, prob=0.05, rarity="common"):
                     specialty_id="normal", jewelry_id="none", drop_probability=prob, power=power)
 
 
+def _cards(user_id, prefix, count):
+    """Une collection qui atteint un niveau donné. Chaque carte apporte au plus
+    LEVEL_CONTRIBUTION_CAP au niveau : on monte en collectionnant, pas sur un
+    seul tirage chanceux."""
+    return [_card(user_id, f"{prefix}{i}", LEVEL_CONTRIBUTION_CAP) for i in range(count)]
+
+
 async def test_features_unlock_by_highest_level_ever_reached(session):
     await _tiers(session)
     user = await make_user(session)
@@ -32,12 +40,14 @@ async def test_features_unlock_by_highest_level_ever_reached(session):
         await unlocks.require(session, user, "trades")
     assert exc.value.status_code == 403 and "niveau 5" in exc.value.detail
 
-    session.add(_card(user.id, "big", 450))
+    cards = _cards(user.id, "big", 3)  # 3 × 150 = 450 de contribution → niveau 5
+    session.add_all(cards)
     await session.commit()
     await unlocks.require(session, user, "trades")  # niveau 5 atteint
     assert user.max_level == 5
 
-    await session.delete(await session.get(UserCard, "big"))  # la puissance retombe
+    for card in cards:  # la puissance retombe
+        await session.delete(card)
     await session.commit()
     await unlocks.require(session, user, "trades")  # reste débloqué
     status = await unlocks.status(session, user)
@@ -51,7 +61,8 @@ async def test_progressions_follow_level(session):
     assert unlocks.presence_max_multiplier(cfg, 4) == 1.0
     assert unlocks.presence_max_multiplier(cfg, 5) == 1.2
     assert unlocks.presence_max_multiplier(cfg, 20) == 1.5
-    assert unlocks.higher_lower_max_stake(cfg, 6) == 500 and unlocks.higher_lower_max_stake(cfg, 30) == 5000
+    assert unlocks.higher_lower_max_stake(cfg, 7) == 0  # avant son niveau de déblocage
+    assert unlocks.higher_lower_max_stake(cfg, 8) == 500 and unlocks.higher_lower_max_stake(cfg, 30) == 5000
     assert unlocks.workshop_gauges(cfg, 2) == 10 and unlocks.workshop_gauges(cfg, 3) == 12
     assert [unlocks.converter_uses(cfg, lvl) for lvl in (6, 7, 12, 17)] == [0, 1, 2, 3]
 
@@ -65,7 +76,7 @@ async def test_card_value_and_rate(session):
     assert 900 < trade_tax.card_value(cfg, legendary) < 1100
 
     low, high = await make_user(session, "low"), await make_user(session, "high")
-    session.add(_card(high.id, "h", 2000))  # niveau 20
+    session.add_all(_cards(high.id, "h", 14))  # 14 × 150 = 2 100 → niveau 20
     await session.commit()
     assert await trade_tax.rate_for(session, low) == 0.05
     assert await trade_tax.rate_for(session, low, high) == 0.2  # 5 % + 15 niveaux × 1 %

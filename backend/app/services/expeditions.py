@@ -184,6 +184,7 @@ async def _generate_rare_card(session: AsyncSession, user: User, booster: Booste
         user_id=user.id, character_id=data["character_id"], set_id=data["set_id"],
         rarity_id=data["rarity_id"], quality_id=data["quality_id"], specialty_id=data["specialty_id"],
         jewelry_id=data["jewelry_id"], booster_id=booster.id, drop_probability=data["drop_probability"],
+        power_probability=data.get("power_probability") or 0.0,
         power=roll_drawn_power(data),
     )
     session.add(card)

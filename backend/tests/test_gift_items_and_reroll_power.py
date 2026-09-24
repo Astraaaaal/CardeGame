@@ -99,5 +99,7 @@ async def test_reroll_other_axis_keeps_power_but_caps_it_to_new_range(session):
         if card.rarity_id == "common":
             break
     assert card.rarity_id == "common"
-    cap = power_range(card.drop_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id)
+    # La plage se lit sur `power_probability` (set de référence), pas sur la
+    # rareté affichée.
+    cap = power_range(card.power_probability, card.rarity_id, card.quality_id, card.specialty_id, card.jewelry_id)
     assert cap < 900 and card.power == cap

@@ -17,16 +17,22 @@ from typing import Optional
 # Puissance maximale selon le palier atteint sur chaque caractéristique ;
 # une carte prend le plafond de sa meilleure caractéristique.
 TIER_CAPS = {
-    "rarity": {"common": 5_000, "rare": 10_000, "epic": 15_000, "legendary": 20_000},
+    "rarity": {"common": 500, "rare": 1_000, "epic": 1_500, "legendary": 2_000},
     "quality": {
-        "destroyed": 5_000, "unreadable": 5_000, "unplayable": 5_000, "damaged": 5_000, "torn": 5_000,
-        "scratched": 10_000, "faded": 10_000, "worn": 10_000, "fair": 15_000, "preserved": 15_000,
-        "excellent": 25_000, "graded": 25_000, "mint": 35_000, "authentic": 50_000,
+        "destroyed": 500, "unreadable": 500, "unplayable": 500, "damaged": 500, "torn": 500,
+        "scratched": 1_000, "faded": 1_000, "worn": 1_000, "fair": 1_500, "preserved": 1_500,
+        "excellent": 2_500, "graded": 2_500, "mint": 3_500, "authentic": 5_000,
     },
-    "specialty": {"normal": 5_000, "full_art": 25_000, "ex": 25_000, "shiny": 50_000},
-    "jewelry": {"none": 5_000, "silver": 10_000, "gold": 15_000, "diamond": 25_000, "prismatic": 35_000},
+    "specialty": {"normal": 500, "full_art": 2_500, "ex": 2_500, "shiny": 5_000},
+    "jewelry": {"none": 500, "silver": 1_000, "gold": 1_500, "diamond": 2_500, "prismatic": 3_500},
 }
-DEFAULT_CAP = 5_000
+DEFAULT_CAP = 500
+
+# Taille de set servant de référence au calcul de la puissance. Sans elle, un
+# set de 50 cartes rendrait chacune de ses cartes cinq fois plus rare — donc
+# cinq fois plus puissante — alors que le joueur voit la même carte banale.
+# La rareté AFFICHÉE garde la vraie taille du set : elle, elle est honnête.
+REFERENCE_SET_SIZE = 10
 
 
 def power_cap(rarity_id: str, quality_id: str, specialty_id: str, jewelry_id: str) -> int:
@@ -74,10 +80,13 @@ def roll_drawn_power(card_data: dict, rolls: int = 1) -> Optional[int]:
     plus de chances d'atteindre ce maximum, jamais de le dépasser.
     """
     axes = (card_data["rarity_id"], card_data["quality_id"], card_data["specialty_id"], card_data["jewelry_id"])
-    base_max = power_range(card_data["drop_probability"], *axes)
+    # `power_probability` ignore la taille du set (cf. REFERENCE_SET_SIZE) ;
+    # on retombe sur `drop_probability` pour les cartes d'avant ce changement.
+    base_prob = card_data.get("power_probability") or card_data["drop_probability"]
+    base_max = power_range(base_prob, *axes)
     if base_max is None:
         return None
-    draw_max = power_range(card_data.get("draw_probability") or card_data["drop_probability"], *axes) or base_max
+    draw_max = power_range(card_data.get("draw_probability") or base_prob, *axes) or base_max
     # Bonus « chances de puissance » : plusieurs tirages, le meilleur est gardé.
     best = max(random.randint(1, max(base_max, draw_max)) for _ in range(max(1, rolls)))
     return min(best, base_max)

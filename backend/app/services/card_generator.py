@@ -10,6 +10,7 @@ from sqlmodel import select
 
 from app.models.reference import Rarity, Quality, Specialty, Jewelry
 from app.models.character import Character, CharacterSet
+from app.services.power import REFERENCE_SET_SIZE
 from app.services.tier_order import rank
 
 
@@ -146,10 +147,17 @@ class CardGeneratorService:
         same_set = [c for c in characters if c["set_id"] == character["set_id"]]
         draw_prob = char_prob(characters)
         drop_prob = char_prob(same_set)
+        # Probabilité qui fixe la PLAGE DE PUISSANCE : même calcul, mais le
+        # facteur « quel personnage » est ramené à un set de référence. Sans
+        # ça, agrandir un set rendrait toutes ses cartes plus puissantes, pour
+        # une rareté que le joueur ne perçoit pas.
+        power_prob = 1.0 / REFERENCE_SET_SIZE
         for axis, items, min_id, weights in axes:
             draw_prob *= self._axis_factor(items, weights, axis, picked[axis], min_id)
             base = specialty_base if axis == "specialty" else base_weights(items)
-            drop_prob *= self._axis_factor(items, base, axis, picked[axis], min_id)
+            facteur_base = self._axis_factor(items, base, axis, picked[axis], min_id)
+            drop_prob *= facteur_base
+            power_prob *= facteur_base
 
         return {
             "character_id": character["id"],
@@ -162,6 +170,7 @@ class CardGeneratorService:
             "jewelry_id": jewelry.id,
             "drop_probability": drop_prob,
             "draw_probability": draw_prob,
+            "power_probability": power_prob,
             # Données enrichies pour la réponse
             "_character": character,
             "_rarity": rarity,

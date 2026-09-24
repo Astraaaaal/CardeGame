@@ -63,7 +63,8 @@ async def _random_card(session: AsyncSession, cfg: dict) -> dict:
         card = UserCard(
             user_id=0, character_id=data["character_id"], set_id=data["set_id"],
             rarity_id=data["rarity_id"], quality_id=data["quality_id"], specialty_id=data["specialty_id"],
-            jewelry_id=data["jewelry_id"], drop_probability=data["drop_probability"], power=power,
+            jewelry_id=data["jewelry_id"], drop_probability=data["drop_probability"],
+            power_probability=data.get("power_probability") or 0.0, power=power,
         )
         return (await build_card_response(session, card)).model_dump(mode="json")
     raise HTTPException(503, "Aucune carte disponible pour ce mini-jeu.")

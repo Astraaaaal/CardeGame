@@ -57,7 +57,11 @@ async def test_admin_message_grants_every_reward_once(session):
     [token] = await reroll_inventory.list_owned(session, user.id)
     assert (token["quantity"], token["axes"], token["reroll_mode"]) == (3, ["quality"], "guaranteed_min")
     [card] = (await session.execute(select(UserCard).where(UserCard.user_id == user.id))).scalars().all()
-    assert card.rarity_id == "legendary" and card.power == 100  # 1 / 0,01 : puissance fixe plafonnée
+    # 999 999 demandés, ramenés au maximum possible pour cette combinaison :
+    # une légendaire sur cent, ramenée au set de référence de dix, se tire donc
+    # sur 1 / (0,01 / 10) = 1 000 — en dessous du plafond de palier (2 000).
+    assert card.rarity_id == "legendary"
+    assert card.power == 1_000
 
     out = await messages.build_out(session, msg)
     assert out.reward_items[3].card.id == card.id

@@ -113,6 +113,7 @@ class PackService:
                     jewelry_id=card_data["jewelry_id"],
                     booster_id=booster.id,
                     drop_probability=card_data["drop_probability"],
+                    power_probability=card_data.get("power_probability") or 0.0,
                     power=power,
                     rendered_url=rendered_url,
                 )
@@ -147,6 +148,7 @@ class PackService:
                     jewelry_name=jewelry.name if jewelry else "Commune",
                     jewelry_color=jewelry.color if jewelry else [100, 100, 120],
                     drop_probability=card_data["drop_probability"],
+                    power_probability=card_data.get("power_probability") or 0.0,
                     power=power,
                     combined_rarity=combined_rarity(
                         power, card_data["drop_probability"], card_data["rarity_id"],

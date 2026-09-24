@@ -34,7 +34,9 @@ async def test_lucky_draw_never_exceeds_base_max(session):
         expected = 0.9 if data["rarity_id"] == "common" else 0.1
         assert abs(data["drop_probability"] - expected) < 1e-9
         assert data["draw_probability"] != data["drop_probability"]
-        base_max = power_range(data["drop_probability"], data["rarity_id"], "fair", "normal", "none")
+        # La plage de puissance se calcule sur `power_probability` (taille de set
+        # normalisée), pas sur la rareté affichée.
+        base_max = power_range(data["power_probability"], data["rarity_id"], "fair", "normal", "none")
         assert 1 <= roll_drawn_power(data) <= base_max
 
 

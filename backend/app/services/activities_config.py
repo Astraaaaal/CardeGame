@@ -86,7 +86,10 @@ DEFAULTS: dict = {
         "expeditions": 3, "resource_shop": 3, "showcase": 3,
         "gifts": 4, "wheel": 4,
         "trades": 5, "guild_join": 5, "presence_luck": 5,
-        "higher_lower": 6, "rerolls": 6,
+        "rerolls": 6,
+        # « Plus ou moins » se devine de mémoire tant que la collection est
+        # petite : on l'ouvre plus tard, quand elle ne se retient plus.
+        "higher_lower": 8,
         "listings": 7, "converter": 7,
         "machine": 8, "guild_create": 8,
     },

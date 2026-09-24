@@ -53,9 +53,9 @@ async def test_prestige_levels_follow_the_road(session):
 
 
 def test_power_cap_is_the_best_tier():
-    assert power_cap("common", "torn", "normal", "none") == 5_000
-    assert power_cap("rare", "torn", "normal", "none") == 10_000
-    assert power_cap("common", "fair", "normal", "gold") == 15_000
-    assert power_cap("legendary", "torn", "full_art", "none") == 25_000
-    assert power_cap("common", "mint", "normal", "none") == 35_000
-    assert power_cap("epic", "authentic", "normal", "none") == 50_000
+    assert power_cap("common", "torn", "normal", "none") == 500
+    assert power_cap("rare", "torn", "normal", "none") == 1_000
+    assert power_cap("common", "fair", "normal", "gold") == 1_500
+    assert power_cap("legendary", "torn", "full_art", "none") == 2_500
+    assert power_cap("common", "mint", "normal", "none") == 3_500
+    assert power_cap("epic", "authentic", "normal", "none") == 5_000
