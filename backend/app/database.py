@@ -21,6 +21,10 @@ def _prepare_url(raw_url: str) -> tuple[str, dict]:
     - hôte distant (non-local)   → SSL activé par défaut (Neon, Render, etc.)
     """
     url = raw_url
+    # SQLite : ni SSL ni réécriture de pilote. Sert aux outils lancés sur une
+    # copie locale (cf. tools/), la vraie base étant Postgres.
+    if url.startswith("sqlite"):
+        return url, {}
     if url.startswith("postgresql://"):
         url = "postgresql+asyncpg://" + url[len("postgresql://"):]
     if url.startswith("postgres://"):
